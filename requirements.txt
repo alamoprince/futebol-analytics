@@ -1,23 +1,18 @@
 # --- requirements.txt ---
 
-# Core Data Handling
-pandas>=2.0.0,<3.0.0
-numpy>=1.20.0,<2.0.0
-openpyxl>=3.0.0,<4.0.0 # Para ler .xlsx
+pandas>=1.5 # Para manipulação de dados e leitura de Excel/CSV
+numpy>=1.21 # Dependência numérica para pandas e sklearn
+scikit-learn>=1.1 # Biblioteca principal de Machine Learning (RF, LR, SVM, GNB, KNN, metrics, etc.)
+joblib>=1.1 # Para salvar/carregar modelos sklearn
+requests>=2.25 # Para buscar o CSV de jogos futuros do GitHub
+rich>=10.0 # Para a interface de linha de comando (dashboard.py)
+tqdm>=4.60 # Para barras de progresso em loops
+openpyxl>=3.0 # Necessário para pandas ler arquivos .xlsx (histórico)
+PyGithub>=1.55 # Para interagir com a API do GitHub (github_manager.py)
+python-dotenv>=0.19 # Para carregar variáveis de ambiente do arquivo .env (opcional, mas bom para tokens)
 
-# Machine Learning & Modeling
-scikit-learn>=1.1.0,<2.0.0 # Para treino, HPO, métricas
-joblib>=1.0.0,<2.0.0 # Para salvar/carregar modelos
+# Opcional: Instale se quiser testar o modelo LightGBM
+# lightgbm>=3.3
 
-# Web Scraping (para jogos futuros)
-selenium>=4.10.0,<5.0.0
-
-# Interface (se usar)
-rich>=13.0.0,<14.0.0 # Para CLI (dashboard.py)
-# tkinter (GUI) é built-in
-
-# Configuração
-python-dotenv>=1.0.0,<2.0.0
-
-# Utilitários
-tqdm>=4.60.0,<5.0.0
+# Nota: Tkinter (para main.py) geralmente vem com Python, mas pode precisar
+# ser instalado separadamente em algumas distribuições Linux (ex: sudo apt-get install python3-tk)
