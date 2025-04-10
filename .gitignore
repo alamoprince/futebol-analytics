@@ -1,0 +1,51 @@
+# --- .gitignore ---
+
+# Arquivos de Segredo e Configuração Local
+# Embora .env não seja mais usado para tokens, pode ser usado para outras configs
+*.env
+config.local.py
+
+# Arquivos de Dados Gerados e Modelos Salvos (NÃO versionar modelos grandes)
+data/*.joblib
+data/temp_*.csv
+# Considere se quer versionar os CSVs de odds/fixtures gerados
+# data/upcoming_odds_*.csv
+# *.log # Adicionar se gerar logs
+
+# Cache e arquivos compilados do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de Virtualenv
+venv/
+env/
+.venv/
+*/env/
+*/venv/
+*/.venv/
+
+# Arquivos de Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos de IDE e Ferramentas
+.idea/
+.vscode/
+*.swp
+*~
+
+# Arquivos de Teste (cobertura, etc.)
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Arquivos de Build e Distribuição
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Arquivos do Selenium/WebDriver (NÃO RECOMENDADO versionar executáveis)
+src/data/chromedriver.exe
+webdriver/
