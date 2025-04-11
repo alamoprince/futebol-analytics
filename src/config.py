@@ -57,7 +57,7 @@ FIXTURE_CSV_COL_MAP.update({ # Sobrescreve os que precisam de renomeação
 REQUIRED_FIXTURE_COLS = ['League', 'HomeTeam', 'AwayTeam', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over25_FT', 'Odd_BTTS_Yes']
 
 # Lista de Ligas Alvo - AJUSTE COM NOMES DO CSV (coluna 'League')
-TARGET_LEAGUES = [ "Brazil - Serie A", "Brazil - Serie B", # ... etc ...
+TARGET_LEAGUES = [ # ... etc ...
 ]
 
 # --- Configurações Gerais do Modelo ---
@@ -85,11 +85,7 @@ FEATURE_COLUMNS = [
     # Odds Diretas (do CSV ou Histórico)
     'Odd_H_FT',
     'Odd_D_FT',
-    'Odd_Over25_FT',
-    'Odd_BTTS_Yes',
     # Médias Rolling (Calculadas do Histórico)
-    'Media_Ptos_H',
-    'Media_Ptos_A',
     'Media_VG_H',
     'Media_VG_A',
     'Media_CG_H',
@@ -111,19 +107,19 @@ BEST_MODEL_METRIC = 'f1_score_draw' # Ou 'roi'
 
 # RandomForest (Grid Corrigido)
 rf_param_grid = {
-    'n_estimators': [100, 150, 250, 300],
+    'n_estimators': [100, 200],
     'max_depth': [10, 20, None], # Adicionado None de volta
     'criterion': ["gini", "entropy"],
     'max_features': ["sqrt", "log2"], # None removido (pode ser lento)
     'min_samples_split': [2, 5, 10], # Corrigido: mínimo é 2
-    'min_samples_leaf': [1, 2, 5], # Ajustado
+    'min_samples_leaf': [1, 2], # Ajustado
     'bootstrap': [True, False], # Corrigido: usar booleanos
     'class_weight': [None, 'balanced']
 }
 
 # Regressão Logística (Mantido da versão anterior)
 lr_param_grid = {
-    'C': [0.01, 0.1, 1, 10], 'penalty': ['l2'], 'solver': ['liblinear'],
+    'C': [0.1, 1, 10], 'penalty': ['l2'], 'solver': ['liblinear'],
     'class_weight': [None, 'balanced']
 }
 
@@ -136,18 +132,22 @@ lgbm_param_grid = {
 
 # SVM (SVC - Grid Adaptado/Corrigido)
 svm_param_grid = {
-    'C': [0.1, 1, 10],  # Menos opções para C
-    'gamma': [1, 0.1, 0.01], # Menos opções para gamma
-    'kernel': ['rbf', 'poly', 'linear'], # Sigmoid muitas vezes não performa bem
+    'C': [1, 10],  # Menos opções para C
+    'gamma': ['scale', 0.1], # Menos opções para gamma
+    'kernel': ['poly', 'rbf'], # Sigmoid muitas vezes não performa bem
     'degree': [2, 3], # Apenas relevante para kernel='poly'
     'class_weight': [None, 'balanced'],
-    # 'decision_function_shape': ['ovr'], # 'ovr' é padrão e suficiente para binário
-    # 'max_iter': [-1] # Padrão é -1 (sem limite), remover o 1
+    'decision_function_shape': ['ovo'],
+
 }
 
 # Gaussian Naive Bayes (Grid Corrigido)
 gnb_param_grid = {
-    'var_smoothing': np.logspace(0,-9, num=10) # Valores comuns para var_smoothing
+    'var_smoothing': np.logspace(-9, -2, num=15), # Corrigido: logspace para var_smoothing
+    'min_categories': [None, 0, 1, 2, 3, 4, 5],
+    'priors': [None, 0, 1, 2, 3, 4, 5],
+    'binarize': [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    'norm': [False, True],
 }
 
 # KNN (Grid Adaptado)
@@ -179,12 +179,13 @@ MODEL_CONFIG = {
     #    'needs_scaling': False
     #},
      'SVC': { # Support Vector Classifier
-        'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True, 'max_iter': -1}, # probability=True é necessário para predict_proba (e log_loss/AUC)
+        'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True}, # probability=True é necessário para predict_proba (e log_loss/AUC)
         'param_grid': svm_param_grid,
         'needs_scaling': True # SVM PRECISA de scaling
     },
     'GaussianNB': { # Gaussian Naive Bayes
-        'model_kwargs': {}, # Sem parâmetros iniciais importantes geralmente
+        'model_kwargs': {
+}, 
         'param_grid': gnb_param_grid,
         'needs_scaling': False # Geralmente não precisa, mas pode testar
     },

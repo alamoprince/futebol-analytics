@@ -30,7 +30,8 @@ def load_historical_data(file_path: str = HISTORICAL_DATA_PATH) -> Optional[pd.D
         df = df.rename(columns={GOALS_COLS['home']: 'Goals_H_FT', GOALS_COLS['away']: 'Goals_A_FT'})
         if 'Date' in df.columns: df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         dropna_check_cols = ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT'] + list(ODDS_COLS.values())
-        dropna_check_cols_exist = [col for col in dropna_check_cols if col in df.columns]; df = df.dropna(subset=dropna_check_cols_exist)
+        dropna_check_cols_exist = [col for col in dropna_check_cols if col in df.columns]; 
+        df = df.dropna(subset=dropna_check_cols_exist)
         if 'Date' in df.columns: df = df.sort_values(by='Date').reset_index(drop=True)
         num_cols_convert = ['Goals_H_FT', 'Goals_A_FT'] + list(ODDS_COLS.values()) + ['Odd_Over25_FT', 'Odd_BTTS_Yes']
         for col in num_cols_convert:
@@ -46,26 +47,45 @@ def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
     """Calcula FT_Result, IsDraw, Ptos, Probs, VG/CG raw no DataFrame."""
 
     df_calc = df.copy(); print("  Calculando stats intermediárias (Ptos, Probs, VG/CG raw)..."); epsilon = 1e-6
-    df_calc['FT_Result'] = np.select([df_calc['Goals_H_FT'] > df_calc['Goals_A_FT'], df_calc['Goals_H_FT'] == df_calc['Goals_A_FT']], ["H", "D"], default="A")
+    df_calc['FT_Result'] = np.select([df_calc['Goals_H_FT'] > df_calc['Goals_A_FT'], 
+                                      df_calc['Goals_H_FT'] == df_calc['Goals_A_FT']], ["H", "D"], 
+                                      default="A")
     df_calc['IsDraw'] = (df_calc['FT_Result'] == 'D').astype(int)
-    df_calc['Ptos_H'] = np.select([df_calc['FT_Result']=='H', df_calc['FT_Result']=='D'], [3, 1], default=0)
-    df_calc['Ptos_A'] = np.select([df_calc['FT_Result']=='A', df_calc['FT_Result']=='D'], [3, 1], default=0)
+    df_calc['Ptos_H'] = np.select([df_calc['FT_Result']=='H', 
+                                   df_calc['FT_Result']=='D'], [3, 1], default=0)
+    df_calc['Ptos_A'] = np.select([df_calc['FT_Result']=='A', 
+                                   df_calc['FT_Result']=='D'], [3, 1], default=0)
     if all(c in df_calc.columns for c in ODDS_COLS.values()):
-        df_calc['p_H'] = 1 / (df_calc[ODDS_COLS['home']] + epsilon); df_calc['p_A'] = 1 / (df_calc[ODDS_COLS['away']] + epsilon); df_calc['p_D'] = 1 / (df_calc[ODDS_COLS['draw']] + epsilon)
-    else: print("Aviso: Odds 1x2 ausentes p/ Probs."); df_calc[['p_H', 'p_A', 'p_D']] = np.nan
+        df_calc['p_H'] = 1 / (df_calc[ODDS_COLS['home']] + epsilon); 
+        df_calc['p_A'] = 1 / (df_calc[ODDS_COLS['away']] + epsilon); 
+        df_calc['p_D'] = 1 / (df_calc[ODDS_COLS['draw']] + epsilon)
+    else: 
+        print("Aviso: Odds 1x2 ausentes p/ Probs."); df_calc[['p_H', 'p_A', 'p_D']] = np.nan
     if 'p_H' in df_calc.columns and 'p_A' in df_calc.columns:
         df_calc['VG_H_raw'] = df_calc['Goals_H_FT'] * df_calc['p_A']; df_calc['VG_A_raw'] = df_calc['Goals_A_FT'] * df_calc['p_H']
-        df_calc['CG_H_raw'] = np.where(df_calc['Goals_H_FT'] > 0, df_calc['p_H'] / df_calc['Goals_H_FT'], np.nan); df_calc['CG_A_raw'] = np.where(df_calc['Goals_A_FT'] > 0, df_calc['p_A'] / df_calc['Goals_A_FT'], np.nan)
-    else: print("Aviso: Probs ausentes p/ VG/CG raw."); df_calc[['VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw']] = np.nan
+        df_calc['CG_H_raw'] = np.where(df_calc['Goals_H_FT'] > 0, df_calc['p_H'] / df_calc['Goals_H_FT'], np.nan);
+        df_calc['CG_A_raw'] = np.where(df_calc['Goals_A_FT'] > 0, df_calc['p_A'] / df_calc['Goals_A_FT'], np.nan)
+    else: 
+        print("Aviso: Probs ausentes p/ VG/CG raw."); 
+        df_calc[['VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw']] = np.nan
     return df_calc
 
 def calculate_rolling_stats(df: pd.DataFrame, stats_to_calc: List[str], window: int = ROLLING_WINDOW) -> pd.DataFrame:
     
     """Calcula médias móveis para as estatísticas especificadas."""
     
-    df_calc = df.copy(); teams = pd.concat([df_calc['Home'], df_calc['Away']]).unique(); team_history: Dict[str, Dict[str, List[float]]] = {team: {stat: [] for stat in stats_to_calc} for team in teams}; results_list = []; required_raw_cols = set(); rolling_cols_map = {}; cols_to_calculate = {}
+    df_calc = df.copy(); 
+    teams = pd.concat([df_calc['Home'], df_calc['Away']]).unique(); 
+    team_history: Dict[str, Dict[str, List[float]]] = {team: {stat: [] for stat in stats_to_calc} for team in teams}; 
+    results_list = []; 
+    required_raw_cols = set(); 
+    rolling_cols_map = {}; 
+    cols_to_calculate = {}
+
     for stat_prefix in stats_to_calc:
-        media_col_h = f'Media_{stat_prefix}_H'; media_col_a = f'Media_{stat_prefix}_A'; skip_h = skip_a = False
+        media_col_h = f'Media_{stat_prefix}_H'; 
+        media_col_a = f'Media_{stat_prefix}_A'; 
+        skip_h = skip_a = False
         if media_col_h in df_calc.columns and pd.api.types.is_numeric_dtype(df_calc[media_col_h]): skip_h = True
         if media_col_a in df_calc.columns and pd.api.types.is_numeric_dtype(df_calc[media_col_a]): skip_a = True
         if skip_h and skip_a: print(f"  Aviso: {media_col_h}/{media_col_a} já existem."); continue
@@ -74,7 +94,9 @@ def calculate_rolling_stats(df: pd.DataFrame, stats_to_calc: List[str], window: 
         elif stat_prefix == 'CG': base_h, base_a = 'CG_H_raw', 'CG_A_raw'; 
         else: print(f"Aviso: Prefixo '{stat_prefix}' desconhecido."); continue
         if base_h not in df_calc.columns or base_a not in df_calc.columns: print(f"Erro: Colunas base '{base_h}'/'{base_a}' não encontradas."); continue
-        required_raw_cols.add(base_h); required_raw_cols.add(base_a); rolling_cols_map[stat_prefix] = {'home': base_h, 'away': base_a}
+        required_raw_cols.add(base_h); 
+        required_raw_cols.add(base_a); 
+        rolling_cols_map[stat_prefix] = {'home': base_h, 'away': base_a}
         if not skip_h: cols_to_calculate[stat_prefix + '_H'] = media_col_h;
         if not skip_a: cols_to_calculate[stat_prefix + '_A'] = media_col_a
     if not cols_to_calculate: return df_calc
@@ -83,9 +105,15 @@ def calculate_rolling_stats(df: pd.DataFrame, stats_to_calc: List[str], window: 
         home_team = row['Home']; away_team = row['Away']; current_match_features = {'Index': index}
         for stat_prefix, base_cols in rolling_cols_map.items():
             media_col_h = f'Media_{stat_prefix}_H'; media_col_a = f'Media_{stat_prefix}_A'
-            if stat_prefix + '_H' in cols_to_calculate: hist_H = team_history[home_team][stat_prefix]; recent = hist_H[-window:]; current_match_features[media_col_h] = np.mean(recent) if len(recent) > 0 else np.nan
-            if stat_prefix + '_A' in cols_to_calculate: hist_A = team_history[away_team][stat_prefix]; recent = hist_A[-window:]; current_match_features[media_col_a] = np.mean(recent) if len(recent) > 0 else np.nan
-        results_list.append(current_match_features)
+            
+            if stat_prefix + '_H' in cols_to_calculate: hist_H = team_history[home_team][stat_prefix];
+            recent = hist_H[-window:]; 
+            current_match_features[media_col_h] = np.mean(recent) if len(recent) > 0 else np.nan
+            
+            if stat_prefix + '_A' in cols_to_calculate: hist_A = team_history[away_team][stat_prefix]; 
+            recent = hist_A[-window:]; current_match_features[media_col_a] = np.mean(recent) if len(recent) > 0 else np.nan
+            results_list.append(current_match_features)
+
         for stat_prefix, base_cols in rolling_cols_map.items():
             if pd.notna(row[base_cols['home']]): team_history[home_team][stat_prefix].append(row[base_cols['home']])
             if pd.notna(row[base_cols['away']]): team_history[away_team][stat_prefix].append(row[base_cols['away']])
@@ -99,11 +127,24 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
 
     """Calcula CV_HDA e Diff_Media_CG no DataFrame fornecido."""
 
-    df_calc = df.copy(); print("  Calculando features derivadas (CV_HDA, Diff_Media_CG)..."); epsilon = 1e-6
-    if all(c in df_calc.columns for c in ODDS_COLS.values()): odds_matrix = df_calc[list(ODDS_COLS.values())]; mean_odds = odds_matrix.mean(axis=1); std_odds = odds_matrix.std(axis=1); df_calc['CV_HDA'] = std_odds.div(mean_odds).fillna(0); df_calc.loc[mean_odds <= epsilon, 'CV_HDA'] = 0
-    else: print("Aviso: Odds 1x2 ausentes p/ CV_HDA."); df_calc['CV_HDA'] = np.nan
-    if 'Media_CG_H' in df_calc.columns and 'Media_CG_A' in df_calc.columns: df_calc['Diff_Media_CG'] = df_calc['Media_CG_H'] - df_calc['Media_CG_A']
-    else: print("Aviso: Médias CG ausentes p/ Diff_Media_CG."); df_calc['Diff_Media_CG'] = np.nan
+    df_calc = df.copy(); 
+    print("  Calculando features derivadas (CV_HDA, Diff_Media_CG)..."); 
+    epsilon = 1e-6
+
+    if all(c in df_calc.columns for c in ODDS_COLS.values()):
+        odds_matrix = df_calc[list(ODDS_COLS.values())]
+        mean_odds = odds_matrix.mean(axis=1)
+        std_odds = odds_matrix.std(axis=1)
+        df_calc['CV_HDA'] = std_odds.div(mean_odds).fillna(0)
+        df_calc.loc[mean_odds <= epsilon, 'CV_HDA'] = 0
+    else:
+        print("Aviso: Odds 1x2 ausentes p/ CV_HDA.")
+        df_calc['CV_HDA'] = np.nan
+    if 'Media_CG_H' in df_calc.columns and 'Media_CG_A' in df_calc.columns: 
+        df_calc['Diff_Media_CG'] = df_calc['Media_CG_H'] - df_calc['Media_CG_A']
+    else: 
+        print("Aviso: Médias CG ausentes p/ Diff_Media_CG."); 
+        df_calc['Diff_Media_CG'] = np.nan
     return df_calc
 
 
@@ -118,7 +159,8 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     df_with_rolling = calculate_rolling_stats(df_intermediate, stats_to_roll, window=ROLLING_WINDOW)
     df_with_derived = calculate_derived_features(df_with_rolling)
     # ... (Selecionar features e tratar NaNs) ...
-    print("  Selecionando features finais e tratando NaNs..."); target_col = 'IsDraw'
+    print("  Selecionando features finais e tratando NaNs..."); 
+    target_col = 'IsDraw'
     direct_odds_features = ['Odd_H_FT', 'Odd_D_FT', 'Odd_Over25_FT', 'Odd_BTTS_Yes']; # Features que vêm direto
     for f in direct_odds_features:
         if f not in df_with_derived.columns: df_with_derived[f] = np.nan # Garante que existam
@@ -138,22 +180,37 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
 def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
     
     if FIXTURE_FETCH_DAY == "tomorrow": target_date = date.today() + timedelta(days=1)
-    else: target_date = date.today()
-    date_str = target_date.strftime('%Y-%m-%d'); fixture_url = FIXTURE_CSV_URL_TEMPLATE.format(date_str=date_str)
+    else: 
+        target_date = date.today()
+        date_str = target_date.strftime('%Y-%m-%d'); 
+        fixture_url = FIXTURE_CSV_URL_TEMPLATE.format(date_str=date_str)
     print(f"\nBuscando jogos {FIXTURE_FETCH_DAY} ({date_str}): {fixture_url}")
-    try: response = requests.head(fixture_url, allow_redirects=True, timeout=10); response.raise_for_status(); print("Arquivo encontrado. Baixando..."); df_fix = pd.read_csv(fixture_url); print(f"CSV baixado. Shape: {df_fix.shape}")
+    try: 
+        response = requests.head(fixture_url, allow_redirects=True, timeout=10); 
+        response.raise_for_status(); 
+        print("Arquivo encontrado. Baixando..."); 
+        df_fix = pd.read_csv(fixture_url); 
+        print(f"CSV baixado. Shape: {df_fix.shape}")
     except Exception as e_load: print(f"Erro buscar/ler CSV: {e_load}"); return None
     try:
-        print("Processando CSV..."); cols_to_keep = list(FIXTURE_CSV_COL_MAP.keys()); cols_exist_in_df = [c for c in cols_to_keep if c in df_fix.columns];
+        print("Processando CSV..."); 
+        cols_to_keep = list(FIXTURE_CSV_COL_MAP.keys()); 
+        cols_exist_in_df = [c for c in cols_to_keep if c in df_fix.columns];
         if not cols_exist_in_df: print("Erro: Nenhuma coluna esperada no CSV."); return None
-        df_processed = df_fix[cols_exist_in_df].copy(); df_processed.rename(columns=FIXTURE_CSV_COL_MAP, inplace=True)
-        current_required_fixture_cols = REQUIRED_FIXTURE_COLS; missing_required = [c for c in current_required_fixture_cols if c not in df_processed.columns]
+        df_processed = df_fix[cols_exist_in_df].copy(); 
+        df_processed.rename(columns=FIXTURE_CSV_COL_MAP, inplace=True)
+        current_required_fixture_cols = REQUIRED_FIXTURE_COLS; 
+        missing_required = [c for c in current_required_fixture_cols if c not in df_processed.columns]
         if missing_required: print(f"Erro: Colunas essenciais pós-map ausentes no CSV: {missing_required}"); return None
         if TARGET_LEAGUES:
-            initial_count = len(df_processed); df_processed = df_processed[df_processed['League'].astype(str).isin(TARGET_LEAGUES)]
+            initial_count = len(df_processed); 
+            df_processed = df_processed[df_processed['League'].astype(str).isin(TARGET_LEAGUES)]
             print(f"Filtro ligas: {len(df_processed)} de {initial_count} jogos.");
             if df_processed.empty: return df_processed
-        df_processed.dropna(subset=current_required_fixture_cols, inplace=True); df_processed.reset_index(inplace=True, drop=True); print(f"Processamento CSV OK. Shape: {df_processed.shape}")
+        df_processed.dropna(subset=current_required_fixture_cols, inplace=True);
+        df_processed.reset_index(inplace=True, drop=True); 
+        print(f"Processamento CSV OK. Shape: {df_processed.shape}")
+
         return df_processed
     except Exception as e_proc: print(f"Erro processamento CSV: {e_proc}"); return None
 
@@ -173,9 +230,12 @@ def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, 
     print("  Processando histórico p/ cálculo de médias..."); start_time = time.time()
     # Chama função PÚBLICA
     historical_df_processed = calculate_historical_intermediate(historical_df.copy())
-    required_hist_cols = {'Home', 'Away', 'Date', 'Ptos_H', 'Ptos_A', 'VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw'}; missing_hist = [c for c in required_hist_cols if c not in historical_df_processed.columns]
+    required_hist_cols = {'Home', 'Away', 'Date', 'Ptos_H', 'Ptos_A', 'VG_H_raw', 
+                          'VG_A_raw', 'CG_H_raw', 'CG_A_raw'}; 
+    missing_hist = [c for c in required_hist_cols if c not in historical_df_processed.columns]
     if missing_hist: print(f"Erro: Colunas intermediárias ausentes no histórico: {missing_hist}"); return None
-    historical_df_processed = historical_df_processed.sort_values(by='Date', ascending=False); teams_in_hist = pd.concat([historical_df_processed['Home'], historical_df_processed['Away']]).unique()
+    historical_df_processed = historical_df_processed.sort_values(by='Date', ascending=False); 
+    teams_in_hist = pd.concat([historical_df_processed['Home'], historical_df_processed['Away']]).unique()
     print(f"  Histórico processado em {time.time() - start_time:.2f} seg.")
 
     # 2. Calcular Médias Rolling para jogos futuros (Função interna ainda necessária aqui)
@@ -184,7 +244,10 @@ def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, 
     rolling_features_list = []
     fixture_indices = fixture_df.index
     for index in tqdm(fixture_indices, total=len(fixture_indices), desc="Calc. Rolling Futuro"): # ... (lógica interna como V12) ...
-        future_match = fixture_df.loc[index]; home_team = future_match.get('HomeTeam'); away_team = future_match.get('AwayTeam'); match_rolling = {'Index': index}
+        future_match = fixture_df.loc[index]; 
+        home_team = future_match.get('HomeTeam'); 
+        away_team = future_match.get('AwayTeam'); 
+        match_rolling = {'Index': index}
         for team_perspective, team_name in [('H', home_team), ('A', away_team)]:
             for stat_prefix in stats_to_roll:
                 media_val = np.nan
@@ -211,5 +274,6 @@ def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, 
     if missing_final: print(f"Aviso: Colunas finais ausentes: {missing_final}. Serão NaN."); #... (add NaNs)...
     X_fixture_prepared = df_with_derived[feature_columns].copy()
     nan_counts = X_fixture_prepared.isnull().sum()
-    if nan_counts.sum() > 0: print(f"Aviso: {nan_counts.sum()} NaNs. Preenchendo com 0."); X_fixture_prepared = X_fixture_prepared.fillna(0)
+    if nan_counts.sum() > 0: print(f"Aviso: {nan_counts.sum()} NaNs. Preenchendo com 0."); 
+    X_fixture_prepared = X_fixture_prepared.fillna(0)
     print(f"Features finais preparadas. Shape: {X_fixture_prepared.shape}"); return X_fixture_prepared
