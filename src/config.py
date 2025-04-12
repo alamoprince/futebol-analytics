@@ -3,8 +3,8 @@ import os
 import numpy as np
 from datetime import date, timedelta
 import random
-# from dotenv import load_dotenv
-# load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,16 +12,26 @@ DATA_DIR = os.path.join(BASE_DIR, 'data')
 SRC_DIR = os.path.join(BASE_DIR, 'src')
 
 # --- Configuração do Modelo "Back Draw" ---
-MODEL_TYPE_NAME = "BackDraw"
-MODEL_SUFFIX = "_backdraw_best_v2" # Novo sufixo para o arquivo
+MODEL_TYPE_NAME = "BackDraw_MultiSelect"
+MODEL_SUFFIX_F1 = "_backdraw_best_f1" # Sufixo para melhor F1
+MODEL_SUFFIX_ROI = "_backdraw_best_roi" # Sufixo para melhor ROI (ou 2nd F1)
 
 # Arquivo de Dados Históricos (Excel)
 HISTORICAL_DATA_FILENAME = "Brasileirao_A_e_B (1).xlsx"
 HISTORICAL_DATA_PATH = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME)
 
-# Arquivo do MELHOR Modelo Treinado (BackDraw)
-DEFAULT_MODEL_FILENAME = f"best_model{MODEL_SUFFIX}.joblib"
-MODEL_SAVE_PATH = os.path.join(DATA_DIR, DEFAULT_MODEL_FILENAME)
+# --- Arquivos dos Modelos Salvos ---
+BEST_F1_MODEL_FILENAME = f"best_model{MODEL_SUFFIX_F1}.joblib"
+BEST_F1_MODEL_SAVE_PATH = os.path.join(DATA_DIR, BEST_F1_MODEL_FILENAME)
+
+BEST_ROI_MODEL_FILENAME = f"best_model{MODEL_SUFFIX_ROI}.joblib"
+BEST_ROI_MODEL_SAVE_PATH = os.path.join(DATA_DIR, BEST_ROI_MODEL_FILENAME)
+
+MODEL_SAVE_PATH = BEST_F1_MODEL_SAVE_PATH # Caminho padrão para salvar o modelo
+
+# Identificadores para exibir na GUI/CLI
+MODEL_ID_F1 = "Melhor F1 (Empate)"
+MODEL_ID_ROI = "Melhor ROI (Empate)"
 
 # --- Configurações da Fonte de Dados de Jogos Futuros (CSV GitHub) ---
 FIXTURE_FETCH_DAY = "today"
@@ -54,7 +64,8 @@ FIXTURE_CSV_COL_MAP.update({ # Sobrescreve os que precisam de renomeação
     # 'CSV_Nome_BTTSN': 'Odd_BTTS_No',
 })
 # Colunas internas essenciais após ler e mapear o CSV
-REQUIRED_FIXTURE_COLS = ['League', 'HomeTeam', 'AwayTeam', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over25_FT', 'Odd_BTTS_Yes']
+REQUIRED_FIXTURE_COLS = ['League', 'HomeTeam', 'AwayTeam', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 
+                         'Odd_Over25_FT', 'Odd_BTTS_Yes']
 
 # Lista de Ligas Alvo - AJUSTE COM NOMES DO CSV (coluna 'League')
 TARGET_LEAGUES = [ # ... etc ...
