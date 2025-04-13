@@ -104,6 +104,14 @@ FEATURE_COLUMNS = [
     # Diferença Rolling (Calculada)
     'Diff_Media_CG',
 ]
+NEW_FEATURE_COLUMNS = [
+         'p_D_norm', 'abs_ProbDiff_Norm',
+         'Media_VG_H', 'Media_VG_A', 'Media_CG_H', 'Media_CG_A',
+         'Std_CG_H', 'Std_CG_A',
+         'Odd_D_Cat' # A 9ª feature (binning)
+]
+
+FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
 
 # --- Métrica para Selecionar o Melhor Modelo ---
 BEST_MODEL_METRIC = 'f1_score_draw'
