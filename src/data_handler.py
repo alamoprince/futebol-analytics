@@ -19,6 +19,22 @@ from urllib.error import HTTPError, URLError
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
+def roi(y_test: pd.Series, y_pred: np.ndarray, X_test_odds_aligned: pd.DataFrame, odd_draw_col_name: str) -> Optional[float]:
+    if X_test_odds_aligned is None:
+        return None
+    predicted_draws_indices = y_test.index[y_pred == 1]
+    num_bets = len(predicted_draws_indices)
+    if num_bets == 0:
+        return 0
+    actuals = y_test.loc[predicted_draws_indices]
+    odds = X_test_odds_aligned.loc[predicted_draws_indices, odd_draw_col_name].astype(float)
+    profit = 0
+    for idx in predicted_draws_indices:
+        odd_d = odds.loc[idx]
+        if pd.notna(odd_d) and odd_d > 0:
+            profit += (odd_d - 1) if actuals.loc[idx] == 1 else -1
+    return (profit / num_bets) * 100
+
 # Função load_historical_data
 def load_historical_data(file_path: str = HISTORICAL_DATA_PATH) -> Optional[pd.DataFrame]:
     """Carrega histórico, verifica colunas base e converte."""

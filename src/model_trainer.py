@@ -1,5 +1,3 @@
-# --- src/model_trainer.py ---
-# START OF MODIFICATIONS - V14
 import pandas as pd
 import time
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -13,6 +11,8 @@ except ImportError: print("AVISO: LightGBM não instalado."); lgb = None; LGBMCl
 from sklearn.metrics import (accuracy_score, classification_report, log_loss, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix)
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import joblib, os, datetime, numpy as np, logging
+
+from data_handler import roi
 from config import (
     RANDOM_STATE, TEST_SIZE, MODEL_CONFIG, CLASS_NAMES,
     BEST_F1_MODEL_SAVE_PATH, BEST_ROI_MODEL_SAVE_PATH, # NOVOS Paths
@@ -237,3 +237,154 @@ def save_model_scaler_features(model: Any, scaler: Optional[Any], feature_names:
                                file_path: str) -> None:
      print("AVISO: Função save_model_scaler_features não é mais chamada diretamente pelo pipeline principal.")
      _save_single_model_object({'model_object': model, 'scaler': scaler, 'params': best_params, 'metrics': eval_metrics}, feature_names, file_path)
+
+def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFrame, pd.DataFrame]]:
+    """
+    Analisa features: calcula importância (RF rápido) e correlação.
+
+    Args:
+        X: DataFrame com as features selecionadas (deve conter FEATURE_COLUMNS).
+        y: Series com o alvo binário ('IsDraw').
+
+    Returns:
+        Tupla (df_importancia, df_correlacao) ou None se erro.
+        df_importancia: DataFrame com colunas ['Feature', 'Importance']
+        df_correlacao: DataFrame da matriz de correlação (incluindo alvo)
+    """
+    # Ensure logging is configured if you use logging.info/error below
+    # logging.basicConfig(level=logging.INFO, format='%(asctime)s - ANALYZER - %(levelname)s - %(message)s')
+
+    logging.info("--- Iniciando Análise de Features (chamado externamente) ---")
+    if X is None or y is None or X.empty or y.empty:
+        logging.error("Dados inválidos para análise de features.")
+        return None
+    # Ensure y is aligned with X's index if they came from different processing steps
+    if not X.index.equals(y.index):
+        logging.warning("Índices de X e y não são idênticos. Tentando alinhar y ao índice de X.")
+        try:
+            y = y.reindex(X.index)
+            if y.isnull().any():
+                 logging.error("Alinhamento de y resultou em NaNs. Verifique os dados de entrada.")
+                 return None
+        except Exception as e_reindex:
+             logging.error(f"Erro ao alinhar y com X: {e_reindex}")
+             return None
+
+
+    feature_names = X.columns.tolist()
+    imp_df = pd.DataFrame({'Feature': feature_names, 'Importance': np.nan}) # Default com NaN
+    corr_matrix = pd.DataFrame() # Default vazio
+
+    # 1. Calcular Importância com RandomForest Rápido
+    logging.info("  Calculando importância (RandomForest rápido)...")
+    try:
+        # Usa poucos estimadores e limita profundidade para rapidez
+        # Use RANDOM_STATE from config if desired
+        rf_analyzer = RandomForestClassifier(n_estimators=50, max_depth=15,
+                                             # random_state=RANDOM_STATE, # Optional
+                                             n_jobs=-1,
+                                             min_samples_leaf=3)
+        rf_analyzer.fit(X, y)
+        importances = rf_analyzer.feature_importances_
+        imp_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+        imp_df = imp_df.sort_values(by='Importance', ascending=False).reset_index(drop=True)
+        logging.info("  Importância calculada.")
+    except Exception as e:
+        logging.error(f"  Erro ao calcular importância com RF: {e}")
+        # imp_df já está com NaNs
+
+    # 2. Calcular Correlação
+    logging.info("  Calculando matriz de correlação...")
+    try:
+        df_temp = X.copy()
+        df_temp['target_IsDraw'] = y # Adiciona alvo para correlação direta
+        # Calcula correlação de Pearson por padrão
+        corr_matrix = df_temp.corr()
+        logging.info("  Matriz de correlação calculada.")
+    except Exception as e:
+        logging.error(f"  Erro ao calcular correlação: {e}")
+        # corr_matrix já está vazia
+
+    logging.info("--- Análise de Features Concluída ---")
+    return imp_df, corr_matrix
+
+def roi(y_test: pd.Series, y_pred: np.ndarray, X_test_odds_aligned: pd.DataFrame, odd_draw_col_name: str) -> Optional[float]:
+        if X_test_odds_aligned is None:
+            return None
+        predicted_draws_indices = y_test.index[y_pred == 1]
+        num_bets = len(predicted_draws_indices)
+        if num_bets == 0:
+            return 0
+        actuals = y_test.loc[predicted_draws_indices]
+        odds = X_test_odds_aligned.loc[predicted_draws_indices, odd_draw_col_name].astype(float)
+        profit = 0
+        for idx in predicted_draws_indices:
+            odd_d = odds.loc[idx]
+            if pd.notna(odd_d) and odd_d > 0:
+                profit += (odd_d - 1) if actuals.loc[idx] == 1 else -1
+        return (profit / num_bets) * 100
+
+def optimize_single_model(model_name: str, X: pd.DataFrame, y: pd.Series,
+                           X_test_with_odds: Optional[pd.DataFrame] = None, # Requer dados de teste p/ ROI
+                           progress_callback: Optional[Callable[[int, int, str], None]] = None, # Para reportar Grid
+                           scaler_type: str = 'standard',
+                           odd_draw_col_name: str = ODDS_COLS['draw']
+                           ) -> Optional[Tuple[str, Dict, Dict]]:
+    """
+    (Placeholder) Otimiza hiperparâmetros para um único modelo usando GridSearchCV.
+    (Implementação real seria similar ao loop dentro de train_evaluate_and_save_best_models)
+    """
+    logging.info(f"--- Otimizando Hiperparâmetros para: {model_name} (Placeholder) ---")
+    logging.warning("Implementação real de optimize_single_model (GridSearchCV/Avaliação) pendente.")
+
+    if X is None or y is None or model_name not in MODEL_CONFIG:
+        logging.error("Dados inválidos ou modelo não encontrado no config.")
+        return None
+
+    # --- Lógica de exemplo (NÃO EXECUTA TREINO REAL AINDA) ---
+    # 1. Pegar config do modelo
+    config = MODEL_CONFIG[model_name]
+    model_kwargs = config.get('model_kwargs', {})
+    param_grid = config.get('param_grid', {})
+    needs_scaling = config.get('needs_scaling', False)
+
+    # 2. Separar Treino/Teste (para avaliação final das métricas)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y)
+    X_test_odds_aligned = None
+    if X_test_with_odds is not None:
+        if odd_draw_col_name in X_test_with_odds.columns:
+            try: X_test_odds_aligned = X_test_with_odds.loc[X_test.index]
+            except KeyError: pass # Ignora se falhar
+
+    # 3. Aplicar Scaling (se necessário)
+    X_train_opt = X_train.copy(); X_test_opt = X_test.copy(); scaler_opt = None
+    if needs_scaling:
+         try: X_train_opt, X_test_opt, scaler_opt = scale_features(X_train_opt, X_test_opt, scaler_type)
+         except Exception: print("Erro scaling na otimização"); return None # Falha se scaling der erro
+
+    # 4. RODAR GRIDSEARCHCV 
+         search_cv = GridSearchCV(...)
+         search_cv.fit(X_train_opt, y_train)
+         best_model_opt = search_cv.best_estimator_
+         best_params_opt = search_cv.best_params_
+         best_cv_score_opt = search_cv.best_score_
+
+    # 5. AVALIAR NO TESTE 
+         y_pred = best_model_opt.predict(X_test_opt)
+         eval_metrics_opt = {"accuracy": accuracy_score(y_test, y_pred), 
+                             "f1_score_draw": f1_score(y_test, y_pred, pos_label=1), 
+                             "roi": roi(y_test, y_pred, X_test_odds_aligned, odd_draw_col_name),
+                               "num_bets": len(y_test)}
+
+    # --- Simulação de Retorno ---
+    best_params_placeholder = {"param_simulado": "valor_simulado", **param_grid} # Usa a grade como exemplo
+    best_cv_score_placeholder = 0.65 # Exemplo
+    eval_metrics_placeholder = {"accuracy": 0.75, "f1_score_draw": 0.55, "roi": 5.0, "num_bets": 50}
+
+    logging.info("Otimização concluída (Placeholder).")
+    logging.info(f"  Melhor Score CV (f1): {best_cv_score_placeholder:.4f}")
+    logging.info(f"  Melhores Parâmetros (simulado): {best_params_placeholder}")
+    logging.info(f"  Métricas Teste (simulado): {eval_metrics_placeholder}")
+
+    # Retorna nome, best_params, eval_metrics
+    return model_name, best_params_placeholder, eval_metrics_placeholder
