@@ -198,6 +198,84 @@ def calculate_rolling_std(df: pd.DataFrame, stats_to_calc: List[str], window: in
     df_final = df_calc.join(df_rolling_stdev[cols_to_join]) if cols_to_join else df_calc
     return df_final
 
+def calculate_rolling_stats(df: pd.DataFrame, stats_to_calc: List[str], window: int = ROLLING_WINDOW) -> pd.DataFrame:
+    """Calcula médias móveis para as estatísticas especificadas."""
+    df_calc = df.copy();
+    teams = pd.concat([df_calc['Home'], df_calc['Away']]).unique();
+    team_history: Dict[str, Dict[str, List[float]]] = {team: {stat: [] for stat in stats_to_calc} for team in teams};
+    results_list = [];
+    rolling_cols_map = {};
+    cols_to_calculate = {} # Quais colunas de médias REALMENTE calcular
+
+    print(f"  Iniciando cálculo Médias Rolling (Janela={window})...")
+    # Define mapeamentos e verifica quais colunas calcular
+    for stat_prefix in stats_to_calc:
+        media_col_h = f'Media_{stat_prefix}_H'; media_col_a = f'Media_{stat_prefix}_A'
+        skip_h = skip_a = False
+        # Verifica se já existe e é numérico
+        if media_col_h in df_calc.columns and pd.api.types.is_numeric_dtype(df_calc[media_col_h]): skip_h = True
+        if media_col_a in df_calc.columns and pd.api.types.is_numeric_dtype(df_calc[media_col_a]): skip_a = True
+
+        if skip_h and skip_a: print(f"    Aviso: {media_col_h}/{media_col_a} já existem."); continue
+
+        # Define colunas base ( PRECISAM EXISTIR APÓS calculate_historical_intermediate )
+        if stat_prefix == 'Ptos': base_h, base_a = 'Ptos_H', 'Ptos_A'
+        elif stat_prefix == 'VG': base_h, base_a = 'VG_H_raw', 'VG_A_raw'
+        elif stat_prefix == 'CG': base_h, base_a = 'CG_H_raw', 'CG_A_raw'
+        else: print(f"    Aviso: Prefixo Média '{stat_prefix}' desconhecido."); continue
+
+        if base_h not in df_calc.columns or base_a not in df_calc.columns:
+            print(f"    Erro Média: Colunas base '{base_h}'/'{base_a}' não encontradas."); continue
+
+        rolling_cols_map[stat_prefix] = {'home': base_h, 'away': base_a}
+        if not skip_h: cols_to_calculate[stat_prefix + '_H'] = media_col_h
+        if not skip_a: cols_to_calculate[stat_prefix + '_A'] = media_col_a
+
+    if not cols_to_calculate:
+        print("    Nenhuma Média Rolling nova a calcular.")
+        return df_calc
+
+    print(f"    Calculando Médias rolling para: {list(cols_to_calculate.keys())}")
+
+    calculated_stats = []
+    # Itera pelas linhas do DataFrame
+    for index, row in tqdm(df_calc.iterrows(), total=len(df_calc), desc="Calc. Rolling Médias"):
+        home_team = row['Home']; away_team = row['Away']
+        current_match_features = {'Index': index}
+
+        # Calcula média para time da casa para cada stat necessária
+        for stat_prefix, base_cols in rolling_cols_map.items():
+             media_col_h = f'Media_{stat_prefix}_H'
+             if stat_prefix + '_H' in cols_to_calculate: # Calcula apenas se necessário
+                  hist_H = team_history[home_team][stat_prefix]
+                  recent = hist_H[-window:]
+                  # Calcula média apenas se houver dados recentes
+                  current_match_features[media_col_h] = np.mean(recent) if len(recent) > 0 else np.nan # Média!
+
+        # Calcula média para time visitante
+        for stat_prefix, base_cols in rolling_cols_map.items():
+            media_col_a = f'Media_{stat_prefix}_A'
+            if stat_prefix + '_A' in cols_to_calculate:
+                hist_A = team_history[away_team][stat_prefix]
+                recent = hist_A[-window:]
+                current_match_features[media_col_a] = np.mean(recent) if len(recent) > 0 else np.nan # Média!
+
+        calculated_stats.append(current_match_features)
+
+        # Atualiza histórico DEPOIS de calcular para a linha atual
+        for stat_prefix, base_cols in rolling_cols_map.items():
+            # Adiciona valor base ao histórico *se não for NaN*
+            if pd.notna(row[base_cols['home']]): team_history[home_team][stat_prefix].append(row[base_cols['home']])
+            if pd.notna(row[base_cols['away']]): team_history[away_team][stat_prefix].append(row[base_cols['away']])
+
+    # Cria DataFrame com os resultados e junta ao original
+    df_rolling_means = pd.DataFrame(calculated_stats).set_index('Index')
+
+    # Junta apenas as colunas que foram realmente calculadas
+    cols_to_join = [col for col in cols_to_calculate.values() if col in df_rolling_means.columns]
+    print(f"  Médias Rolling calculadas. Colunas adicionadas: {cols_to_join}")
+    df_final = df_calc.join(df_rolling_means[cols_to_join]) if cols_to_join else df_calc
+    return df_final
 
 def calculate_binned_features(df: pd.DataFrame) -> pd.DataFrame:
     """Cria features categóricas (bins). Requer Odd_D_FT."""
@@ -239,6 +317,93 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     return df_calc
 
 # --- PIPELINE DE TREINAMENTO (Histórico) ---
+
+def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
+    """Calcula FT_Result, IsDraw, Ptos, Probs, VG/CG raw no DataFrame."""
+    df_calc = df.copy()
+    print("  Calculando stats intermediárias (Resultado, Pontos, VG/CG raw)...")
+    epsilon = 1e-6
+
+    # Usa nomes das colunas de gols do config.py
+    goals_h_col = GOALS_COLS.get('home', 'Goals_H_FT') # Default se config não tiver
+    goals_a_col = GOALS_COLS.get('away', 'Goals_A_FT')
+
+    # --- Cálculo de Resultado e Pontos ---
+    if goals_h_col in df_calc.columns and goals_a_col in df_calc.columns:
+        # Garante que gols sejam numéricos, tratando erros
+        h_goals = pd.to_numeric(df_calc[goals_h_col], errors='coerce')
+        a_goals = pd.to_numeric(df_calc[goals_a_col], errors='coerce')
+
+        df_calc['FT_Result'] = np.select(
+            [h_goals > a_goals, h_goals == a_goals],
+            ["H", "D"],
+            default="A"
+        )
+        # Define IsDraw baseado no resultado calculado
+        df_calc['IsDraw'] = (df_calc['FT_Result'] == 'D').astype(int)
+
+        # Calcula Pontos baseado no resultado
+        df_calc['Ptos_H'] = np.select(
+            [df_calc['FT_Result'] == 'H', df_calc['FT_Result'] == 'D'],
+            [3, 1], default=0
+        )
+        df_calc['Ptos_A'] = np.select(
+            [df_calc['FT_Result'] == 'A', df_calc['FT_Result'] == 'D'],
+            [3, 1], default=0
+        )
+        # Remove linhas onde resultado ou pontos não puderam ser calculados (gols NaN)
+        # É melhor dropar NaN mais tarde, após calcular tudo que for possível
+        # df_calc = df_calc.dropna(subset=['FT_Result']) # REMOVA o dropna daqui
+        print("    -> Resultado (FT_Result, IsDraw) e Pontos (Ptos_H/A) calculados.")
+    else:
+        print(f"    Aviso: Colunas de Gols ('{goals_h_col}', '{goals_a_col}') não encontradas. Resultado/Pontos não calculados.")
+        df_calc[['FT_Result', 'IsDraw', 'Ptos_H', 'Ptos_A']] = np.nan
+
+
+    # --- Cálculo de Probabilidades Implícitas (pode ser redundante se calculate_probabilities for chamada depois) ---
+    #    Mas é bom ter aqui para VG/CG raw dependerem apenas desta função
+    required_odds = list(ODDS_COLS.values())
+    if all(c in df_calc.columns for c in required_odds):
+        if not all(p in df_calc.columns for p in ['p_H', 'p_D', 'p_A']): # Calcula só se já não existirem
+             print("    Calculando probabilidades implícitas (p_H/D/A)...")
+             for col in required_odds: df_calc[col] = pd.to_numeric(df_calc[col], errors='coerce')
+             odd_h = df_calc[ODDS_COLS['home']].replace(0, epsilon)
+             odd_d = df_calc[ODDS_COLS['draw']].replace(0, epsilon)
+             odd_a = df_calc[ODDS_COLS['away']].replace(0, epsilon)
+             df_calc['p_H'] = (1 / odd_h).fillna(np.nan) # Usar NaN se odd for NaN
+             df_calc['p_D'] = (1 / odd_d).fillna(np.nan)
+             df_calc['p_A'] = (1 / odd_a).fillna(np.nan)
+        else:
+            print("    -> Probabilidades implícitas (p_H/D/A) já existem.")
+    else:
+        print("    Aviso: Odds 1x2 ausentes para calcular Probabilidades.")
+        df_calc[['p_H', 'p_D', 'p_A']] = np.nan # Garante que colunas existem como NaN se odds faltarem
+
+    # --- Cálculo de VG/CG Raw ---
+    prob_cols_needed = ['p_H', 'p_A']
+    goal_cols_needed = [goals_h_col, goals_a_col]
+    if all(c in df_calc.columns for c in prob_cols_needed + goal_cols_needed):
+         # Garante que gols e probs são numéricos
+         h_goals = pd.to_numeric(df_calc[goals_h_col], errors='coerce')
+         a_goals = pd.to_numeric(df_calc[goals_a_col], errors='coerce')
+         p_H = pd.to_numeric(df_calc['p_H'], errors='coerce')
+         p_A = pd.to_numeric(df_calc['p_A'], errors='coerce')
+
+         # VG raw - Requer Gols e Prob do Oponente
+         df_calc['VG_H_raw'] = h_goals * p_A
+         df_calc['VG_A_raw'] = a_goals * p_H
+
+         # CG raw - Requer Gols e Prob Própria. Cuidado com divisão por zero.
+         df_calc['CG_H_raw'] = np.where(h_goals > 0, p_H / h_goals, np.nan) # NaN se 0 gols
+         df_calc['CG_A_raw'] = np.where(a_goals > 0, p_A / a_goals, np.nan) # NaN se 0 gols
+         print("    -> Valor/Custo do Gol (VG/CG raw) calculados.")
+    else:
+         print("    Aviso: Colunas de Gols ou Probabilidades ausentes para calcular VG/CG raw.")
+         df_calc[['VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw']] = np.nan
+
+    print("  Cálculo de stats intermediárias concluído.")
+    return df_calc
+
 def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.Series, List[str]]]:
     """Pipeline BackDraw: Calcula/Verifica TODAS as features NOVAS no histórico."""
     if df_loaded is None: return None
@@ -260,8 +425,7 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     stats_to_roll_mean = ['VG', 'CG'] # Não precisamos mais de Ptos? Verificar.
     # Placeholder for calculate_rolling_stats function
     # Replace this with the actual implementation or logic
-    df_rolling_mean = df_probs_norm.copy()  # Assuming no rolling stats for now
-
+    df_rolling_mean = calculate_rolling_stats(df_probs_norm, stats_to_roll_mean, window=ROLLING_WINDOW)
     # 4. Calcular Desvio Padrão Rolling (CG)
     stats_to_roll_std = ['CG'] # Adicionamos apenas Std para CG por agora
     df_rolling_std = calculate_rolling_std(df_rolling_mean, stats_to_roll_std, window=ROLLING_WINDOW)
