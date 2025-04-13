@@ -109,22 +109,35 @@ def train_evaluate_and_save_best_models( # Nome da função mudou
         logging.info("  Avaliando..."); current_eval_metrics = {}
         if progress_callback: progress_callback(i, len(available_models), f"Avaliando {model_name}...")
         try: # ... (Cálculo de métricas e ROI ) ...
-             has_predict_proba = hasattr(model_instance_trained, "predict_proba"); y_pred = model_instance_trained.predict(X_test_model); y_pred_proba_draw = None; logloss = None; roc_auc = None
-             if has_predict_proba: #... (calcula probs, logloss, roc_auc) ...
-                 try: y_pred_proba_full = model_instance_trained.predict_proba(X_test_model); y_pred_proba_draw = y_pred_proba_full[:, 1]; logloss = log_loss(y_test, y_pred_proba_full); roc_auc = roc_auc_score(y_test, y_pred_proba_draw)
-                 except Exception as e_proba: logging.warning(f"    Erro probs: {e_proba}")
-             current_eval_metrics['accuracy'] = accuracy_score(y_test, y_pred); current_eval_metrics['precision_draw'] = precision_score(y_test, y_pred, pos_label=1, zero_division=0); current_eval_metrics['recall_draw'] = recall_score(y_test, y_pred, pos_label=1, zero_division=0); current_eval_metrics['f1_score_draw'] = f1_score(y_test, y_pred, pos_label=1, zero_division=0); current_eval_metrics['confusion_matrix'] = confusion_matrix(y_test, y_pred).tolist(); current_eval_metrics['log_loss'] = logloss; current_eval_metrics['roc_auc'] = roc_auc; current_eval_metrics['threshold'] = 0.5; current_eval_metrics['train_set_size'] = len(y_train); current_eval_metrics['test_set_size'] = len(y_test); current_eval_metrics['profit'] = None; current_eval_metrics['roi'] = None; current_eval_metrics['num_bets'] = 0
-             if X_test_odds_aligned is not None: # ... (cálculo ROI) ...
+            has_predict_proba = hasattr(model_instance_trained, "predict_proba"); y_pred = model_instance_trained.predict(X_test_model); y_pred_proba_draw = None; logloss = None; roc_auc = None
+            if has_predict_proba: #... (calcula probs, logloss, roc_auc) ...
+                try: y_pred_proba_full = model_instance_trained.predict_proba(X_test_model); y_pred_proba_draw = y_pred_proba_full[:, 1]; logloss = log_loss(y_test, y_pred_proba_full); roc_auc = roc_auc_score(y_test, y_pred_proba_draw)
+                except Exception as e_proba: logging.warning(f"    Erro probs: {e_proba}")
+            current_eval_metrics['accuracy'] = accuracy_score(y_test, y_pred); current_eval_metrics['precision_draw'] = precision_score(y_test, y_pred, pos_label=1, zero_division=0); current_eval_metrics['recall_draw'] = recall_score(y_test, y_pred, pos_label=1, zero_division=0); current_eval_metrics['f1_score_draw'] = f1_score(y_test, y_pred, pos_label=1, zero_division=0); current_eval_metrics['confusion_matrix'] = confusion_matrix(y_test, y_pred).tolist(); current_eval_metrics['log_loss'] = logloss; current_eval_metrics['roc_auc'] = roc_auc; current_eval_metrics['threshold'] = 0.5; current_eval_metrics['train_set_size'] = len(y_train); current_eval_metrics['test_set_size'] = len(y_test); current_eval_metrics['profit'] = None; current_eval_metrics['roi'] = None; current_eval_metrics['num_bets'] = 0
+            if X_test_odds_aligned is not None: # ... (cálculo ROI) ...
                 predicted_draws_indices = X_test.index[y_pred == 1]; num_bets = len(predicted_draws_indices); current_eval_metrics['num_bets'] = num_bets
                 if num_bets > 0: #... (calcula profit) ...
-                     actuals = y_test.loc[predicted_draws_indices]; odds = X_test_odds_aligned.loc[predicted_draws_indices, odd_draw_col_name].astype(float); profit = 0
-                     for idx in predicted_draws_indices: odd_d = odds.loc[idx]; 
-                     if pd.notna(odd_d) and odd_d > 0: profit += (odd_d - 1) if actuals.loc[idx] == 1 else -1
-                     current_eval_metrics['profit'] = profit; current_eval_metrics['roi'] = (profit / num_bets) * 100 if num_bets > 0 else 0
-             logging.info(f"    Métricas {model_name}: Acc={current_eval_metrics['accuracy']:.3f}, F1_Emp={current_eval_metrics['f1_score_draw']:.3f}, ROI={current_eval_metrics.get('roi', 'N/A'):.2f}%")
-
+                    actuals = y_test.loc[predicted_draws_indices]; odds = X_test_odds_aligned.loc[predicted_draws_indices, odd_draw_col_name].astype(float); profit = 0
+                    for idx in predicted_draws_indices: odd_d = odds.loc[idx]; 
+                    if pd.notna(odd_d) and odd_d > 0: profit += (odd_d - 1) if actuals.loc[idx] == 1 else -1
+                    current_eval_metrics['profit'] = profit; current_eval_metrics['roi'] = (profit / num_bets) * 100 if num_bets > 0 else 0
+            logging.info(f"    Métricas {model_name}: Acc={current_eval_metrics['accuracy']:.3f}, F1_Emp={current_eval_metrics['f1_score_draw']:.3f}, ROI={current_eval_metrics.get('roi', 'N/A'):.2f}%")
+            
+            if hasattr(model_instance_trained, 'feature_importances_'):
+                importances = model_instance_trained.feature_importances_
+                 # Usa 'feature_names' que foi definido no início da função
+                feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+                feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False).reset_index(drop=True)
+                 # Imprime no console/log
+                print(f"\n--- Importância das Features ({model_name}) ---")
+                with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 1000):
+                      print(feature_importance_df)
+                print("-" * (len(f"--- Importância das Features ({model_name}) ---"))) # Linha separadora
+                 # Opcional: Salva no dicionário de métricas (pode deixar grande)
+                current_eval_metrics['feature_importances'] = feature_importance_df.round(5).to_dict('records')
+                
              # --- Guarda o resultado deste modelo ---
-             all_results.append({
+            all_results.append({
                  'model_name': model_name,
                  'model_object': model_instance_trained,
                  'scaler': current_scaler,
