@@ -409,40 +409,40 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     if df_loaded is None: return None
     print("\n--- Iniciando Pré-processamento e Engenharia de Features (Histórico) ---")
 
-    # 1. Calcular Stats Intermediárias (Garantir que p_H/D/A são calculados aqui)
-    # Placeholder for calculate_historical_intermediate function
-    # Replace this with the actual implementation or logic
-    df_interm = df_loaded.copy()  # Assuming no intermediate calculations for now
-    # Garante probs implícitas se não calculadas em intermediate
-    if not all(p in df_interm.columns for p in ['p_H', 'p_D', 'p_A']):
-         print("  Recalculando probabilidades p_H/D/A...")
-         df_interm = calculate_probabilities(df_interm)
+    # PASSO 1: Calcular Intermediárias PRIMEIRO!
+    # Isso cria FT_Result, IsDraw, Ptos_H/A, VG_H/A_raw, CG_H/A_raw, e p_H/D/A (se não existirem)
+    df_interm = calculate_historical_intermediate(df_loaded)
+    if 'IsDraw' not in df_interm.columns: # Verifica se o alvo foi criado
+         print("Erro CRÍTICO: Coluna alvo 'IsDraw' não foi criada por calculate_historical_intermediate.")
+         return None
 
-    # 2. Calcular Probabilidades Normalizadas
+    # PASSO 2: Calcular Probabilidades Normalizadas (Usa p_H/D/A de df_interm)
+    # Cria p_H/D/A_norm, abs_ProbDiff_Norm
     df_probs_norm = calculate_normalized_probabilities(df_interm)
 
-    # 3. Calcular Médias Rolling (VG, CG)
-    stats_to_roll_mean = ['VG', 'CG'] # Não precisamos mais de Ptos? Verificar.
-    # Placeholder for calculate_rolling_stats function
-    # Replace this with the actual implementation or logic
+    # PASSO 3: Calcular Médias Rolling (Usa VG/CG_raw de df_interm)
+    # Cria Media_VG_H/A, Media_CG_H/A
+    stats_to_roll_mean = ['VG', 'CG']
     df_rolling_mean = calculate_rolling_stats(df_probs_norm, stats_to_roll_mean, window=ROLLING_WINDOW)
-    # 4. Calcular Desvio Padrão Rolling (CG)
-    stats_to_roll_std = ['CG'] # Adicionamos apenas Std para CG por agora
+
+    # PASSO 4: Calcular Desvio Padrão Rolling (Usa CG_raw de df_interm/df_rolling_mean)
+    # Cria Std_CG_H/A
+    stats_to_roll_std = ['CG']
     df_rolling_std = calculate_rolling_std(df_rolling_mean, stats_to_roll_std, window=ROLLING_WINDOW)
 
-    # 5. Calcular Features de Binning
+    # PASSO 5: Calcular Features de Binning (Usa Odd_D_FT de df_rolling_std)
+    # Cria Odd_D_Cat
     df_binned = calculate_binned_features(df_rolling_std)
 
-    # 6. Selecionar Features Finais e Tratar NaNs
-    #    USE A NOVA LISTA DE FEATURES DO config.py!
-    df_final = df_binned
-    target_col = 'IsDraw' # Alvo
+    # PASSO 6: Selecionar Features Finais e Tratar NaNs
+    df_final = df_binned # O resultado do último passo contém todas as features
+    target_col = 'IsDraw'
     print("  Selecionando features finais e tratando NaNs...")
 
-    # Usa FEATURE_COLUMNS importado do config
+    # Usa FEATURE_COLUMNS importado do config (garanta que config.py foi atualizado)
     required_final_cols = FEATURE_COLUMNS + [target_col]
 
-    # Verifica se todas as colunas FINAIS existem
+    # Verifica se todas as colunas FINAIS existem AGORA
     missing_final = [f for f in required_final_cols if f not in df_final.columns]
     if missing_final:
         print(f"Erro CRÍTICO: Colunas finais ausentes após todos cálculos: {missing_final}")
@@ -452,9 +452,9 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     # Seleciona apenas as colunas finais e o alvo
     df_final_selection = df_final[required_final_cols].copy()
 
-    # Tratamento de NaNs (Importante: Após todas as features calculadas)
+    # Tratamento de NaNs
     initial_rows = len(df_final_selection)
-    df_final_selection = df_final_selection.dropna()
+    df_final_selection = df_final_selection.dropna() # Remove linhas com NaN em QUALQUER feature final ou no alvo
     rows_dropped = initial_rows - len(df_final_selection)
     if rows_dropped > 0:
         print(f"  Removidas {rows_dropped} linhas contendo NaNs nas features finais ou alvo.")
@@ -468,7 +468,7 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
 
     print(f"--- Pré-processamento e Engenharia (Histórico) OK ---")
     print(f"    Shape X final: {X.shape}, Shape y final: {y.shape}")
-    print(f"    Features finais: {list(X.columns)}")
+    print(f"    Features finais usadas: {list(X.columns)}")
     return X, y, FEATURE_COLUMNS # Retorna a lista de features usada
 
 # --- Buscar e Processar Jogos Futuros (CSV) ---

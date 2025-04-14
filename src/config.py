@@ -89,6 +89,50 @@ EXCEL_EXPECTED_COLS = [
     'Odd_Over25_FT', 'Odd_BTTS_Yes' # Outras odds diretas usadas como features
 ]
 
+ALL_CANDIDATE_FEATURES = [
+    # Baseadas em Odds / Probabilidades Normalizadas
+    'p_D_norm',
+    'abs_ProbDiff_Norm',
+    'p_H_norm', # Pode adicionar se quiser analisar individualmente
+    'p_A_norm', # Pode adicionar se quiser analisar individualmente
+
+    # Médias Rolling (Valor e Custo do Gol)
+    'Media_VG_H',
+    'Media_VG_A',
+    'Media_CG_H',
+    'Media_CG_A',
+
+    # Médias Rolling (Pontos) - Adicionar se quiser testar
+    'Media_Ptos_H',
+    'Media_Ptos_A',
+
+    # Desvios Padrão Rolling (Custo do Gol)
+    'Std_CG_H',
+    'Std_CG_A',
+
+    # Desvios Padrão Rolling (Valor do Gol) - Adicionar se quiser testar
+    'Std_VG_H',
+    'Std_VG_A',
+
+    # Desvios Padrão Rolling (Pontos) - Adicionar se quiser testar
+    'Std_Ptos_H',
+    'Std_Ptos_A',
+
+    # Binning das Odds de Empate
+    'Odd_D_Cat',
+
+    # Features Derivadas Originais (Se quiser mantê-las para análise/teste)
+    'CV_HDA',
+    'Diff_Media_CG', # Redundante se usar Media_CG_H/A? Testar.
+
+    # Odds Diretas (Se quiser comparar diretamente na análise)
+    'Odd_H_FT',
+    'Odd_D_FT',
+    'Odd_A_FT',
+    'Odd_Over25_FT', # Se disponível e relevante
+    'Odd_BTTS_Yes',  # Se disponível e relevante
+]
+
 # --- Lista das Features FINAIS para o Modelo BackDraw ---
 FEATURE_COLUMNS = [
     # Derivada das Odds 1x2
@@ -104,11 +148,17 @@ FEATURE_COLUMNS = [
     # Diferença Rolling (Calculada)
     'Diff_Media_CG',
 ]
+
 NEW_FEATURE_COLUMNS = [
-         'p_D_norm', 'abs_ProbDiff_Norm',
-         'Media_VG_H', 'Media_VG_A', 'Media_CG_H', 'Media_CG_A',
-         'Std_CG_H', 'Std_CG_A',
-         'Odd_D_Cat' # A 9ª feature (binning)
+    'p_D_norm',             # Probabilidade Empate Normalizada
+    'abs_ProbDiff_Norm',    # Desequilíbrio do Mercado (H vs A)
+    'Media_VG_H',           # Valor Gol Casa (Rolling Mean)
+    'Media_VG_A',           # Valor Gol Fora (Rolling Mean)
+    'Media_CG_H',           # Custo Gol Casa (Rolling Mean)
+    'Media_CG_A',           # Custo Gol Fora (Rolling Mean)
+    'Std_CG_H',             # Consistência Custo Gol Casa (Rolling Std)
+    'Std_CG_A',             # Consistência Custo Gol Fora (Rolling Std)
+    'Odd_D_Cat'             # Categoria Odd Empate (Binning)
 ]
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
@@ -162,11 +212,8 @@ svm_param_grid = {
 
 # Gaussian Naive Bayes (Grid Corrigido)
 gnb_param_grid = {
-    'var_smoothing': np.logspace(-9, -2, num=15), # Corrigido: logspace para var_smoothing
-    'min_categories': [None, 0, 1, 2, 3, 4, 5],
-    'priors': [None, 0, 1, 2, 3, 4, 5],
-    'binarize': [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-    'norm': [False, True],
+    'var_smoothing': np.logspace(-9, -2, num=15),
+    
 }
 
 # KNN (Grid Adaptado)
@@ -190,29 +237,28 @@ MODEL_CONFIG = {
         'param_grid': lr_param_grid,
         'needs_scaling': True
     },
-    #'LGBMClassifier': { # LightGBM Classifier
-    #    'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
-    #                     'objective': 'binary', 'metric': 'logloss',
-    #                     'is_unbalance': True}, # Usar is_unbalance para LGBM
-    #    'param_grid': lgbm_param_grid,
-    #    'needs_scaling': False
-    #},
+    'LGBMClassifier': { # LightGBM Classifier
+        'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
+                         'objective': 'binary', 'metric': 'logloss',
+                         'is_unbalance': True}, # Usar is_unbalance para LGBM
+        'param_grid': lgbm_param_grid,
+        'needs_scaling': False
+    },
      'SVC': { # Support Vector Classifier
         'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True}, # probability=True é necessário para predict_proba (e log_loss/AUC)
         'param_grid': svm_param_grid,
         'needs_scaling': True # SVM PRECISA de scaling
     },
-    'GaussianNB': { # Gaussian Naive Bayes
-        'model_kwargs': {
-}, 
-        'param_grid': gnb_param_grid,
-        'needs_scaling': False # Geralmente não precisa, mas pode testar
-    },
-    #'KNeighborsClassifier': { # K-Nearest Neighbors
-    #    'model_kwargs': {'n_jobs': N_JOBS_GRIDSEARCH},
-    #    'param_grid': knn_param_grid,
-    #    'needs_scaling': True # KNN PRECISA de scaling
+    #'GaussianNB': { # Gaussian Naive Bayes
+    #    'model_kwargs': {}, 
+    #    'param_grid': gnb_param_grid,
+    #    'needs_scaling': False # Geralmente não precisa, mas pode testar
     #},
+    'KNeighborsClassifier': { # K-Nearest Neighbors
+        'model_kwargs': {'n_jobs': N_JOBS_GRIDSEARCH},
+        'param_grid': knn_param_grid,
+        'needs_scaling': True # KNN PRECISA de scaling
+    },
 }
 
 # --- Configuração GitHub ---

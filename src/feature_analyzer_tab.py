@@ -1,16 +1,11 @@
-# Inside feature_analyzer_tab.py
-
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog # Keep other imports
 from tkinter.scrolledtext import ScrolledText
 from typing import Optional, List, Dict, Any
 import os
 import sys
-# ... other necessary imports like pandas, os, sys, config, data_handler ...
-# --- Ensure Path Setup is correct within this file too if run independently ---
-# OR rely on the path setup in app_launcher.py when imported.
+import traceback
 
-# --- Import supporting modules ---
 try:
     # Path setup might be needed here if you ever run this file directly
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -19,11 +14,11 @@ try:
     if BASE_DIR not in sys.path: sys.path.append(BASE_DIR)
 
     from model_trainer import analyze_features
-    from config import HISTORICAL_DATA_PATH, FEATURE_COLUMNS, ROLLING_WINDOW # Use config window
-    from data_handler import (load_historical_data,
-                              calculate_historical_intermediate,
-                              calculate_rolling_stats,
-                              calculate_derived_features)
+    from config import HISTORICAL_DATA_PATH, NEW_FEATURE_COLUMNS, FEATURE_COLUMNS, ROLLING_WINDOW # Use config window
+    from data_handler import (load_historical_data, calculate_historical_intermediate,
+                          calculate_probabilities, calculate_normalized_probabilities,
+                          calculate_rolling_stats, calculate_rolling_std,
+                          calculate_binned_features)
 except ImportError as e:
      print(f"Import Error in feature_analyzer_tab.py: {e}")
      # Handle error appropriately, maybe raise it or show a message if possible
@@ -35,9 +30,9 @@ import datetime
 import io
 
 class FeatureAnalyzerApp:
-    # CHANGE HERE: Accept parent_frame instead of root
+    
     def __init__(self, parent_frame):
-        # self.root = root # REMOVE THIS
+        
         self.parent = parent_frame # Store the parent frame
 
         self.df_historical_raw: Optional[pd.DataFrame] = None
@@ -136,20 +131,21 @@ class FeatureAnalyzerApp:
          except tk.TclError: pass
 
     def load_and_display_data(self):
-        """Carrega, processa e analisa dados históricos, exibindo tudo."""
+        """Carrega, processa (com pipeline completo) e analisa dados históricos."""
         self.log("Iniciando: Carregando dados...")
-        # Clear previous results
-        self._update_text_widget(self.info_text, "Carregando...")
-        self._update_text_widget(self.head_text, "")
-        self._update_text_widget(self.desc_text, "")
-        self._update_text_widget(self.target_text, "")
-        self._update_text_widget(self.importance_text, "") # Clear new widget
-        self._update_text_widget(self.corr_text, "")       # Clear new widget
+        # Limpa displays
+        widgets_to_clear = [
+            self.info_text, self.head_text, self.desc_text,
+            self.target_text, self.importance_text, self.corr_text
+        ]
+        for widget in widgets_to_clear:
+            self._update_text_widget(widget, "Carregando...") # Limpa todos
+
         self.df_historical_raw = None
-        self.df_historical_processed = None
+        self.df_historical_processed = None # DataFrame com TUDO calculado
 
         try:
-            # 1. Load Raw Data
+            # 1. Carregar Dados Brutos
             df_raw = load_historical_data(HISTORICAL_DATA_PATH)
             if df_raw is None:
                 messagebox.showerror("Erro", f"Falha carregar:\n{HISTORICAL_DATA_PATH}", parent=self.parent)
@@ -157,132 +153,148 @@ class FeatureAnalyzerApp:
                 self._update_text_widget(self.info_text, "Falha ao carregar.")
                 return
             self.df_historical_raw = df_raw.copy()
-            self.log(f"Dados brutos: {self.df_historical_raw.shape}")
+            self.log(f"Dados brutos carregados: {self.df_historical_raw.shape}")
 
-            # Display basic info/head
+            # Display info/head do RAW
             buffer = io.StringIO()
             self.df_historical_raw.info(buf=buffer)
             self._update_text_widget(self.info_text, buffer.getvalue())
-            self._update_text_widget(self.head_text, self.df_historical_raw.head(5).to_string()) # Show fewer rows
+            self._update_text_widget(self.head_text, self.df_historical_raw.head(5).to_string())
 
-            # 2. Process Features (Calculate all required intermediate and final features)
-            self.log("Processando features (intermediárias, rolling, derivadas)...")
+            # 2. **EXECUTAR PIPELINE DE CÁLCULO COMPLETO**
+            self.log("Executando pipeline completo de cálculo de features...")
+            # PASSO A PASSO (espelhando preprocess_and_feature_engineer)
+            self.log(" -> Calculando Intermediárias...")
             df_processed = calculate_historical_intermediate(self.df_historical_raw)
-            stats_to_roll = ['Ptos', 'VG', 'CG']
-            df_processed = calculate_rolling_stats(df_processed, stats_to_roll, window=ROLLING_WINDOW)
-            df_processed = calculate_derived_features(df_processed)
-            # Add direct features if missing (e.g., Odd_Over25_FT if used directly)
-            direct_odds_features = [f for f in FEATURE_COLUMNS if f in ['Odd_H_FT', 'Odd_D_FT', 'Odd_Over25_FT', 'Odd_BTTS_Yes']]
-            for f in direct_odds_features:
-                if f not in df_processed.columns: df_processed[f] = np.nan
-            self.log("Processamento de features concluído.")
-            self.df_historical_processed = df_processed # Store fully processed data
+            if 'IsDraw' not in df_processed.columns: raise ValueError("'IsDraw' não criada.")
 
-            # 3. Prepare Data for Advanced Analysis (X, y using final features)
+            # Garante probabilidades (pode ser redundante se intermediate já calcula)
+            if not all(p in df_processed.columns for p in ['p_H', 'p_D', 'p_A']):
+                 self.log(" -> Calculando Probabilidades p_H/D/A...")
+                 df_processed = calculate_probabilities(df_processed)
+
+            self.log(" -> Calculando Probabilidades Normalizadas...")
+            df_processed = calculate_normalized_probabilities(df_processed)
+
+            self.log(" -> Calculando Médias Rolling (VG, CG)...")
+            stats_to_roll_mean = ['VG', 'CG'] # Defina quais médias quer calcular
+            df_processed = calculate_rolling_stats(df_processed, stats_to_roll_mean, window=ROLLING_WINDOW)
+
+            self.log(" -> Calculando StDev Rolling (CG)...") # Defina quais StDevs quer calcular
+            stats_to_roll_std = ['CG']
+            df_processed = calculate_rolling_std(df_processed, stats_to_roll_std, window=ROLLING_WINDOW)
+
+            # Exemplo: Calcular médias e std para PONTOS também
+            # self.log(" -> Calculando Médias/StDev Rolling (Ptos)...")
+            # df_processed = calculate_rolling_stats(df_processed, ['Ptos'], window=ROLLING_WINDOW)
+            # df_processed = calculate_rolling_std(df_processed, ['Ptos'], window=ROLLING_WINDOW)
+
+            self.log(" -> Calculando Binning (Odd_D_Cat)...")
+            df_processed = calculate_binned_features(df_processed)
+
+            # Exemplo: Calcular Features Derivadas (se quiser analisá-las também)
+            # self.log(" -> Calculando Derivadas (CV_HDA, Diff_Media_CG)...")
+            # from data_handler import calculate_derived_features # Importa se necessário
+            # df_processed = calculate_derived_features(df_processed) # Recalcula com base nas médias existentes
+
+            self.df_historical_processed = df_processed # Armazena o DF com TUDO calculado
+            self.log(f"Pipeline de cálculo concluído. Colunas: {list(self.df_historical_processed.columns)}")
+
+            # 3. Preparar X, y para Análise Avançada
+            #    Agora usa self.df_historical_processed que contém TUDO
             self.log("Preparando dados para análise avançada...")
             target_col = 'IsDraw'
-            # Ensure target exists (calculate if needed, as before)
-            if target_col not in self.df_historical_processed.columns:
-                if 'Goals_H_FT' in self.df_historical_processed.columns and 'Goals_A_FT' in self.df_historical_processed.columns:
-                     self.log("Calculando 'IsDraw' a partir dos gols.")
-                     h_goals = pd.to_numeric(self.df_historical_processed['Goals_H_FT'], errors='coerce')
-                     a_goals = pd.to_numeric(self.df_historical_processed['Goals_A_FT'], errors='coerce')
-                     self.df_historical_processed[target_col] = (h_goals == a_goals).astype(int)
+            y = self.df_historical_processed[target_col].copy() # Pega o alvo
+
+            # Seleciona TODAS as colunas numéricas calculadas como candidatas para análise
+            # Exclui IDs, datas, alvo, intermediárias _raw, etc.
+            cols_to_exclude_from_X = [
+                target_col, 'Date', 'Home', 'Away', 'FT_Result', 'Profit', # IDs, Alvo, etc.
+                'Goals_H_FT', 'Goals_A_FT', # Gols brutos
+                'Ptos_H', 'Ptos_A',          # Pontos brutos
+                'p_H', 'p_D', 'p_A',       # Probs não normalizadas
+                'VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw' # Stats Raw
+            ]
+            #candidate_features = [
+               # col for col in self.df_historical_processed.columns
+                #if pd.api.types.is_numeric_dtype(self.df_historical_processed[col])
+                #and col not in cols_to_exclude_from_X
+            #]
+            # Garante que só seleciona colunas que realmente existem
+            candidate_features = [f for f in NEW_FEATURE_COLUMNS if f in self.df_historical_processed.columns]
+
+            if not candidate_features:
+                 self.log("Erro: Nenhuma feature numérica candidata encontrada após processamento.")
+                 messagebox.showerror("Erro", "Nenhuma feature candidata encontrada para análise.", parent=self.parent)
+                 return
+
+            X = self.df_historical_processed[candidate_features].copy()
+            self.log(f"Features candidatas para análise: {list(X.columns)}")
+
+            # Combina X e y e remove NaNs para análise
+            analysis_df = X.join(y)
+            initial_rows = len(analysis_df)
+            analysis_df = analysis_df.dropna() # Drop NaNs DEPOIS de calcular TUDO
+            rows_dropped = initial_rows - len(analysis_df)
+            self.log(f"Dados p/ análise (após dropna): {analysis_df.shape}. ({rows_dropped} linhas removidas).")
+
+            if analysis_df.empty:
+                 self.log("Erro: Nenhum dado restante para análise após dropna.")
+                 messagebox.showwarning("Dados Insuficientes", "Nenhum dado completo para análise.", parent=self.parent)
+                 return
+
+            X_clean = analysis_df[candidate_features]
+            y_clean = analysis_df[target_col]
+
+            # 4. Display Describe (AGORA COM TODAS AS FEATURES CALCULADAS) & Target
+            self.log("Atualizando displays Describe e Target...")
+            self._update_text_widget(self.desc_text, X_clean.describe().to_string())
+
+            target_dist = y_clean.value_counts(normalize=True).apply("{:.2%}".format).to_string()
+            target_counts = y_clean.value_counts().to_string()
+            self._update_text_widget(self.target_text, f"Contagem:\n{target_counts}\n\nProporção:\n{target_dist}")
+
+            # 5. Análise Avançada (Correlação / Importância com X_clean)
+            self.log("Executando análise de importância e correlação...")
+            try:
+                analysis_results = analyze_features(X_clean, y_clean)
+                if analysis_results:
+                    df_importance, df_correlation = analysis_results
+                    # Display Importance
+                    if df_importance is not None and not df_importance.empty:
+                        self._update_text_widget(self.importance_text, df_importance.to_string(index=False))
+                    else: self._update_text_widget(self.importance_text, "Não calculado.")
+                    # Display Correlation
+                    if df_correlation is not None and not df_correlation.empty:
+                        pd.set_option('display.float_format', '{:.2f}'.format)
+                        # Mostra correlação apenas com o alvo para economizar espaço?
+                        corr_with_target = df_correlation['target_IsDraw'].sort_values(ascending=False).to_string()
+                        self._update_text_widget(self.corr_text, "Correlação c/ Alvo (IsDraw):\n"+ corr_with_target)
+                        # Ou mostra tudo: self._update_text_widget(self.corr_text, df_correlation.to_string())
+                        pd.reset_option('display.float_format')
+                    else: self._update_text_widget(self.corr_text, "Não calculado.")
                 else:
-                    self.log(f"Erro: Coluna alvo '{target_col}' ausente e não pode ser calculada.")
-                    self._update_text_widget(self.target_text, "Erro: Alvo 'IsDraw' ausente.")
-                    # Optionally stop here if target is critical for analysis
-                    # return
-
-            # Select final features defined in config and drop rows with NaNs *in those features*
-            final_feature_cols = [f for f in FEATURE_COLUMNS if f in self.df_historical_processed.columns]
-            cols_for_analysis = final_feature_cols + [target_col]
-            if target_col not in self.df_historical_processed.columns: # Check again if calculation failed
-                 self.log("Erro: Alvo 'IsDraw' não disponível para análise.")
-                 analysis_df = self.df_historical_processed[final_feature_cols].copy()
-                 analysis_df = analysis_df.dropna()
-                 X = analysis_df
-                 y = None # No target available
-                 self._update_text_widget(self.target_text, "Alvo 'IsDraw' não disponível.")
-            else:
-                 analysis_df = self.df_historical_processed[cols_for_analysis].copy()
-                 initial_rows = len(analysis_df)
-                 analysis_df = analysis_df.dropna() # Drop NaNs for analysis/modeling input
-                 rows_dropped = initial_rows - len(analysis_df)
-                 self.log(f"Dados para análise: {analysis_df.shape}. ({rows_dropped} linhas removidas por NaNs nas features/alvo).")
-                 if analysis_df.empty:
-                     self.log("Erro: Nenhum dado restante após remover NaNs para análise.")
-                     messagebox.showwarning("Dados Insuficientes", "Nenhum dado completo encontrado para análise avançada.", parent=self.parent)
-                     return
-                 X = analysis_df[final_feature_cols]
-                 y = analysis_df[target_col]
-
-
-            # 4. Display Describe & Target Distribution
-            if not X.empty:
-                self._update_text_widget(self.desc_text, X.describe().to_string())
-            else:
-                 self._update_text_widget(self.desc_text, "Nenhuma feature final para descrever.")
-
-            if y is not None and not y.empty:
-                target_dist = y.value_counts(normalize=True).apply("{:.2%}".format).to_string()
-                target_counts = y.value_counts().to_string()
-                self._update_text_widget(self.target_text, f"Contagem:\n{target_counts}\n\nProporção:\n{target_dist}")
-            # (Handled missing 'y' case above)
-
-
-            # 5. Perform and Display Advanced Analysis (Importance & Correlation)
-            if X is not None and y is not None and not X.empty and not y.empty:
-                self.log("Executando análise de importância e correlação...")
-                try:
-                    analysis_results = analyze_features(X, y) # Call the function
-                    if analysis_results:
-                        df_importance, df_correlation = analysis_results
-
-                        # Display Importance
-                        if df_importance is not None and not df_importance.empty:
-                            self._update_text_widget(self.importance_text, df_importance.to_string(index=False))
-                        else:
-                            self._update_text_widget(self.importance_text, "Não foi possível calcular a importância.")
-
-                        # Display Correlation (maybe just with target or top N features?)
-                        if df_correlation is not None and not df_correlation.empty:
-                            # Option 1: Show correlation with target only
-                            # corr_with_target = df_correlation['target_IsDraw'].sort_values(ascending=False).to_string()
-                            # self._update_text_widget(self.corr_text, corr_with_target)
-                            # Option 2: Show full matrix (can be large)
-                            # Limit display precision for readability
-                            pd.set_option('display.float_format', '{:.2f}'.format)
-                            self._update_text_widget(self.corr_text, df_correlation.to_string())
-                            pd.reset_option('display.float_format') # Reset format
-                        else:
-                            self._update_text_widget(self.corr_text, "Não foi possível calcular a correlação.")
-                    else:
-                        self.log("Falha na execução de analyze_features.")
-                        self._update_text_widget(self.importance_text, "Erro na análise.")
-                        self._update_text_widget(self.corr_text, "Erro na análise.")
-
-                except Exception as e_adv_analyze:
-                    self.log(f"Erro durante análise avançada: {e_adv_analyze}")
-                    messagebox.showerror("Erro Análise", f"Erro calcular importância/correlação:\n{e_adv_analyze}", parent=self.parent)
-                    self._update_text_widget(self.importance_text, f"Erro: {e_adv_analyze}")
-                    self._update_text_widget(self.corr_text, f"Erro: {e_adv_analyze}")
-            else:
-                self.log("Não foi possível executar análise avançada (X ou y ausentes/vazios).")
-                self._update_text_widget(self.importance_text, "Dados insuficientes.")
-                self._update_text_widget(self.corr_text, "Dados insuficientes.")
-
+                    self.log("Falha na execução de analyze_features.")
+                    self._update_text_widget(self.importance_text, "Erro na análise.")
+                    self._update_text_widget(self.corr_text, "Erro na análise.")
+            except Exception as e_adv_analyze:
+                self.log(f"Erro durante análise avançada: {e_adv_analyze}")
+                messagebox.showerror("Erro Análise", f"Erro calcular:\n{e_adv_analyze}", parent=self.parent)
+                self._update_text_widget(self.importance_text, f"Erro: {e_adv_analyze}")
+                self._update_text_widget(self.corr_text, f"Erro: {e_adv_analyze}")
 
             self.log("Análise concluída.")
+            self.status_label.config(text="Análise Concluída.") # Atualiza status final
 
         except FileNotFoundError:
             messagebox.showerror("Erro", f"Arquivo não encontrado:\n{HISTORICAL_DATA_PATH}", parent=self.parent)
             self.log("Falha: Arquivo não encontrado.")
+            self.status_label.config(text="Erro: Arquivo não encontrado.")
             self._update_text_widget(self.info_text, "Falha: Arquivo não encontrado.")
         except Exception as e:
-            self.log(f"Erro geral: {e}")
+            self.log(f"Erro geral no processamento/análise: {e}")
+            self.status_label.config(text=f"Erro: {e}")
             messagebox.showerror("Erro Processamento", f"Ocorreu um erro:\n{e}", parent=self.parent)
             self._update_text_widget(self.info_text, f"Erro: {e}")
-            import traceback
             traceback.print_exc()
     
