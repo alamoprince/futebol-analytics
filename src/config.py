@@ -139,6 +139,7 @@ FEATURE_COLUMNS = [
     'CV_HDA',
     # Odds Diretas (do CSV ou Histórico)
     'Odd_H_FT',
+    'Odd_A_FT',
     'Odd_D_FT',
     # Médias Rolling (Calculadas do Histórico)
     'Media_VG_H',
@@ -147,18 +148,21 @@ FEATURE_COLUMNS = [
     'Media_CG_A',
     # Diferença Rolling (Calculada)
     'Diff_Media_CG',
+
+    # Consistência Custo Gol Casa (Rolling Std)
+    'Std_CG_H',   
+    'Std_CG_A',                   
+          
 ]
 
 NEW_FEATURE_COLUMNS = [
     'p_D_norm',             # Probabilidade Empate Normalizada
-    'abs_ProbDiff_Norm',    # Desequilíbrio do Mercado (H vs A)
-    'Media_VG_H',           # Valor Gol Casa (Rolling Mean)
-    'Media_VG_A',           # Valor Gol Fora (Rolling Mean)
     'Media_CG_H',           # Custo Gol Casa (Rolling Mean)
     'Media_CG_A',           # Custo Gol Fora (Rolling Mean)
-    'Std_CG_H',             # Consistência Custo Gol Casa (Rolling Std)
-    'Std_CG_A',             # Consistência Custo Gol Fora (Rolling Std)
-    'Odd_D_Cat'             # Categoria Odd Empate (Binning)
+    'Media_VG_H',           # Valor Gol Fora (Rolling Mean)
+    'Odd_H_FT',             # Odds Casa (do CSV ou Histórico)
+    'CV_HDA',               # Coeficiente de Variação (HDA)
+    'Std_CG_A',             # Custo Gol Fora (Rolling Std)
 ]
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
