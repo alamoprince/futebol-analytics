@@ -15,7 +15,7 @@ try:
     if BASE_DIR not in sys.path: sys.path.append(BASE_DIR)
 
     from model_trainer import analyze_features
-    from config import HISTORICAL_DATA_PATH, NEW_FEATURE_COLUMNS, ROLLING_WINDOW # Use config window
+    from config import HISTORICAL_DATA_PATH, NEW_FEATURE_COLUMNS, ROLLING_WINDOW, GOALS_COLS # Use config window
     from data_handler import (load_historical_data, calculate_historical_intermediate,
                           calculate_probabilities, calculate_normalized_probabilities,
                           calculate_rolling_stats, calculate_rolling_std,
@@ -104,7 +104,7 @@ class FeatureAnalyzerApp:
 
         # -- Fundo --
         self.importance_text = create_text_panel(pane_bottom, "Importância Features (RF Rápido)", font_size=9, weight=1)
-        self.corr_text = create_text_panel(pane_bottom, "Correlação Features (com Alvo)", font_size=8, weight=2)
+        self.corr_text = create_text_panel(pane_bottom, "Correlação Features (com Alvo)", font_size=9, weight=1)
 
     # --- Helper methods (_update_text_widget, log_to_widget) remain the same ---
     def _update_text_widget(self, text_widget: ScrolledText, content: str):
@@ -140,11 +140,19 @@ class FeatureAnalyzerApp:
         self.log("Iniciando: Carregando & Processando..."); widgets_to_clear = [self.info_text, self.head_text, self.desc_text, self.target_text, self.importance_text, self.corr_text]; [self._update_text_widget(w, "Carregando...") for w in widgets_to_clear]; self.df_historical_raw = None; self.df_historical_processed = None;
        
         try:
-            # 1. Load
+
+            # 0. Load
             df_raw = load_historical_data(HISTORICAL_DATA_PATH);
             if df_raw is None: messagebox.showerror("Erro", f"Falha carregar.", parent=self.parent); self.log("Falha carregar."); self._update_text_widget(self.info_text, "Falha."); return;
             self.df_historical_raw = df_raw.copy(); self.log(f"Dados brutos: {self.df_historical_raw.shape}");
             buffer = io.StringIO(); self.df_historical_raw.info(buf=buffer); self._update_text_widget(self.info_text, buffer.getvalue()); self._update_text_widget(self.head_text, self.df_historical_raw.head(5).to_string());
+
+            # --- PASSO 1: Calcular Médias da Liga (do df_raw) ---
+            goals_h_col = GOALS_COLS.get('home', 'Goals_H_FT') # Import GOALS_COLS from config
+            goals_a_col = GOALS_COLS.get('away', 'Goals_A_FT')
+            avg_h_league = self.df_historical_raw[goals_h_col].mean() if goals_h_col in self.df_historical_raw else 1.0
+            avg_a_league = self.df_historical_raw[goals_a_col].mean() if goals_a_col in self.df_historical_raw else 1.0
+            self.log(f"Médias Liga (histórico): H={avg_h_league:.3f}, A={avg_a_league:.3f}")
 
              # 2. Processamento Completo
             self.log("Processando features..."); df_p=self.df_historical_raw.copy(); # Usa cópia
@@ -172,24 +180,21 @@ class FeatureAnalyzerApp:
             logging.info(f"Após rolling stds, cols: {list(df_p.columns)}")
             if 'Std_CG_H' not in df_p.columns: raise ValueError("'Std_CG_H' ausente pós-rolling std.");
 
-            # Etapa 2.5: Rolling Goals
-            self.log(" -> Calculando Rolling Goals...");
-            from data_handler import calculate_rolling_goal_stats # Garante import
-            df_p=calculate_rolling_goal_stats(df_p,window=ROLLING_WINDOW);
-            logging.info(f"Após rolling goals, cols: {list(df_p.columns)}")
-            if 'Avg_Gols_Marcados_H' not in df_p.columns: raise ValueError("'Avg_Gols_Marcados_H' ausente pós-rolling goals.");
+            # 2.5: Rolling Goals + FA/FD **PASSANDO MÉDIAS DA LIGA**
+            self.log(" -> Calculando Rolling Goals e FA/FD...");
+            from data_handler import calculate_rolling_goal_stats
+            df_p=calculate_rolling_goal_stats(df_p, window=ROLLING_WINDOW,
+                                              avg_goals_home_league=avg_h_league, # <<< PASSA A MÉDIA
+                                              avg_goals_away_league=avg_a_league) # <<< PASSA A MÉDIA
 
-            # Etapa 2.6: Poisson Draw Prob
+            # 2.6: Poisson Draw Prob **PASSANDO MÉDIAS DA LIGA**
             self.log(" -> Calculando Poisson Draw Prob...");
-            from data_handler import calculate_poisson_draw_prob # Garante import
-            df_p=calculate_poisson_draw_prob(df_p, max_goals=5);
-            logging.info(f"Após Poisson Prob, cols: {list(df_p.columns)}")
-            if 'Prob_Empate_Poisson' in df_p.columns:
-                logging.info(f"  -> Poisson Prob calculada. Amostra:\n{df_p['Prob_Empate_Poisson'].dropna().head().to_string()}")
-            else:
-                 logging.error(" -> ERRO: Coluna 'Prob_Empate_Poisson' NÃO EXISTE após chamada da função!")
-                 # Decide o que fazer: parar? continuar sem a feature?
-                 # return # Parar aqui se a feature for essencial
+            from data_handler import calculate_poisson_draw_prob
+            df_p=calculate_poisson_draw_prob(df_p,
+                                             avg_goals_home_league=avg_h_league, # <<< PASSA A MÉDIA
+                                             avg_goals_away_league=avg_a_league, # <<< PASSA A MÉDIA
+                                             max_goals=5);
+            if 'Prob_Empate_Poisson' not in df_p.columns: logging.warning("Coluna Poisson não foi criada."); # Log se falhar
 
             # Etapa 2.7: Binning
             self.log(" -> Calculando Binning..."); df_p=calculate_binned_features(df_p);

@@ -319,52 +319,51 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     else: print("Aviso: Médias CG ausentes p/ Diff_Media_CG."); df_calc['Diff_Media_CG'] = np.nan
     return df_calc
 
-def calculate_poisson_draw_prob(df: pd.DataFrame, max_goals: int = 6) -> pd.DataFrame:
-    """
-    Calcula a probabilidade de empate usando a distribuição de Poisson.
-    Requer as colunas de média de gols: Avg_Gols_Marcados_H/A, Avg_Gols_Sofridos_H/A.
-    """
+def calculate_poisson_draw_prob(
+    df: pd.DataFrame,
+    avg_goals_home_league: float, # << RECEBE média liga
+    avg_goals_away_league: float, # << RECEBE média liga
+    max_goals: int = 6
+    ) -> pd.DataFrame:
+    """ Calcula P(Empate) Poisson usando Força de Ataque/Defesa (FA/FD). Requer FA_H, FD_A, FA_A, FD_H. """
     df_calc = df.copy()
-    required_cols = ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_A', # Ataque H vs Defesa A
-                     'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_H'] # Ataque A vs Defesa H
+    required_cols = ['FA_H', 'FD_A', 'FA_A', 'FD_H'] # << USA AS FORÇAS
 
     if not all(c in df_calc.columns for c in required_cols):
-        logging.warning("Colunas de média de gols ausentes para cálculo Poisson. Pulando.")
+        logging.warning("Colunas de Força FA/FD ausentes para cálculo Poisson. Pulando.")
         df_calc['Prob_Empate_Poisson'] = np.nan
         return df_calc
 
-    logging.info("  Calculando Probabilidade de Empate (Poisson)...")
+    logging.info(f"  Calculando Prob Empate (Poisson Refinado, max_gols={max_goals})...")
 
-    # 1. Estimar Gols Esperados (Lambda) para cada time no jogo
-    #    Modelo simples: lambda_H = Média Gols Marcados H * Média Gols Sofridos A (ajustado pela média da liga se disponível, mas vamos simplificar por agora)
-    #    lambda_A = Média Gols Marcados A * Média Gols Sofridos H
-    #    É crucial garantir que as médias não sejam NaN ou zero. Preenche com um valor pequeno.
-    lambda_h = (pd.to_numeric(df_calc['Avg_Gols_Marcados_H'], errors='coerce').fillna(0.1) *
-                pd.to_numeric(df_calc['Avg_Gols_Sofridos_A'], errors='coerce').fillna(0.1))
-    lambda_a = (pd.to_numeric(df_calc['Avg_Gols_Marcados_A'], errors='coerce').fillna(0.1) *
-                pd.to_numeric(df_calc['Avg_Gols_Sofridos_H'], errors='coerce').fillna(0.1))
-    # Evita lambdas muito baixas (pode causar underflow) ou negativas
+    # 1. Calcular Lambdas Esperados usando FA/FD e médias da liga
+    #    lambda_H = FA_Casa_H * FD_Fora_A * AvgGolsCasaLiga
+    #    lambda_A = FA_Fora_A * FD_Casa_H * AvgGolsForaLiga
+    fa_h = pd.to_numeric(df_calc['FA_H'], errors='coerce').fillna(1.0) # Usa 1.0 (média) se NaN
+    fd_a = pd.to_numeric(df_calc['FD_A'], errors='coerce').fillna(1.0)
+    fa_a = pd.to_numeric(df_calc['FA_A'], errors='coerce').fillna(1.0)
+    fd_h = pd.to_numeric(df_calc['FD_H'], errors='coerce').fillna(1.0)
+
+    lambda_h = fa_h * fd_a * avg_goals_home_league
+    lambda_a = fa_a * fd_h * avg_goals_away_league
+
+    # Garante lambdas mínimos positivos
     lambda_h = np.maximum(lambda_h, 1e-6)
     lambda_a = np.maximum(lambda_a, 1e-6)
 
-
-    # 2. Calcular Probabilidade de Empate (Soma de P(k-k) para k=0 até max_goals)
-    prob_empate_total = pd.Series(0.0, index=df_calc.index) # Inicializa com zero
-
+    # 2. Calcular Probabilidade de Empate (Soma P(k-k))
+    prob_empate_total = pd.Series(0.0, index=df_calc.index)
     try:
         for k in range(max_goals + 1):
-            # P(Gols Casa = k) * P(Gols Fora = k)
             prob_placar_kk = poisson.pmf(k, lambda_h) * poisson.pmf(k, lambda_a)
             prob_empate_total += prob_placar_kk
-    except Exception as e_poisson:
-        logging.error(f"Erro durante cálculo das probabilidades Poisson: {e_poisson}", exc_info=True)
-        # Define como NaN se o cálculo falhar
+    except Exception as e:
+        logging.error(f"Erro cálculo Poisson PMF: {e}", exc_info=True)
         df_calc['Prob_Empate_Poisson'] = np.nan
         return df_calc
 
     df_calc['Prob_Empate_Poisson'] = prob_empate_total
-    logging.info("  -> Prob_Empate_Poisson calculado.")
-
+    logging.info("  -> Prob_Empate_Poisson (Refinado) calculado.")
     return df_calc
 # --- PIPELINE DE TREINAMENTO (Histórico) ---
 
@@ -452,77 +451,102 @@ def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
     print("  Cálculo de stats intermediárias concluído.")
     return df_calc
 
-def calculate_rolling_goal_stats(df: pd.DataFrame, window: int = ROLLING_WINDOW) -> pd.DataFrame:
-    """Calcula médias móveis de gols marcados/sofridos em casa/fora."""
+def calculate_rolling_goal_stats(
+    df: pd.DataFrame,
+    window: int = ROLLING_WINDOW,
+    avg_goals_home_league: Optional[float] = None, # << NOVO: Média da Liga Casa
+    avg_goals_away_league: Optional[float] = None  # << NOVO: Média da Liga Fora
+    ) -> pd.DataFrame:
+    """
+    Calcula médias móveis de gols E Força de Ataque/Defesa ajustada pela liga.
+    """
     df_calc = df.copy()
     goals_h_col = GOALS_COLS.get('home', 'Goals_H_FT')
     goals_a_col = GOALS_COLS.get('away', 'Goals_A_FT')
+    epsilon = 1e-6 # Para evitar divisão por zero nas médias da liga
 
-    # Verifica se colunas de gols existem
+    # Verifica inputs
     if goals_h_col not in df_calc.columns or goals_a_col not in df_calc.columns:
-        logging.warning("Colunas de Gols não encontradas para calcular médias de gols.")
-        # Adiciona colunas com NaN se não puder calcular
-        df_calc[['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A']] = np.nan
+        logging.warning("Calc Rolling Goals: Colunas Gols ausentes.")
+        # Define todas as colunas como NaN
+        cols_to_add = ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A',
+                       'FA_H', 'FD_H', 'FA_A', 'FD_A']
+        for col in cols_to_add: df_calc[col] = np.nan
         return df_calc
 
+    # Usa médias da liga ou um default se não fornecidas
+    avg_h_league = avg_goals_home_league if avg_goals_home_league is not None and avg_goals_home_league > 0 else 1.0 # Default 1.0
+    avg_a_league = avg_goals_away_league if avg_goals_away_league is not None and avg_goals_away_league > 0 else 1.0 # Default 1.0
+    if avg_goals_home_league is None or avg_goals_away_league is None:
+         logging.warning(f"Médias de gols da liga não fornecidas. Usando defaults: Casa={avg_h_league:.2f}, Fora={avg_a_league:.2f}")
+
     teams = pd.concat([df_calc['Home'], df_calc['Away']]).unique()
-    # Histórico separado para gols marcados e sofridos
-    team_history: Dict[str, Dict[str, List[float]]] = {
+    team_history = { # Histórico detalhado
         team: {'scored_home': [], 'conceded_home': [], 'scored_away': [], 'conceded_away': []}
         for team in teams
     }
     results_list = []
+    logging.info(f"  Calculando Rolling Gols e Forças FA/FD (Janela={window})...")
 
-    logging.info(f"  Calculando Médias Rolling de Gols (Janela={window})...")
-
-    # Itera pelas linhas do DataFrame
-    for index, row in tqdm(df_calc.iterrows(), total=len(df_calc), desc="Calc. Rolling Gols"):
+    # Itera pelas linhas
+    for index, row in tqdm(df_calc.iterrows(), total=len(df_calc), desc="Calc Rolling Goals/FA/FD"):
         home_team = row['Home']
         away_team = row['Away']
-        current_match_stats = {'Index': index}
+        current_stats = {'Index': index}
 
-        # Gols Marcados Casa (média dos últimos 'window' jogos EM CASA)
+        # --- Calcula Médias e Forças para TIME DA CASA ---
         h_scored_hist = team_history[home_team]['scored_home']
-        recent_h_scored = h_scored_hist[-window:]
-        current_match_stats['Avg_Gols_Marcados_H'] = np.mean(recent_h_scored) if recent_h_scored else np.nan
-
-        # Gols Sofridos Casa (média dos últimos 'window' jogos EM CASA)
         h_conceded_hist = team_history[home_team]['conceded_home']
-        recent_h_conceded = h_conceded_hist[-window:]
-        current_match_stats['Avg_Gols_Sofridos_H'] = np.mean(recent_h_conceded) if recent_h_conceded else np.nan
+        # Médias simples (baseadas nos últimos jogos EM CASA)
+        avg_gs_h = np.mean(h_scored_hist[-window:]) if h_scored_hist else np.nan
+        avg_gc_h = np.mean(h_conceded_hist[-window:]) if h_conceded_hist else np.nan
+        current_stats['Avg_Gols_Marcados_H'] = avg_gs_h
+        current_stats['Avg_Gols_Sofridos_H'] = avg_gc_h
+        # Forças (baseadas nessas médias e nas médias da liga)
+        # FA_H = Média Gols Marcados H / Média Gols Casa Liga
+        current_stats['FA_H'] = avg_gs_h / avg_h_league if pd.notna(avg_gs_h) else np.nan
+        # FD_H = Média Gols Sofridos H / Média Gols Fora Liga (!)
+        current_stats['FD_H'] = avg_gc_h / avg_a_league if pd.notna(avg_gc_h) else np.nan
 
-        # Gols Marcados Fora (média dos últimos 'window' jogos FORA)
+        # --- Calcula Médias e Forças para TIME VISITANTE ---
         a_scored_hist = team_history[away_team]['scored_away']
-        recent_a_scored = a_scored_hist[-window:]
-        current_match_stats['Avg_Gols_Marcados_A'] = np.mean(recent_a_scored) if recent_a_scored else np.nan
-
-        # Gols Sofridos Fora (média dos últimos 'window' jogos FORA)
         a_conceded_hist = team_history[away_team]['conceded_away']
-        recent_a_conceded = a_conceded_hist[-window:]
-        current_match_stats['Avg_Gols_Sofridos_A'] = np.mean(recent_a_conceded) if recent_a_conceded else np.nan
+        # Médias simples (baseadas nos últimos jogos FORA)
+        avg_gs_a = np.mean(a_scored_hist[-window:]) if a_scored_hist else np.nan
+        avg_gc_a = np.mean(a_conceded_hist[-window:]) if a_conceded_hist else np.nan
+        current_stats['Avg_Gols_Marcados_A'] = avg_gs_a
+        current_stats['Avg_Gols_Sofridos_A'] = avg_gc_a
+        # Forças
+        # FA_A = Média Gols Marcados A / Média Gols Fora Liga
+        current_stats['FA_A'] = avg_gs_a / avg_a_league if pd.notna(avg_gs_a) else np.nan
+        # FD_A = Média Gols Sofridos A / Média Gols Casa Liga (!)
+        current_stats['FD_A'] = avg_gc_a / avg_h_league if pd.notna(avg_gc_a) else np.nan
 
-        results_list.append(current_match_stats)
+        results_list.append(current_stats)
 
-        # Atualiza histórico DEPOIS de calcular para a linha atual
-        home_goals = pd.to_numeric(row[goals_h_col], errors='coerce')
-        away_goals = pd.to_numeric(row[goals_a_col], errors='coerce')
+        # Atualiza histórico (como antes)
+        home_goals = pd.to_numeric(row[goals_h_col], errors='coerce'); away_goals = pd.to_numeric(row[goals_a_col], errors='coerce');
+        if pd.notna(home_goals): team_history[home_team]['scored_home'].append(home_goals); team_history[away_team]['conceded_away'].append(home_goals);
+        if pd.notna(away_goals): team_history[away_team]['scored_away'].append(away_goals); team_history[home_team]['conceded_home'].append(away_goals);
 
-        if pd.notna(home_goals):
-             team_history[home_team]['scored_home'].append(home_goals)
-             team_history[away_team]['conceded_away'].append(home_goals) # Gols do H são sofridos pelo A
-        if pd.notna(away_goals):
-             team_history[away_team]['scored_away'].append(away_goals)
-             team_history[home_team]['conceded_home'].append(away_goals) # Gols do A são sofridos pelo H
-
-    # Cria DataFrame com os resultados e junta ao original
-    df_rolling_goals = pd.DataFrame(results_list).set_index('Index')
-    logging.info(f"  Médias Rolling de Gols calculadas. Colunas: {list(df_rolling_goals.columns)}")
-    return df_calc.join(df_rolling_goals)
+    df_rolling_stats = pd.DataFrame(results_list).set_index('Index')
+    logging.info(f"  -> Rolling Gols/FA/FD calculado. Colunas: {list(df_rolling_stats.columns)}")
+    return df_calc.join(df_rolling_stats)
 
 def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.Series, List[str]]]:
     """Pipeline BackDraw: Calcula/Verifica TODAS as features NOVAS no histórico."""
     if df_loaded is None: return None
     print("\n--- Iniciando Pré-processamento e Engenharia de Features (Histórico) ---")
+
+    if df_loaded is None: return None
+    print("\n--- Pré-proc Histórico (v4 - Poisson Refinado) ---")
+
+    # PASSO 0: Calcular Médias da Liga (uma vez no histórico completo)
+    goals_h_col = GOALS_COLS.get('home', 'Goals_H_FT')
+    goals_a_col = GOALS_COLS.get('away', 'Goals_A_FT')
+    avg_h_league = df_loaded[goals_h_col].mean() if goals_h_col in df_loaded else 1.0
+    avg_a_league = df_loaded[goals_a_col].mean() if goals_a_col in df_loaded else 1.0
+    logging.info(f"Médias Globais Liga (Histórico): Casa={avg_h_league:.3f}, Fora={avg_a_league:.3f}")
 
     # PASSO 1: Calcular Intermediárias PRIMEIRO!
     # Isso cria FT_Result, IsDraw, Ptos_H/A, VG_H/A_raw, CG_H/A_raw, e p_H/D/A (se não existirem)
@@ -548,9 +572,17 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     df_rolling_std = calculate_rolling_std(df_rolling_mean, stats_to_roll_std, window=ROLLING_WINDOW)
 
     # PASSO 5: Calcular Médias Rolling de Gols (Usa FT_Result de df_interm)
-    df_goals = calculate_rolling_goal_stats(df_rolling_std, window=ROLLING_WINDOW)
+    df_goals_forces = calculate_rolling_goal_stats(
+        df_rolling_std,
+        window=ROLLING_WINDOW,
+        avg_goals_home_league=avg_h_league, # Passa média da liga
+        avg_goals_away_league=avg_a_league
+    )
 
-    df_poisson = calculate_poisson_draw_prob(df_goals, max_goals=5) # Calcula P(0-0) até P(5-5)
+    df_poisson = calculate_poisson_draw_prob(df_goals_forces, 
+                                            avg_goals_home_league=avg_h_league, # Passa média da liga
+                                            avg_goals_away_league=avg_a_league, # Passa média da liga
+                                            max_goals=5) # Calcula P(0-0) até P(5-5)
 
     # PASSO 6: Calcular Features de Binning (Usa Odd_D_FT de df_rolling_std)
     # Cria Odd_D_Cat
@@ -642,37 +674,58 @@ def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, 
     print(f"    Jogos futuros brutos: {fixture_df.shape}")
     print(f"    Features finais esperadas p/ modelo: {feature_columns}")
 
-    # --- Etapa 1: Calcular Médias/StDev/Gols Rolling (dependem do HISTÓRICO) ---
-    print("  Processando histórico para cálculo de rolling stats...")
-    # ... (código para processar histórico, calcular e juntar rolling stats como antes) ...
-    # (Garantir que o resultado seja df_temp_fixtures com odds e rolling stats)
-    start_time=time.time();historical_df_processed=calculate_historical_intermediate(historical_df.copy());required_hist_cols={'Home','Away','Date','VG_H_raw','VG_A_raw','CG_H_raw','CG_A_raw',GOALS_COLS.get('home','Goals_H_FT'),GOALS_COLS.get('away','Goals_A_FT')};missing_hist=[c for c in required_hist_cols if c not in historical_df_processed.columns];
-    if missing_hist:print(f"Erro Prep Fixture: Colunas raw ausentes histórico:{missing_hist}");return None;
-    historical_df_processed=historical_df_processed.sort_values(by='Date',ascending=False);teams_in_hist=pd.concat([historical_df_processed['Home'],historical_df_processed['Away']]).unique();print(f"  Histórico processado em {time.time()-start_time:.2f} seg.")
-    print("  Calculando médias/StDev/Gols rolling...");stats_to_roll_mean=['VG','CG'];stats_to_roll_std=['CG'];rolling_features_list=[];fixture_indices=fixture_df.index;
+     # --- Etapa 0: Calcular Médias da Liga (do HISTÓRICO) ---
+    goals_h_col=GOALS_COLS.get('home','Goals_H_FT'); goals_a_col=GOALS_COLS.get('away','Goals_A_FT');
+    avg_h_league = historical_df[goals_h_col].mean() if goals_h_col in historical_df else 1.0
+    avg_a_league = historical_df[goals_a_col].mean() if goals_a_col in historical_df else 1.0
+    logging.info(f"Usando Médias Liga (Hist): Casa={avg_h_league:.3f}, Fora={avg_a_league:.3f} para cálculo futuro.")
+
+    print("  Processando histórico p/ rolling stats..."); start_time = time.time();
+    historical_df_processed = calculate_historical_intermediate(historical_df.copy()); # ... (checks de colunas raw como antes) ...
+    historical_df_processed = historical_df_processed.sort_values(by='Date', ascending=False); teams_in_hist = pd.concat([...]).unique(); print(f"  Histórico processado em {time.time()-start_time:.2f}s.")
+
+    print("  Calculando médias/StDev/Gols/FA/FD rolling para jogos futuros...")
+    stats_mean=['VG','CG']; stats_std=['CG']; rolling_features_list=[]; fixture_indices=fixture_df.index;
+    # --- Loop Rolling (MODIFICADO para calcular FA/FD também) ---
     for index in tqdm(fixture_indices, total=len(fixture_indices), desc="Calc. Rolling Futuro"):
-        fm=fixture_df.loc[index];ht=fm.get('HomeTeam');at=fm.get('AwayTeam');mr={'Index':index};
-        for tp, tn in[('H',ht),('A',at)]:
+        fm=fixture_df.loc[index]; ht=fm.get('HomeTeam'); at=fm.get('AwayTeam'); mr={'Index':index};
+        for tp, tn in [('H', ht), ('A', at)]:
             if tn and tn in teams_in_hist:
                 th=historical_df_processed[ (historical_df_processed['Home']==tn)|(historical_df_processed['Away']==tn) ].head(ROLLING_WINDOW);
                 if not th.empty:
-                    def get_v(r,b1,b2): return r.get(b1) if r['Home']==tn else r.get(b2);
-                    for sp in stats_to_roll_mean:b1,b2=None,None;
-                    if sp=='VG':b1,b2='VG_H_raw','VG_A_raw';
-                    elif sp=='CG':b1,b2='CG_H_raw','CG_A_raw';
-                    if b1:v=th.apply(lambda r:get_v(r,b1,b2),axis=1).dropna().tolist();mr[f'Media_{sp}_{tp}']=np.mean(v) if v else np.nan;
-                    for sp in stats_to_roll_std:b1,b2=None,None;
-                    if sp=='CG':b1,b2='CG_H_raw','CG_A_raw';
-                    if b1:v=th.apply(lambda r:get_v(r,b1,b2),axis=1).dropna().tolist();mr[f'Std_{sp}_{tp}']=np.std(v) if len(v)>=2 else np.nan;
-                    ghc=GOALS_COLS.get('home','Goals_H_FT');gac=GOALS_COLS.get('away','Goals_A_FT');sv=th.apply(lambda r:r[ghc] if r['Home']==tn else r[gac],axis=1).dropna().tolist();mr[f'Avg_Gols_Marcados_{tp}']=np.mean(sv) if sv else np.nan;cv=th.apply(lambda r:r[gac] if r['Home']==tn else r[ghc],axis=1).dropna().tolist();mr[f'Avg_Gols_Sofridos_{tp}']=np.mean(cv) if cv else np.nan;
-            else: # Default NaNs se time sem histórico
-                for sp in stats_to_roll_mean:mr[f'Media_{sp}_{tp}']=np.nan;
-                for sp in stats_to_roll_std:mr[f'Std_{sp}_{tp}']=np.nan;
-                mr[f'Avg_Gols_Marcados_{tp}']=np.nan;mr[f'Avg_Gols_Sofridos_{tp}']=np.nan;
+                    def get_v(r,b1,b2): return r.get(b1) if r['Home']==tn else r.get(b2)
+                    # Médias VG/CG
+                    for sp in stats_mean: b1,b2=None,None; 
+                    if sp=='VG': b1,b2='VG_H_raw','VG_A_raw'; 
+                    elif sp=='CG': b1,b2='CG_H_raw','CG_A_raw'; 
+                    if b1: v=th.apply(lambda r:get_v(r,b1,b2),axis=1).dropna().tolist(); mr[f'Media_{sp}_{tp}']=np.mean(v)if v else np.nan
+                    # Stds CG
+                    for sp in stats_std: b1,b2=None,None; 
+                    if sp=='CG': b1,b2='CG_H_raw','CG_A_raw'; 
+                    if b1: v=th.apply(lambda r:get_v(r,b1,b2),axis=1).dropna().tolist(); mr[f'Std_{sp}_{tp}']=np.std(v)if len(v)>=2 else np.nan
+                    # Médias Gols
+                    ghc=GOALS_COLS.get('home','Goals_H_FT'); gac=GOALS_COLS.get('away','Goals_A_FT');
+                    sv=th.apply(lambda r: r[ghc] if r['Home']==tn else r[gac], axis=1).dropna().tolist(); avg_gs=np.mean(sv)if sv else np.nan; mr[f'Avg_Gols_Marcados_{tp}']=avg_gs;
+                    cv=th.apply(lambda r: r[gac] if r['Home']==tn else r[ghc], axis=1).dropna().tolist(); avg_gc=np.mean(cv)if cv else np.nan; mr[f'Avg_Gols_Sofridos_{tp}']=avg_gc;
+                    # --- Calcula FA/FD ---
+                    if tp == 'H':
+                         mr['FA_H'] = avg_gs / avg_h_league if pd.notna(avg_gs) else np.nan
+                         mr['FD_H'] = avg_gc / avg_a_league if pd.notna(avg_gc) else np.nan # Sofrido em casa / Média Fora Liga
+                    else: # tp == 'A'
+                         mr['FA_A'] = avg_gs / avg_a_league if pd.notna(avg_gs) else np.nan
+                         mr['FD_A'] = avg_gc / avg_h_league if pd.notna(avg_gc) else np.nan # Sofrido fora / Média Casa Liga
+                    # ---------------------
+            else: # Default NaNs
+                 for sp in stats_mean: mr[f'Media_{sp}_{tp}']=np.nan;
+                 for sp in stats_std: mr[f'Std_{sp}_{tp}']=np.nan;
+                 mr[f'Avg_Gols_Marcados_{tp}']=np.nan; mr[f'Avg_Gols_Sofridos_{tp}']=np.nan;
+                 mr[f'FA_{tp}']=np.nan; mr[f'FD_{tp}']=np.nan; # NaN para FA/FD também
         rolling_features_list.append(mr);
-    df_rolling_features=pd.DataFrame(rolling_features_list).set_index('Index');print(f"  Rolling stats calculadas. Cols:{list(df_rolling_features.columns)}")
-    df_temp_fixtures=fixture_df.join(df_rolling_features,how='left');print(f"  Shape após juntar rolling: {df_temp_fixtures.shape}")
-    # --- Fim Etapa 1 ---
+    
+    # --- Fim Loop Rolling ---
+    df_rolling_features = pd.DataFrame(rolling_features_list).set_index('Index')
+    logging.info(f"Rolling stats p/ futuro calculadas. Colunas: {list(df_rolling_features.columns)}")
+    df_temp_fixtures = fixture_df.join(df_rolling_features, how='left') # Junta no DF original
 
     # --- Etapa 2: Calcular Features Derivadas das Odds (Probs, Binning) ---
     print("  Calculando probabilidades e binning para jogos futuros...")
@@ -681,10 +734,13 @@ def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, 
     df_temp_fixtures = calculate_probabilities(df_temp_fixtures)
     df_temp_fixtures = calculate_normalized_probabilities(df_temp_fixtures)
     df_temp_fixtures = calculate_binned_features(df_temp_fixtures)
-
-    logging.info("  Calculando Prob Empate Poisson para jogos futuros...")
-    # Usa df_temp_fixtures que tem as Avg_Gols_...
-    df_temp_fixtures = calculate_poisson_draw_prob(df_temp_fixtures, max_goals=5)
+    # Calcula Poisson usando FA/FD recém calculadas e médias da liga
+    df_temp_fixtures = calculate_poisson_draw_prob(
+        df_temp_fixtures,
+        avg_goals_home_league=avg_h_league, # Passa média
+        avg_goals_away_league=avg_a_league, # Passa média
+        max_goals=5
+    )
     logging.info("  Calculando features derivadas para jogos futuros...")
     # Usa df_temp_fixtures que tem odds e médias (calculadas no passo 1)
     df_temp_fixtures = calculate_derived_features(df_temp_fixtures)
