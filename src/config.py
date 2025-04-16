@@ -265,6 +265,8 @@ MODEL_CONFIG = {
     },
 }
 
+DEFAULT_EV_THRESHOLD = 0.05 # Threshold padrão para EV (Expected Value) - Ajuste conforme necessário
+
 # --- Configuração GitHub ---
 
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
