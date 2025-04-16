@@ -131,28 +131,39 @@ ALL_CANDIDATE_FEATURES = [
     'Odd_A_FT',
     'Odd_Over25_FT', # Se disponível e relevante
     'Odd_BTTS_Yes',  # Se disponível e relevante
+
+    'Avg_Gols_Marcados_H',  # Média Gols Marcados H (Poisson Simples)
+    'Avg_Gols_Sofridos_H',  # Média Gols Sofridos H (Poisson Simples)
+    'Avg_Gols_Marcados_A',  # Média Gols Marcados A (Poisson Simples)
+    'Avg_Gols_Sofridos_A',  # Média Gols Sofridos A (Poisson Simples)
+
+    #Probabilidade Poisson de Empate
+    'Prob_Empate_Poisson'
 ]
 
 # --- Lista das Features FINAIS para o Modelo BackDraw ---
 FEATURE_COLUMNS = [
     # Derivada das Odds 1x2
     'CV_HDA',
+
     # Odds Diretas (do CSV ou Histórico)
     'Odd_H_FT',
     'Odd_A_FT',
     'Odd_D_FT',
+
     # Médias Rolling (Calculadas do Histórico)
     'Media_VG_H',
     'Media_VG_A',
     'Media_CG_H',
     'Media_CG_A',
+
     # Diferença Rolling (Calculada)
     'Diff_Media_CG',
 
     # Consistência Custo Gol Casa (Rolling Std)
     'Std_CG_H',   
     'Std_CG_A',                   
-          
+    
 ]
 
 NEW_FEATURE_COLUMNS = [
@@ -163,6 +174,7 @@ NEW_FEATURE_COLUMNS = [
     'Odd_H_FT',             # Odds Casa (do CSV ou Histórico)
     'CV_HDA',               # Coeficiente de Variação (HDA)
     'Std_CG_A',             # Custo Gol Fora (Rolling Std)
+    'Prob_Empate_Poisson'   # Empate de Poisson
 ]
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS

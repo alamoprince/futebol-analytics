@@ -243,18 +243,31 @@ def train_evaluate_and_save_best_models(
         if model_trained is None: logging.error(f"ERRO CRITICO: {model_name} NULO pós treino."); continue;
 
         # Calibração
-        logging.info("  Calibrando probs..."); calibrator = None; y_proba_val_raw_draw = None;
+        logging.info(f"  Calibrando probs com {calibration_method}...")
+        calibrator = None # Reseta
+        y_proba_val_raw_draw = None # Reseta
         if hasattr(model_trained, "predict_proba"):
              try:
                  y_proba_val_raw_full = model_trained.predict_proba(X_val_m);
                  if y_proba_val_raw_full.shape[1] > 1:
-                      y_proba_val_raw_draw = y_proba_val_raw_full[:, 1];
-                      if calibration_method == 'isotonic': calibrator = IsotonicRegression(out_of_bounds='clip')
-                      else: calibrator = IsotonicRegression(out_of_bounds='clip'); logging.warning("Usando Isotonic.");
-                      calibrator.fit(y_proba_val_raw_draw, y_val); logging.info("  -> Calibrador treinado.");
-                 else: logging.warning(f" -> Shape predict_proba Val {y_proba_val_raw_full.shape}.");
-             except Exception as e: logging.error(f"  Erro calibração: {e}", exc_info=True); calibrator = None;
-        else: logging.warning(f"  {model_name} sem predict_proba.");
+                      y_proba_val_raw_draw = y_proba_val_raw_full[:, 1]
+                      # Instancia diretamente em 'calibrator'
+                      if calibration_method == 'isotonic':
+                          calibrator = IsotonicRegression(out_of_bounds='clip')
+                      else:
+                          calibrator = IsotonicRegression(out_of_bounds='clip')
+                          logging.warning("Calibração não-isotônica não implementada, usando Isotonic.")
+
+                      # **Fit direto no objeto calibrator**
+                      calibrator.fit(y_proba_val_raw_draw, y_val)
+                      logging.info("  -> Calibrador treinado.")
+                 else:
+                      logging.warning(f"    Predict_proba Val shape {y_proba_val_raw_full.shape}. Calib. pulada.")
+             except Exception as e_calib:
+                 logging.error(f"  Erro durante calibração: {e_calib}", exc_info=True)
+                 calibrator = None # Garante None se falhar
+        else:
+             logging.warning(f"  {model_name} sem predict_proba. Calib. pulada.")
 
         # Otimização Limiar EV
         optimal_ev_threshold = default_ev_threshold; best_val_roi_ev = -np.inf;
@@ -262,7 +275,9 @@ def train_evaluate_and_save_best_models(
             logging.info("  Otimizando limiar EV (Val)...");
             if calibrator and X_val_odds is not None and y_proba_val_raw_draw is not None:
                  try:
-                     y_proba_val_calib = calibrator.predict(y_proba_val_raw_draw); ev_ths = np.linspace(0.0, 0.20, 21); logging.info(f"    Testando {len(ev_ths)} limiares EV...");
+                     y_proba_val_calib = calibrator.predict(y_proba_val_raw_draw); ev_ths = np.linspace(0.0, 0.20, 21); 
+                     logging.info(f"DEBUG CALIB: Probs Val Calibradas (Min: {np.min(y_proba_val_calib):.4f}, Max: {np.max(y_proba_val_calib):.4f}, Mean: {np.mean(y_proba_val_calib):.4f}, Std: {np.std(y_proba_val_calib):.4f})")
+                     logging.info(f"DEBUG CALIB: Contagem de valores únicos Calib (Top 10): \n{pd.Series(y_proba_val_calib).value_counts().head(10)}")
                      for ev_th in ev_ths:
                          val_roi, val_bets, _ = calculate_metrics_with_ev(y_val, y_proba_val_calib, ev_th, X_val_odds, odd_draw_col_name)
                          if val_roi is not None and val_roi > best_val_roi_ev: best_val_roi_ev=val_roi; optimal_ev_threshold=ev_th;
@@ -456,16 +471,71 @@ def _save_ev_model_object(model_result_dict: Dict, feature_names: List[str], fil
     except Exception as e:
         logging.error(f"  -> Erro GRAVE ao salvar objeto EV em {file_path}: {e}", exc_info=True)
 
-
-# --- Funções Antigas (Redirecionadas ou Removidas) ---
-def _save_calibrated_model_object(*args, **kwargs): logging.warning("Chamada para _save_calibrated_model_object obsoleta.")
-def _save_single_model_object(*args, **kwargs): logging.warning("Chamada para _save_single_model_object obsoleta.")
-def save_model_scaler_features(*args, **kwargs): logging.warning("Chamada para save_model_scaler_features obsoleta.")
-
 # --- Funções Remanescentes (analyze_features, optimize_single_model) ---
 def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFrame, pd.DataFrame]]:
-    # (Código como antes)
-    logging.info("--- Análise Features ---"); return None, None # Placeholder
+    """ Analisa features: importância (RF rápido) e correlação. Retorna DFs ou (None, None). """
+    logging.info("--- ANÁLISE FEATURES: Iniciando ---")
+    imp_df = None # Inicia como None
+    corr_matrix = None # Inicia como None
+
+    if X is None or y is None or X.empty or y.empty:
+        logging.error("ANÁLISE FEATURES: Dados X ou y inválidos/vazios.")
+        return imp_df, corr_matrix # Retorna (None, None)
+
+    # Alinhamento (como antes)
+    if not X.index.equals(y.index):
+        logging.warning("ANÁLISE FEATURES: Índices X/y não idênticos. Tentando alinhar.")
+        try: y = y.reindex(X.index);
+        except Exception as e: logging.error(f"ANÁLISE FEATURES: Erro alinhar y: {e}"); return imp_df, corr_matrix;
+        if y.isnull().any(): logging.error("ANÁLISE FEATURES: NaNs em y após alinhar."); return imp_df, corr_matrix;
+
+    feature_names = X.columns.tolist()
+
+    # 1. Calcular Importância
+    logging.info("ANÁLISE FEATURES: Calculando importância RF...")
+    try:
+        # Verifica se há NaNs/Infs remanescentes em X ou y
+        if X.isnull().values.any() or not np.all(np.isfinite(X.values)):
+             logging.error("ANÁLISE FEATURES: NaNs ou Infs encontrados em X antes do fit RF!")
+             # Opcional: mostrar onde estão os NaNs/Infs
+             logging.error(f"Nulos em X:\n{X.isnull().sum()[X.isnull().sum() > 0]}")
+             logging.error(f"Infinitos em X:\n{np.isinf(X.values).sum(axis=0)}")
+        if y.isnull().values.any():
+             logging.error("ANÁLISE FEATURES: NaNs encontrados em y antes do fit RF!")
+
+        rf_analyzer = RandomForestClassifier(n_estimators=50, max_depth=15, n_jobs=-1, min_samples_leaf=3, random_state=RANDOM_STATE)
+        logging.info(f"    -> Fitting RF (X shape: {X.shape}, y shape: {y.shape})")
+        rf_analyzer.fit(X, y)
+        logging.info("    -> Fit RF concluído.")
+        importances = rf_analyzer.feature_importances_
+        imp_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+        imp_df = imp_df.sort_values(by='Importance', ascending=False).reset_index(drop=True)
+        logging.info(f"ANÁLISE FEATURES: Importância calculada OK. Shape: {imp_df.shape}")
+    except Exception as e:
+        logging.error(f"ANÁLISE FEATURES: Erro GRAVE ao calcular importância RF: {e}", exc_info=True)
+        imp_df = None # Define como None se falhar
+
+    # 2. Calcular Correlação
+    logging.info("ANÁLISE FEATURES: Calculando correlação...")
+    try:
+        df_temp = X.copy()
+        df_temp['target_IsDraw'] = y
+        # Verifica NaNs/Infs antes de .corr()
+        if df_temp.isnull().values.any() or not np.all(np.isfinite(df_temp.values)):
+            logging.error("ANÁLISE FEATURES: NaNs ou Infs encontrados em df_temp antes de .corr()!")
+            logging.error(f"Nulos em df_temp:\n{df_temp.isnull().sum()[df_temp.isnull().sum() > 0]}")
+            logging.error(f"Infinitos em df_temp:\n{np.isinf(df_temp.values).sum(axis=0)}")
+
+        logging.info(f"    -> Calculando corr() em df_temp (shape: {df_temp.shape})")
+        corr_matrix = df_temp.corr()
+        logging.info(f"ANÁLISE FEATURES: Correlação calculada OK. Shape: {corr_matrix.shape}")
+    except Exception as e:
+        logging.error(f"ANÁLISE FEATURES: Erro GRAVE ao calcular correlação: {e}", exc_info=True)
+        corr_matrix = None # Define como None se falhar
+
+    logging.info("--- ANÁLISE FEATURES: Concluída ---")
+    # Retorna os dataframes (podem ser None se houve erro)
+    return imp_df, corr_matrix
 
 def optimize_single_model(*args, **kwargs) -> Optional[Tuple[str, Dict, Dict]]:
     logging.warning("optimize_single_model placeholder."); return None

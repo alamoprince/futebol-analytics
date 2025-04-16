@@ -5,6 +5,7 @@ from typing import Optional, List, Dict, Any
 import os
 import sys
 import traceback
+import logging
 
 try:
     # Path setup might be needed here if you ever run this file directly
@@ -14,11 +15,11 @@ try:
     if BASE_DIR not in sys.path: sys.path.append(BASE_DIR)
 
     from model_trainer import analyze_features
-    from config import HISTORICAL_DATA_PATH, NEW_FEATURE_COLUMNS, FEATURE_COLUMNS, ROLLING_WINDOW # Use config window
+    from config import HISTORICAL_DATA_PATH, NEW_FEATURE_COLUMNS, ROLLING_WINDOW # Use config window
     from data_handler import (load_historical_data, calculate_historical_intermediate,
                           calculate_probabilities, calculate_normalized_probabilities,
                           calculate_rolling_stats, calculate_rolling_std,
-                          calculate_binned_features)
+                          calculate_binned_features, calculate_derived_features)
 except ImportError as e:
      print(f"Import Error in feature_analyzer_tab.py: {e}")
      # Handle error appropriately, maybe raise it or show a message if possible
@@ -41,64 +42,69 @@ class FeatureAnalyzerApp:
         self.create_widgets()
 
     def create_widgets(self):
+        """Cria os widgets para a aba de Análise de Features."""
         main_frame = ttk.Frame(self.parent, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # --- Top Action Panel ---
-        top_frame = ttk.Frame(main_frame)
-        top_frame.pack(fill=tk.X, pady=(0, 10))
-        load_button = ttk.Button(top_frame, text="Carregar & Analisar Dados Históricos", command=self.load_and_display_data) # Renamed button text slightly
-        load_button.pack(side=tk.LEFT, padx=(0, 10))
-        self.status_label = ttk.Label(top_frame, text="Pronto.") # Add a status label
-        self.status_label.pack(side=tk.LEFT, padx=10)
+        # --- Painel de Ação Superior (inalterado) ---
+        top_frame = ttk.Frame(main_frame); top_frame.pack(fill=tk.X, pady=(0, 10)); load_button = ttk.Button(top_frame, text="Carregar & Analisar Dados Históricos", command=self.load_and_display_data); load_button.pack(side=tk.LEFT, padx=(0, 10)); self.status_label = ttk.Label(top_frame, text="Pronto."); self.status_label.pack(side=tk.LEFT, padx=10);
 
+        # --- Painéis de Display com PanedWindow (inalterado) ---
+        paned_window_main = ttk.PanedWindow(main_frame, orient=tk.VERTICAL); paned_window_main.pack(fill=tk.BOTH, expand=True);
+        pane_top = ttk.PanedWindow(paned_window_main, orient=tk.HORIZONTAL); paned_window_main.add(pane_top, weight=1);
+        pane_middle = ttk.PanedWindow(paned_window_main, orient=tk.HORIZONTAL); paned_window_main.add(pane_middle, weight=1);
+        pane_bottom = ttk.PanedWindow(paned_window_main, orient=tk.HORIZONTAL); paned_window_main.add(pane_bottom, weight=2);
 
-        # --- Display Panes ---
-        # Use PanedWindow for resizable sections
-        paned_window_main = ttk.PanedWindow(main_frame, orient=tk.VERTICAL)
-        paned_window_main.pack(fill=tk.BOTH, expand=True)
+        # --- Widgets de Texto com Scroll Duplo ---
 
-        # Top Pane (Info/Head)
-        pane_top = ttk.PanedWindow(paned_window_main, orient=tk.HORIZONTAL)
-        paned_window_main.add(pane_top, weight=1) # Add pane to main PanedWindow
+        # Função auxiliar para criar um painel de texto com ambas as barras
+        def create_text_panel(parent_pane, title, font_size=9, weight=1):
+            frame = ttk.LabelFrame(parent_pane, text=f" {title} ", padding=5)
+            parent_pane.add(frame, weight=weight) # Adiciona o frame ao PanedWindow
 
-        info_frame = ttk.LabelFrame(pane_top, text=" Infos Gerais (df.info) ", padding=5)
-        pane_top.add(info_frame, weight=1) # Add frame to the horizontal pane
-        self.info_text = ScrolledText(info_frame, height=10, state='disabled', wrap=tk.NONE, font=("Consolas", 9))
-        self.info_text.pack(fill=tk.BOTH, expand=True)
+            # Cria as barras de rolagem ANTES do texto
+            xscrollbar = ttk.Scrollbar(frame, orient=tk.HORIZONTAL)
+            yscrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL)
 
-        head_frame = ttk.LabelFrame(pane_top, text=" Amostra Dados (df.head) ", padding=5)
-        pane_top.add(head_frame, weight=1)
-        self.head_text = ScrolledText(head_frame, height=10, state='disabled', wrap=tk.NONE, font=("Consolas", 9))
-        self.head_text.pack(fill=tk.BOTH, expand=True)
+            # Cria o widget de Texto
+            text_widget = tk.Text(
+                frame,
+                height=8, # Altura padrão (ajuste se necessário)
+                wrap=tk.NONE, # <--- MUITO IMPORTANTE: Desabilita quebra de linha
+                font=("Consolas", font_size),
+                yscrollcommand=yscrollbar.set, # Liga scroll vertical do texto à barra Y
+                xscrollcommand=xscrollbar.set, # Liga scroll horizontal do texto à barra X
+                state='disabled', # Começa desabilitado
+                borderwidth=0, # Remove borda padrão do Text
+                highlightthickness=0 # Remove borda de foco
+            )
 
-        # Middle Pane (Describe/Target)
-        pane_middle = ttk.PanedWindow(paned_window_main, orient=tk.HORIZONTAL)
-        paned_window_main.add(pane_middle, weight=1)
+            # Configura as barras para controlar o texto
+            yscrollbar.config(command=text_widget.yview)
+            xscrollbar.config(command=text_widget.xview)
 
-        desc_frame = ttk.LabelFrame(pane_middle, text=" Describe (Features Finais) ", padding=5)
-        pane_middle.add(desc_frame, weight=1)
-        self.desc_text = ScrolledText(desc_frame, height=10, state='disabled', wrap=tk.NONE, font=("Consolas", 9))
-        self.desc_text.pack(fill=tk.BOTH, expand=True)
+            # Empacota usando pack (alternativa ao grid)
+            yscrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            xscrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+            text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+            return text_widget # Retorna a referência ao widget de texto
+
+        # -- Topo --
+        self.info_text = create_text_panel(pane_top, "Infos Gerais (df.info)", font_size=9, weight=1)
+        self.head_text = create_text_panel(pane_top, "Amostra Dados Raw (df.head)", font_size=9, weight=1)
+
+        # -- Meio --
+        self.desc_text = create_text_panel(pane_middle, "Describe (Features Calculadas)", font_size=9, weight=1)
+        # Target Dist não precisa de scroll horizontal, mantém ScrolledText
         target_frame = ttk.LabelFrame(pane_middle, text=" Distribuição Alvo (IsDraw) ", padding=5)
         pane_middle.add(target_frame, weight=1)
-        self.target_text = ScrolledText(target_frame, height=10, state='disabled', wrap=tk.WORD, font=("Consolas", 10))
+        self.target_text = ScrolledText(target_frame, height=10, state='disabled', wrap=tk.WORD, font=("Consolas", 10), borderwidth=0, highlightthickness=0)
         self.target_text.pack(fill=tk.BOTH, expand=True)
 
-        # Bottom Pane (Importance/Correlation) - NEW
-        pane_bottom = ttk.PanedWindow(paned_window_main, orient=tk.HORIZONTAL)
-        paned_window_main.add(pane_bottom, weight=1)
-
-        importance_frame = ttk.LabelFrame(pane_bottom, text=" Importância Features (RF Rápido) ", padding=5)
-        pane_bottom.add(importance_frame, weight=1)
-        self.importance_text = ScrolledText(importance_frame, height=10, state='disabled', wrap=tk.NONE, font=("Consolas", 9))
-        self.importance_text.pack(fill=tk.BOTH, expand=True)
-
-        corr_frame = ttk.LabelFrame(pane_bottom, text=" Correlação Features (com Alvo) ", padding=5)
-        pane_bottom.add(corr_frame, weight=1)
-        self.corr_text = ScrolledText(corr_frame, height=10, state='disabled', wrap=tk.NONE, font=("Consolas", 9))
-        self.corr_text.pack(fill=tk.BOTH, expand=True)
+        # -- Fundo --
+        self.importance_text = create_text_panel(pane_bottom, "Importância Features (RF Rápido)", font_size=9, weight=1)
+        self.corr_text = create_text_panel(pane_bottom, "Correlação Features (com Alvo)", font_size=8, weight=2)
 
     # --- Helper methods (_update_text_widget, log_to_widget) remain the same ---
     def _update_text_widget(self, text_widget: ScrolledText, content: str):
@@ -131,170 +137,157 @@ class FeatureAnalyzerApp:
          except tk.TclError: pass
 
     def load_and_display_data(self):
-        """Carrega, processa (com pipeline completo) e analisa dados históricos."""
-        self.log("Iniciando: Carregando dados...")
-        # Limpa displays
-        widgets_to_clear = [
-            self.info_text, self.head_text, self.desc_text,
-            self.target_text, self.importance_text, self.corr_text
-        ]
-        for widget in widgets_to_clear:
-            self._update_text_widget(widget, "Carregando...") # Limpa todos
-
-        self.df_historical_raw = None
-        self.df_historical_processed = None # DataFrame com TUDO calculado
-
+        self.log("Iniciando: Carregando & Processando..."); widgets_to_clear = [self.info_text, self.head_text, self.desc_text, self.target_text, self.importance_text, self.corr_text]; [self._update_text_widget(w, "Carregando...") for w in widgets_to_clear]; self.df_historical_raw = None; self.df_historical_processed = None;
+       
         try:
-            # 1. Carregar Dados Brutos
-            df_raw = load_historical_data(HISTORICAL_DATA_PATH)
-            if df_raw is None:
-                messagebox.showerror("Erro", f"Falha carregar:\n{HISTORICAL_DATA_PATH}", parent=self.parent)
-                self.log("Falha ao carregar.")
-                self._update_text_widget(self.info_text, "Falha ao carregar.")
-                return
-            self.df_historical_raw = df_raw.copy()
-            self.log(f"Dados brutos carregados: {self.df_historical_raw.shape}")
+            # 1. Load
+            df_raw = load_historical_data(HISTORICAL_DATA_PATH);
+            if df_raw is None: messagebox.showerror("Erro", f"Falha carregar.", parent=self.parent); self.log("Falha carregar."); self._update_text_widget(self.info_text, "Falha."); return;
+            self.df_historical_raw = df_raw.copy(); self.log(f"Dados brutos: {self.df_historical_raw.shape}");
+            buffer = io.StringIO(); self.df_historical_raw.info(buf=buffer); self._update_text_widget(self.info_text, buffer.getvalue()); self._update_text_widget(self.head_text, self.df_historical_raw.head(5).to_string());
 
-            # Display info/head do RAW
-            buffer = io.StringIO()
-            self.df_historical_raw.info(buf=buffer)
-            self._update_text_widget(self.info_text, buffer.getvalue())
-            self._update_text_widget(self.head_text, self.df_historical_raw.head(5).to_string())
+             # 2. Processamento Completo
+            self.log("Processando features..."); df_p=self.df_historical_raw.copy(); # Usa cópia
+            logging.info("=== INÍCIO PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===") # Log de início
 
-            # 2. **EXECUTAR PIPELINE DE CÁLCULO COMPLETO**
-            self.log("Executando pipeline completo de cálculo de features...")
-            # PASSO A PASSO (espelhando preprocess_and_feature_engineer)
-            self.log(" -> Calculando Intermediárias...")
-            df_processed = calculate_historical_intermediate(self.df_historical_raw)
-            if 'IsDraw' not in df_processed.columns: raise ValueError("'IsDraw' não criada.")
+            # Etapa 2.1: Intermediárias
+            self.log(" -> Calculando Intermediárias..."); df_p=calculate_historical_intermediate(df_p);
+            logging.info(f"Após intermediate, cols: {list(df_p.columns)}")
+            if 'IsDraw' not in df_p.columns: raise ValueError("Alvo 'IsDraw' ausente pós-intermediate.");
+            if not all(c in df_p.columns for c in ['VG_H_raw','VG_A_raw','CG_H_raw','CG_A_raw']): raise ValueError("Stats Raw ausentes pós-intermediate.");
+            if not all(p in df_p.columns for p in['p_H','p_D','p_A']): df_p=calculate_probabilities(df_p); logging.info("Probs p_H/D/A recalculadas.");
 
-            # Garante probabilidades (pode ser redundante se intermediate já calcula)
-            if not all(p in df_processed.columns for p in ['p_H', 'p_D', 'p_A']):
-                 self.log(" -> Calculando Probabilidades p_H/D/A...")
-                 df_processed = calculate_probabilities(df_processed)
+            # Etapa 2.2: Normalizadas
+            self.log(" -> Calculando Normalizadas..."); df_p=calculate_normalized_probabilities(df_p);
+            logging.info(f"Após norm probs, cols: {list(df_p.columns)}")
+            if 'p_D_norm' not in df_p.columns: raise ValueError("'p_D_norm' ausente pós-normalização.");
 
-            self.log(" -> Calculando Probabilidades Normalizadas...")
-            df_processed = calculate_normalized_probabilities(df_processed)
+            # Etapa 2.3: Rolling Stats (Mean)
+            self.log(" -> Calculando Rolling Means..."); df_p=calculate_rolling_stats(df_p,['VG','CG'],window=ROLLING_WINDOW);
+            logging.info(f"Após rolling means, cols: {list(df_p.columns)}")
+            if 'Media_CG_H' not in df_p.columns: raise ValueError("'Media_CG_H' ausente pós-rolling mean.");
 
-            self.log(" -> Calculando Médias Rolling (VG, CG)...")
-            stats_to_roll_mean = ['VG', 'CG'] # Defina quais médias quer calcular
-            df_processed = calculate_rolling_stats(df_processed, stats_to_roll_mean, window=ROLLING_WINDOW)
+            # Etapa 2.4: Rolling Stats (Std)
+            self.log(" -> Calculando Rolling Stds..."); df_p=calculate_rolling_std(df_p,['CG'],window=ROLLING_WINDOW);
+            logging.info(f"Após rolling stds, cols: {list(df_p.columns)}")
+            if 'Std_CG_H' not in df_p.columns: raise ValueError("'Std_CG_H' ausente pós-rolling std.");
 
-            self.log(" -> Calculando StDev Rolling (CG)...") # Defina quais StDevs quer calcular
-            stats_to_roll_std = ['CG']
-            df_processed = calculate_rolling_std(df_processed, stats_to_roll_std, window=ROLLING_WINDOW)
+            # Etapa 2.5: Rolling Goals
+            self.log(" -> Calculando Rolling Goals...");
+            from data_handler import calculate_rolling_goal_stats # Garante import
+            df_p=calculate_rolling_goal_stats(df_p,window=ROLLING_WINDOW);
+            logging.info(f"Após rolling goals, cols: {list(df_p.columns)}")
+            if 'Avg_Gols_Marcados_H' not in df_p.columns: raise ValueError("'Avg_Gols_Marcados_H' ausente pós-rolling goals.");
 
-            # Exemplo: Calcular médias e std para PONTOS também
-            # self.log(" -> Calculando Médias/StDev Rolling (Ptos)...")
-            # df_processed = calculate_rolling_stats(df_processed, ['Ptos'], window=ROLLING_WINDOW)
-            # df_processed = calculate_rolling_std(df_processed, ['Ptos'], window=ROLLING_WINDOW)
+            # Etapa 2.6: Poisson Draw Prob
+            self.log(" -> Calculando Poisson Draw Prob...");
+            from data_handler import calculate_poisson_draw_prob # Garante import
+            df_p=calculate_poisson_draw_prob(df_p, max_goals=5);
+            logging.info(f"Após Poisson Prob, cols: {list(df_p.columns)}")
+            if 'Prob_Empate_Poisson' in df_p.columns:
+                logging.info(f"  -> Poisson Prob calculada. Amostra:\n{df_p['Prob_Empate_Poisson'].dropna().head().to_string()}")
+            else:
+                 logging.error(" -> ERRO: Coluna 'Prob_Empate_Poisson' NÃO EXISTE após chamada da função!")
+                 # Decide o que fazer: parar? continuar sem a feature?
+                 # return # Parar aqui se a feature for essencial
 
-            self.log(" -> Calculando Binning (Odd_D_Cat)...")
-            df_processed = calculate_binned_features(df_processed)
+            # Etapa 2.7: Binning
+            self.log(" -> Calculando Binning..."); df_p=calculate_binned_features(df_p);
+            logging.info(f"Após Binning, cols: {list(df_p.columns)}")
+            if 'Odd_D_Cat' not in df_p.columns: logging.warning("'Odd_D_Cat' ausente pós-binning.");
 
-            # Exemplo: Calcular Features Derivadas (se quiser analisá-las também)
-            # self.log(" -> Calculando Derivadas (CV_HDA, Diff_Media_CG)...")
-            # from data_handler import calculate_derived_features # Importa se necessário
-            # df_processed = calculate_derived_features(df_processed) # Recalcula com base nas médias existentes
+            # Etapa 2.8: Derivadas
+            self.log(" -> Calculando Derivadas..."); df_p=calculate_derived_features(df_p);
+            logging.info(f"Após Derivadas, cols: {list(df_p.columns)}")
+            if 'CV_HDA' not in df_p.columns: logging.warning("'CV_HDA' ausente pós-derivadas.");
 
-            self.df_historical_processed = df_processed # Armazena o DF com TUDO calculado
-            self.log(f"Pipeline de cálculo concluído. Colunas: {list(self.df_historical_processed.columns)}")
+            self.df_historical_processed = df_p; self.log("Processamento OK.");
+            logging.info("=== FIM PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===")
 
-            # 3. Preparar X, y para Análise Avançada
-            #    Agora usa self.df_historical_processed que contém TUDO
-            self.log("Preparando dados para análise avançada...")
-            target_col = 'IsDraw'
-            y = self.df_historical_processed[target_col].copy() # Pega o alvo
+            # 3. Preparar X, y para Análise
+            self.log("Preparando X, y p/ análise..."); target_col='IsDraw';
+            if target_col not in self.df_historical_processed: logging.error("Alvo ausente!"); y=None;
+            else: y = self.df_historical_processed[target_col];
 
-            # Seleciona TODAS as colunas numéricas calculadas como candidatas para análise
-            # Exclui IDs, datas, alvo, intermediárias _raw, etc.
-            cols_to_exclude_from_X = [
-                target_col, 'Date', 'Home', 'Away', 'FT_Result', 'Profit', # IDs, Alvo, etc.
-                'Goals_H_FT', 'Goals_A_FT', # Gols brutos
-                'Ptos_H', 'Ptos_A',          # Pontos brutos
-                'p_H', 'p_D', 'p_A',       # Probs não normalizadas
-                'VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw' # Stats Raw
-            ]
-            #candidate_features = [
-               # col for col in self.df_historical_processed.columns
-                #if pd.api.types.is_numeric_dtype(self.df_historical_processed[col])
-                #and col not in cols_to_exclude_from_X
-            #]
-            # Garante que só seleciona colunas que realmente existem
-            candidate_features = [f for f in NEW_FEATURE_COLUMNS if f in self.df_historical_processed.columns]
+            from config import FEATURE_COLUMNS # Usa a lista do config para treino/análise principal
+            features_to_analyze = [f for f in FEATURE_COLUMNS if f in self.df_historical_processed.columns]
+            missing_in_df = [f for f in FEATURE_COLUMNS if f not in self.df_historical_processed.columns]
+            if missing_in_df:
+                 self.log(f"AVISO: Features da lista FEATURE_COLUMNS não encontradas no DF processado: {missing_in_df}")
 
-            if not candidate_features:
-                 self.log("Erro: Nenhuma feature numérica candidata encontrada após processamento.")
-                 messagebox.showerror("Erro", "Nenhuma feature candidata encontrada para análise.", parent=self.parent)
-                 return
+            if not features_to_analyze: self.log("Erro: Nenhuma das FEATURE_COLUMNS encontrada."); return;
+            X = self.df_historical_processed[features_to_analyze].copy();
+            self.log(f"Shape de X ANTES do dropna (features selecionadas): {X.shape}")
 
-            X = self.df_historical_processed[candidate_features].copy()
-            self.log(f"Features candidatas para análise: {list(X.columns)}")
+            analysis_df = X if y is None else X.join(y);
+            initial_rows=len(analysis_df);
+            # LOG ANTES DO DROPNA
+            nan_check_before = analysis_df.isnull().sum()
+            cols_with_nan_before = nan_check_before[nan_check_before > 0]
+            if not cols_with_nan_before.empty:
+                self.log(f"NaNs ANTES do dropna final (em {len(cols_with_nan_before)} cols):\n{cols_with_nan_before}")
+            # --- DROP NA ---
+            analysis_df.dropna(inplace=True);
+            rows_dropped=initial_rows-len(analysis_df);
+            self.log(f"Dados p/ análise (shape final): {analysis_df.shape} ({rows_dropped} linhas removidas por NaNs).");
+            if analysis_df.empty: self.log("Erro: Nenhum dado p/ análise após dropna."); return;
 
-            # Combina X e y e remove NaNs para análise
-            analysis_df = X.join(y)
-            initial_rows = len(analysis_df)
-            analysis_df = analysis_df.dropna() # Drop NaNs DEPOIS de calcular TUDO
-            rows_dropped = initial_rows - len(analysis_df)
-            self.log(f"Dados p/ análise (após dropna): {analysis_df.shape}. ({rows_dropped} linhas removidas).")
+            X_clean = analysis_df[features_to_analyze]; y_clean = analysis_df[target_col] if y is not None else None;
 
-            if analysis_df.empty:
-                 self.log("Erro: Nenhum dado restante para análise após dropna.")
-                 messagebox.showwarning("Dados Insuficientes", "Nenhum dado completo para análise.", parent=self.parent)
-                 return
+            # 4. Display Describe/Target
+            self.log("Atualizando Describe/Target..."); self._update_text_widget(self.desc_text, X_clean.describe().to_string());
+            if y_clean is not None: counts=y_clean.value_counts(); dist=y_clean.value_counts(normalize=True); self._update_text_widget(self.target_text, f"Contagem:\n{counts.to_string()}\n\nProporção:\n{dist.apply('{:.2%}'.format).to_string()}");
+            else: self._update_text_widget(self.target_text, "Alvo não disponível.");
 
-            X_clean = analysis_df[candidate_features]
-            y_clean = analysis_df[target_col]
+            # 5. Análise Avançada e Display
+            self.log("Executando Análise Avançada...");
+            if y_clean is None:
+                self.log("Análise avançada pulada (alvo ausente).");
+                self._update_text_widget(self.importance_text,"Alvo 'IsDraw' ausente.");
+                self._update_text_widget(self.corr_text,"Alvo 'IsDraw' ausente.");
+            else:
+                try:
+                    self.log(f"Chamando analyze_features com X_clean ({X_clean.shape}) e y_clean ({y_clean.shape})...");
+                    # Chama a função com logs internos
+                    analysis_results = analyze_features(X_clean, y_clean)
+                    self.log("analyze_features retornou.") # Confirma que a função terminou
 
-            # 4. Display Describe (AGORA COM TODAS AS FEATURES CALCULADAS) & Target
-            self.log("Atualizando displays Describe e Target...")
-            self._update_text_widget(self.desc_text, X_clean.describe().to_string())
+                    if analysis_results is not None:
+                        imp_df, corr_df = analysis_results # Desempacota o resultado
 
-            target_dist = y_clean.value_counts(normalize=True).apply("{:.2%}".format).to_string()
-            target_counts = y_clean.value_counts().to_string()
-            self._update_text_widget(self.target_text, f"Contagem:\n{target_counts}\n\nProporção:\n{target_dist}")
+                        # Verifica e exibe Importância
+                        if isinstance(imp_df, pd.DataFrame) and not imp_df.empty:
+                            self.log("Resultado Importância recebido e válido.")
+                            self._update_text_widget(self.importance_text, imp_df.to_string(index=False))
+                        else:
+                            self.log("Resultado Importância é None ou vazio.")
+                            self._update_text_widget(self.importance_text, "Não calculado ou resultado vazio.")
 
-            # 5. Análise Avançada (Correlação / Importância com X_clean)
-            self.log("Executando análise de importância e correlação...")
-            try:
-                analysis_results = analyze_features(X_clean, y_clean)
-                if analysis_results:
-                    df_importance, df_correlation = analysis_results
-                    # Display Importance
-                    if df_importance is not None and not df_importance.empty:
-                        self._update_text_widget(self.importance_text, df_importance.to_string(index=False))
-                    else: self._update_text_widget(self.importance_text, "Não calculado.")
-                    # Display Correlation
-                    if df_correlation is not None and not df_correlation.empty:
-                        pd.set_option('display.float_format', '{:.2f}'.format)
-                        # Mostra correlação apenas com o alvo para economizar espaço?
-                        corr_with_target = df_correlation['target_IsDraw'].sort_values(ascending=False).to_string()
-                        self._update_text_widget(self.corr_text, "Correlação c/ Alvo (IsDraw):\n"+ corr_with_target)
-                        # Ou mostra tudo: self._update_text_widget(self.corr_text, df_correlation.to_string())
-                        pd.reset_option('display.float_format')
-                    else: self._update_text_widget(self.corr_text, "Não calculado.")
-                else:
-                    self.log("Falha na execução de analyze_features.")
-                    self._update_text_widget(self.importance_text, "Erro na análise.")
-                    self._update_text_widget(self.corr_text, "Erro na análise.")
-            except Exception as e_adv_analyze:
-                self.log(f"Erro durante análise avançada: {e_adv_analyze}")
-                messagebox.showerror("Erro Análise", f"Erro calcular:\n{e_adv_analyze}", parent=self.parent)
-                self._update_text_widget(self.importance_text, f"Erro: {e_adv_analyze}")
-                self._update_text_widget(self.corr_text, f"Erro: {e_adv_analyze}")
+                        # Verifica e exibe Correlação
+                        if isinstance(corr_df, pd.DataFrame) and not corr_df.empty:
+                            self.log("Resultado Correlação recebido e válido.")
+                            pd.set_option('display.float_format','{:.2f}'.format)
+                            self._update_text_widget(self.corr_text, corr_df.to_string())
+                            pd.reset_option('display.float_format')
+                        else:
+                             self.log("Resultado Correlação é None ou vazio.")
+                             self._update_text_widget(self.corr_text, "Não calculado ou resultado vazio.")
+                    else:
+                        # Se a própria tupla retornada for None (não deveria acontecer com o código atual)
+                        self.log("ERRO INESPERADO: analyze_features retornou None em vez de (DataFrame, DataFrame).")
+                        self._update_text_widget(self.importance_text, "Erro interno na análise (retorno None).")
+                        self._update_text_widget(self.corr_text, "Erro interno na análise (retorno None).")
 
-            self.log("Análise concluída.")
-            self.status_label.config(text="Análise Concluída.") # Atualiza status final
+                except Exception as e_adv_analyze:
+                    # Captura erros durante a chamada ou desempacotamento
+                    self.log(f"!!! ERRO GRAVE durante chamada/processamento de analyze_features: {e_adv_analyze}")
+                    traceback.print_exc()
+                    messagebox.showerror("Erro Análise", f"Erro calcular importância/correlação:\n{e_adv_analyze}", parent=self.parent)
+                    self._update_text_widget(self.importance_text, f"Erro: {e_adv_analyze}")
+                    self._update_text_widget(self.corr_text, f"Erro: {e_adv_analyze}")
 
-        except FileNotFoundError:
-            messagebox.showerror("Erro", f"Arquivo não encontrado:\n{HISTORICAL_DATA_PATH}", parent=self.parent)
-            self.log("Falha: Arquivo não encontrado.")
-            self.status_label.config(text="Erro: Arquivo não encontrado.")
-            self._update_text_widget(self.info_text, "Falha: Arquivo não encontrado.")
+            self.log("Análise avançada concluida.");
         except Exception as e:
-            self.log(f"Erro geral no processamento/análise: {e}")
-            self.status_label.config(text=f"Erro: {e}")
-            messagebox.showerror("Erro Processamento", f"Ocorreu um erro:\n{e}", parent=self.parent)
-            self._update_text_widget(self.info_text, f"Erro: {e}")
+            self.log(f"!!! ERRO GRAVE durante análise: {e}")
             traceback.print_exc()
-    
+        

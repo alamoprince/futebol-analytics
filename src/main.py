@@ -319,107 +319,93 @@ class FootballPredictorDashboard:
     # --- : Atualiza Display de Previsões ---
     def _update_prediction_display(self, df: Optional[pd.DataFrame]):
         try:
+            # ... (verificação inicial da treeview como antes) ...
             if not hasattr(self, 'prediction_tree') or not self.prediction_tree.winfo_exists(): return
         except tk.TclError: return
 
-        self.log(f"--- GUI: Atualizando display de previsões ---")
-        # Define os headers que QUEREMOS exibir na ordem desejada
-        display_headers = ['Data', 'Hora', 'Liga', 'Casa', 'Fora', 'Odd H', 'Odd D', 'Odd A',
-                            'P(Ñ Emp)', 'P(Empate)', 'P(Emp Calib)','EV EMPATE'] # Adiciona Calib
+        self.log(f"--- GUI: Atualizando display previsões (Format + Highlight EV > Thr) ---")
+        # HEADERS PARA EXIBIR
+        # Definir nomes claros, ex: P(E) Raw, P(E) Calib
+        display_headers = ['Data', 'Hora', 'Liga', 'Casa', 'Fora',
+                           'Odd D', 'P(E) Raw', 'P(E) Calib', 'EV Empate']
+
+        # Configurar a tag de destaque
+        try:
+             self.prediction_tree.tag_configure('highlight_ev', background='lightgreen', foreground='black') # Ou outra cor
+        except tk.TclError: pass # Ignora se já configurado ou erro
 
         if df is None or df.empty:
-            self.log("GUI: DataFrame vazio/None. Exibindo status.")
-            try:
-                self._setup_prediction_columns(['Status'])
-                self.prediction_tree.insert('', tk.END, values=['Nenhuma previsão válida.'])
-            except Exception as e_clear: self.log(f"Erro clear/status treeview: {e_clear}")
-            return
+            self.log("GUI: DF vazio/None."); self._setup_prediction_columns(['Status']); self.prediction_tree.insert('', tk.END, values=['Nenhuma previsão gerada.']); return
 
-        self.log(f"GUI: Recebido DataFrame {df.shape}. Reconfigurando colunas...")
-        self._setup_prediction_columns(display_headers) # Reconfigura com os headers certos
+        self.log(f"GUI: DF {df.shape}. Reconfigurando..."); self._setup_prediction_columns(display_headers)
 
-        # Mapeamento Header -> Coluna Interna no DataFrame recebido
-        # O nome da coluna calibrada agora vem de predictor.py (sem Raw_)
-        odds_h_col = CONFIG_ODDS_COLS.get('home', 'Odd_H_FT')
-        odds_d_col = CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT')
-        odds_a_col = CONFIG_ODDS_COLS.get('away', 'Odd_A_FT')
-        ev_col = 'EV_Empate'
-        # Colunas de Probabilidade SEM Raw_ (assumindo que predictor.py renomeou/adicionou)
-        prob_non_draw_col = f'Prob_{CLASS_NAMES[0]}' if CLASS_NAMES and len(CLASS_NAMES) > 0 else 'Prob_Nao_Empate'
-        prob_draw_col = f'Prob_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES) > 1 else 'Prob_Empate'
+        # Mapeamento Header -> Coluna Interna (vinda do predictor)
+        odds_d_col = CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT');
+        # Nomes das colunas Raw e Calib
+        prob_draw_raw_col = f'ProbRaw_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'ProbRaw_Empate'
+        prob_draw_calib_col = f'ProbCalib_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'ProbCalib_Empate'
+        ev_col = 'EV_Empate';
 
-        header_to_col_map = {
-            'Data': 'Date_Str', 'Hora': 'Time_Str', 'Liga': 'League', 
-            'Casa': 'HomeTeam', 'Fora': 'AwayTeam',
-            'Odd H': odds_h_col, 'Odd D': odds_d_col, 'Odd A': odds_a_col,
-            # Removido O2.5 e BTTS S dos headers padrão, pode adicionar de volta se quiser
-            'P(Ñ Emp)': prob_non_draw_col,
-            'P(Empate)': prob_draw_col,
-            'P(Emp Calib)': prob_draw_col, 
-            'EV EMPATE': ev_col 
-        }
-
-        # Verifica quais colunas do MAPA realmente existem no DF recebido
+        header_to_col_map = { 'Data': 'Date_Str', 'Hora': 'Time_Str', 'Liga': 'League', 'Casa': 'HomeTeam', 'Fora': 'AwayTeam', 'Odd D': odds_d_col, 'P(E) Raw': prob_draw_raw_col, 'P(E) Calib': prob_draw_calib_col, 'EV Empate': ev_col }
         valid_internal_cols_map = {h: c for h, c in header_to_col_map.items() if c in df.columns}
-        if not valid_internal_cols_map:
-             self.log("ERRO GUI: Nenhuma coluna mapeada encontrada no DF para Treeview!");
-             # Código de erro na treeview...
-             return
+        if not valid_internal_cols_map or ev_col not in valid_internal_cols_map.values(): self.log(f"ERRO GUI: Cols essenciais (incluindo '{ev_col}') ausentes!"); return
 
         try:
-            self.log(f"GUI: Formatando colunas: {list(valid_internal_cols_map.values())}")
-            df_display = df[list(valid_internal_cols_map.values())].copy() # Pega só as colunas válidas
+            self.log(f"GUI: Formatando cols: {list(valid_internal_cols_map.values())}")
+            df_display = df[list(valid_internal_cols_map.values())].copy()
 
-            # Formata Probabilidades (Ñ Emp, Emp, Emp Calib)
-            prob_cols_to_format = [prob_non_draw_col, prob_draw_col]
+            # --- *** ADICIONADO: Formatação de Probabilidades *** ---
+            prob_cols_to_format = [prob_draw_raw_col, prob_draw_calib_col]
             for pcol in prob_cols_to_format:
                 if pcol in df_display.columns:
                     try:
-                        df_display[pcol] = (pd.to_numeric(df_display[pcol], errors='coerce') * 100).round(1).astype(str) + '%'
-                        df_display[pcol] = df_display[pcol].replace('nan%', '-', regex=False)
-                    except Exception as e_fmt: self.log(f"Aviso: Erro formatar {pcol}: {e_fmt}")
-             
-            # Formata EV
-            if ev_col in df_display.columns:
-                 try: df_display[ev_col] = pd.to_numeric(df_display[ev_col], errors='coerce').apply(lambda x: f"{x:+.3f}" if pd.notna(x) else "-") # Mostra sinal e 3 casas
-                 except Exception as e: self.log(f"Aviso format {ev_col}: {e}"); df_display[ev_col] = "-"
+                        # Converte para numérico, multiplica por 100, arredonda, formata como %
+                        numeric_probs = pd.to_numeric(df_display[pcol], errors='coerce')
+                        formatted_probs = (numeric_probs * 100).round(1).astype(str) + '%'
+                        # Substitui 'nan%' por '-'
+                        df_display[pcol] = formatted_probs.replace('nan%', '-', regex=False)
+                        # Log para verificar a formatação
+                        # self.log(f"DEBUG Format: Coluna {pcol} formatada.")
+                    except Exception as e:
+                        self.log(f"Aviso format prob {pcol}: {e}")
+                        df_display[pcol] = "-" # Fallback
+            # --- *** FIM DA FORMATAÇÃO DE PROBS *** ---
 
-            # Formata Odds
-            odds_cols_to_format = [c for c in valid_internal_cols_map.values() if str(c).startswith('Odd_')]
-            for ocol in odds_cols_to_format:
-                if ocol in df_display.columns:
-                    try: df_display[ocol] = pd.to_numeric(df_display[ocol], errors='coerce').apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
-                    except Exception as e_fmt: self.log(f"Aviso: Erro formatar {ocol}: {e_fmt}")
+            # Formatação EV e Odd D (como antes)
+            if ev_col in df_display.columns: 
+                try: df_display[ev_col] = pd.to_numeric(df_display[ev_col], errors='coerce').apply(lambda x: f"{x:+.3f}" if pd.notna(x) else "-"); 
+                except Exception as e: self.log(f"Aviso format {ev_col}: {e}"); df_display[ev_col] = "-";
+            if odds_d_col in df_display.columns: 
+                try: df_display[odds_d_col] = pd.to_numeric(df_display[odds_d_col], errors='coerce').apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-"); 
+                except Exception as e: self.log(f"Aviso format {odds_d_col}: {e}"); df_display[odds_d_col] = "-";
 
-            # Insere linhas
-            self.log("GUI: Adicionando linhas formatadas...")
-            added_rows = 0
+
+            # Insere linhas E APLICA TAG
+            self.log("GUI: Adicionando linhas formatadas e aplicando tags..."); added_rows = 0
+            found_positive_ev = False # Flag para verificar se algum EV positivo foi encontrado
             for index, row in df_display.iterrows():
-                values_to_insert = []
-                for header in display_headers: # Itera na ordem dos headers da Treeview
-                    internal_col = valid_internal_cols_map.get(header) # Pega nome interno do mapa válido
-                    values_to_insert.append(str(row.get(internal_col, '')) if internal_col else '') # Pega valor formatado
+                values = [str(row.get(valid_internal_cols_map.get(h), '')) for h in display_headers]
+                tag_to_apply = ()
+
+                # Lógica para aplicar a tag (como antes)
                 try:
-                    self.prediction_tree.insert('', tk.END, values=values_to_insert)
+                     ev_val_orig = pd.to_numeric(df.loc[index, ev_col], errors='coerce')
+                     # Usa limiar EV da classe (self.optimal_ev_threshold)
+                     if pd.notna(ev_val_orig) and ev_val_orig > self.optimal_ev_threshold:
+                          tag_to_apply = ('highlight_ev',)
+                          found_positive_ev = True # Marca que encontramos pelo menos um
+                except Exception as e_tag: self.log(f"Aviso tag linha {index}: {e_tag}")
+
+                try:
+                    self.prediction_tree.insert('', tk.END, values=values, tags=tag_to_apply)
                     added_rows += 1
-                except Exception as e_ins: self.log(f"!! Erro inserir linha {index}: {e_ins} - Vals: {values_to_insert}")
+                except Exception as e_ins: self.log(f"!! Erro inserir linha {index}: {e_ins}")
 
-                # --- Adiciona TAG para EV positivo ---
-                tag_to_apply = () # Tupla vazia por padrão
-                try:
-                     ev_val = pd.to_numeric(row.get(ev_col), errors='coerce')
-                     # Usa o limiar da classe para destacar
-                     if pd.notna(ev_val) and ev_val > self.optimal_ev_threshold:
-                          tag_to_apply = ('positive_ev',) # Define tag
-                except: pass
+            # Log se nenhuma linha foi destacada
+            if not found_positive_ev and added_rows > 0:
+                 self.log(f"INFO: Nenhuma previsão atingiu o limiar de EV ({self.optimal_ev_threshold:.3f}) para destaque.")
 
-                try: 
-                    self.prediction_tree.insert('', tk.END, values=values_to_insert, tags=tag_to_apply); 
-                    added_rows += 1 # Usa a tag
-                except Exception as e: 
-                    self.log(f"!! Erro inserir linha {index}: {e}")
-                self.prediction_tree.tag_configure('positive_ev', background='lightgreen', foreground='black')
-                self.log(f"GUI: {added_rows}/{len(df_display)} linhas adicionadas.")
+            self.log(f"GUI: {added_rows}/{len(df_display)} linhas adicionadas.")
 
         except Exception as e: self.log(f"!! Erro GERAL display: {e}"); traceback.print_exc()
 
@@ -633,15 +619,16 @@ class FootballPredictorDashboard:
 
             # --- CHAMADA make_predictions passa odd_draw_col ---
             df_preds_with_ev = predictor.make_predictions(
-                model=self.trained_model, scaler=self.trained_scaler, calibrator=self.trained_calibrator,
+                model=self.trained_model, 
+                scaler=self.trained_scaler, calibrator=self.trained_calibrator,
                 feature_names=self.feature_columns, X_fixture_prepared=X_fixtures_prepared,
                 fixture_info=fixture_df.loc[X_fixtures_prepared.index],
-                odd_draw_col_name=odd_draw_col  # Passa a coluna de odds draw
+                odd_draw_col_name=odd_draw_col # Passa nome da coluna
             )
-            if df_preds_with_ev is None:
-                raise RuntimeError("Falha gerar previsões com EV.")
-            self.log(f"Previsões com EV geradas: {len(df_preds_with_ev)}.")
-            self.gui_queue.put(("progress_update", (70, "Prevendo...")))
+            if df_preds_with_ev is None: raise RuntimeError("Falha gerar previsões com EV.");
+            self.log(f"Previsões com EV geradas: {len(df_preds_with_ev)}.");
+
+            df_predictions_final_to_display = df_preds_with_ev
 
             # --- FILTRO AGORA É POR EV > optimal_ev_threshold ---
             df_to_filter = df_preds_with_ev.copy()
@@ -725,12 +712,12 @@ class FootballPredictorDashboard:
 
             # Envia resultado para GUI
             self.gui_queue.put(("progress_update", (95, "Preparando Exibição...")))
-            if df_predictions_final_filtered is not None and not df_predictions_final_filtered.empty:
-                self.log(f"Enviando {len(df_predictions_final_filtered)} previsões finais p/ exibição.")
-                self.gui_queue.put(("prediction_complete", df_predictions_final_filtered))  # Passa o DF filtrado
+            if df_predictions_final_to_display is not None and not df_predictions_final_to_display.empty:
+                 self.log(f"Enviando {len(df_predictions_final_to_display)} previsões para exibição (sem filtro).") # Log atualizado
+                 self.gui_queue.put(("prediction_complete", df_predictions_final_to_display)) # Passa o DF COMPLETO
             else:
-                self.log("Nenhuma previsão restante após filtro p/ exibir.")
-                self.gui_queue.put(("prediction_complete", None))  # Passa None para limpar
+                 self.log("Nenhuma previsão gerada ou DataFrame vazio.")
+                 self.gui_queue.put(("prediction_complete", None))  # Passa None para limpar
 
         except Exception as e:
             error_msg = f"Erro Pipeline Previsão: {e}"

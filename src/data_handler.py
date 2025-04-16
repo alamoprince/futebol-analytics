@@ -16,6 +16,8 @@ from datetime import date, timedelta, datetime # datetime não usado diretamente
 import requests
 from urllib.error import HTTPError, URLError
 import logging
+from scipy.stats import poisson
+
 
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
@@ -317,6 +319,53 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     else: print("Aviso: Médias CG ausentes p/ Diff_Media_CG."); df_calc['Diff_Media_CG'] = np.nan
     return df_calc
 
+def calculate_poisson_draw_prob(df: pd.DataFrame, max_goals: int = 6) -> pd.DataFrame:
+    """
+    Calcula a probabilidade de empate usando a distribuição de Poisson.
+    Requer as colunas de média de gols: Avg_Gols_Marcados_H/A, Avg_Gols_Sofridos_H/A.
+    """
+    df_calc = df.copy()
+    required_cols = ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_A', # Ataque H vs Defesa A
+                     'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_H'] # Ataque A vs Defesa H
+
+    if not all(c in df_calc.columns for c in required_cols):
+        logging.warning("Colunas de média de gols ausentes para cálculo Poisson. Pulando.")
+        df_calc['Prob_Empate_Poisson'] = np.nan
+        return df_calc
+
+    logging.info("  Calculando Probabilidade de Empate (Poisson)...")
+
+    # 1. Estimar Gols Esperados (Lambda) para cada time no jogo
+    #    Modelo simples: lambda_H = Média Gols Marcados H * Média Gols Sofridos A (ajustado pela média da liga se disponível, mas vamos simplificar por agora)
+    #    lambda_A = Média Gols Marcados A * Média Gols Sofridos H
+    #    É crucial garantir que as médias não sejam NaN ou zero. Preenche com um valor pequeno.
+    lambda_h = (pd.to_numeric(df_calc['Avg_Gols_Marcados_H'], errors='coerce').fillna(0.1) *
+                pd.to_numeric(df_calc['Avg_Gols_Sofridos_A'], errors='coerce').fillna(0.1))
+    lambda_a = (pd.to_numeric(df_calc['Avg_Gols_Marcados_A'], errors='coerce').fillna(0.1) *
+                pd.to_numeric(df_calc['Avg_Gols_Sofridos_H'], errors='coerce').fillna(0.1))
+    # Evita lambdas muito baixas (pode causar underflow) ou negativas
+    lambda_h = np.maximum(lambda_h, 1e-6)
+    lambda_a = np.maximum(lambda_a, 1e-6)
+
+
+    # 2. Calcular Probabilidade de Empate (Soma de P(k-k) para k=0 até max_goals)
+    prob_empate_total = pd.Series(0.0, index=df_calc.index) # Inicializa com zero
+
+    try:
+        for k in range(max_goals + 1):
+            # P(Gols Casa = k) * P(Gols Fora = k)
+            prob_placar_kk = poisson.pmf(k, lambda_h) * poisson.pmf(k, lambda_a)
+            prob_empate_total += prob_placar_kk
+    except Exception as e_poisson:
+        logging.error(f"Erro durante cálculo das probabilidades Poisson: {e_poisson}", exc_info=True)
+        # Define como NaN se o cálculo falhar
+        df_calc['Prob_Empate_Poisson'] = np.nan
+        return df_calc
+
+    df_calc['Prob_Empate_Poisson'] = prob_empate_total
+    logging.info("  -> Prob_Empate_Poisson calculado.")
+
+    return df_calc
 # --- PIPELINE DE TREINAMENTO (Histórico) ---
 
 def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
@@ -501,9 +550,11 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     # PASSO 5: Calcular Médias Rolling de Gols (Usa FT_Result de df_interm)
     df_goals = calculate_rolling_goal_stats(df_rolling_std, window=ROLLING_WINDOW)
 
+    df_poisson = calculate_poisson_draw_prob(df_goals, max_goals=5) # Calcula P(0-0) até P(5-5)
+
     # PASSO 6: Calcular Features de Binning (Usa Odd_D_FT de df_rolling_std)
     # Cria Odd_D_Cat
-    df_binned = calculate_binned_features(df_rolling_std)
+    df_binned = calculate_binned_features(df_poisson)
 
     # PASSO 6.5: Calcular Features Derivadas
     logging.info("  Calculando features derivadas...")
@@ -630,6 +681,14 @@ def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, 
     df_temp_fixtures = calculate_probabilities(df_temp_fixtures)
     df_temp_fixtures = calculate_normalized_probabilities(df_temp_fixtures)
     df_temp_fixtures = calculate_binned_features(df_temp_fixtures)
+
+    logging.info("  Calculando Prob Empate Poisson para jogos futuros...")
+    # Usa df_temp_fixtures que tem as Avg_Gols_...
+    df_temp_fixtures = calculate_poisson_draw_prob(df_temp_fixtures, max_goals=5)
+    logging.info("  Calculando features derivadas para jogos futuros...")
+    # Usa df_temp_fixtures que tem odds e médias (calculadas no passo 1)
+    df_temp_fixtures = calculate_derived_features(df_temp_fixtures)
+
     # --- Fim Etapa 2 ---
 
     # --- **NOVO**: Etapa 2.5: Calcular Features Derivadas (CV_HDA, Diff_Media_CG) ---
