@@ -9,8 +9,9 @@ import sys, os, threading, datetime, math, numpy as np # Removido io
 from queue import Queue, Empty
 import pandas as pd
 from typing import Optional, Dict, List, Any
-import logging
-# Adiciona diretórios e importa módulos
+from logger_config import setup_logger
+
+logger = setup_logger("Main2")# Adiciona diretórios e importa módulos
 # (Mantém o setup de path para caso seja necessário em algum contexto)
 try:
     SRC_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -47,19 +48,12 @@ try:
     from sklearn.model_selection import train_test_split # Usado em _run_training_pipeline
     import traceback # Para log de erros
 except ImportError as e:
-    logging.error(f"Erro import main.py (Treino/Previsão): {e}")
+    logger.error(f"Erro import main.py (Treino/Previsão): {e}")
     raise # Re-levanta erro para app_launcher
 except Exception as e_i:
-    print(f"Erro geral import main.py (Treino/Previsão): {e_i}")
+    logger.error(f"Erro geral import main.py (Treino/Previsão): {e_i}")
     raise # Re-levanta erro
 
-
-# --- src/main.py ---
-# ATUALIZADO para Calibrador e Limiar
-
-# ... (imports como na versão anterior corrigida) ...
-# ... (Imports necessários como tk, ttk, os, threading, queue, pandas, etc.) ...
-# ... (Importa de config, data_handler, model_trainer, predictor) ...
 from typing import Optional, Dict, List, Any # Garante typing
 
 class FootballPredictorDashboard:
@@ -268,13 +262,12 @@ class FootballPredictorDashboard:
                     except TypeError: pass
                 stats_content += f"- Lucro/Prejuízo: {profit_ev_str}\n"
                 stats_content += f"- ROI Calculado: {roi_ev_str}\n"
-                # -----------------------------------------------------
-
+            
             # Atualiza o widget
             self.model_stats_text.insert('1.0', stats_content)
             self.model_stats_text.config(state='disabled')
         except tk.TclError: pass
-        except Exception as e: print(f"Erro _update_model_stats_display_gui: {e}"); traceback.print_exc()
+        except Exception as e: logger.error(f"Erro _update_model_stats_display_gui: {e}"); traceback.logger.error_exc()
 
     # --- : Setup Colunas Treeview ---
     def _setup_prediction_columns(self, columns: List[str]):
@@ -314,7 +307,7 @@ class FootballPredictorDashboard:
             if columns == ['Status']:
                 self.prediction_tree.column('Status', stretch=tk.YES)
         except Exception as e:
-            print(f"Erro _setup_prediction_columns: {e}")
+            logger.error(f"Erro _setup_prediction_columns: {e}")
 
     # --- : Atualiza Display de Previsões ---
     def _update_prediction_display(self, df: Optional[pd.DataFrame]):
@@ -407,7 +400,7 @@ class FootballPredictorDashboard:
 
             self.log(f"GUI: {added_rows}/{len(df_display)} linhas adicionadas.")
 
-        except Exception as e: self.log(f"!! Erro GERAL display: {e}"); traceback.print_exc()
+        except Exception as e: self.log(f"!! Erro GERAL display: {e}"); traceback.logger.error_exc()
 
     # --- Callback Seleção Modelo  ---
     def on_model_select(self, event=None):
@@ -553,7 +546,7 @@ class FootballPredictorDashboard:
                 df_hist_intermediate_for_odds = calculate_historical_intermediate(df_hist_raw)
                 common_index = X_processed.index.union(y_processed.index)
                 df_full_data_aligned_for_split = df_hist_intermediate_for_odds.loc[common_index].copy()
-                logging.info(f"DEBUG Main: df_full_data_aligned_for_split criado com shape {df_full_data_aligned_for_split.shape}")
+                logger.info(f"DEBUG Main: df_full_data_aligned_for_split criado com shape {df_full_data_aligned_for_split.shape}")
                 odd_draw_col_name = CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT')
                 if odd_draw_col_name not in df_full_data_aligned_for_split.columns:
                     raise ValueError(f"Coluna '{odd_draw_col_name}' não encontrada p/ ROI.")
@@ -584,7 +577,7 @@ class FootballPredictorDashboard:
         except Exception as e:
             error_msg = f"Erro Treino: {e}"
             self.log(f"ERRO: {error_msg}")
-            traceback.print_exc()
+            traceback.logger.error_exc()
             self.gui_queue.put(("error", ("Erro Treino", error_msg)))
             self.gui_queue.put(("training_failed", None))
         finally:
@@ -722,7 +715,7 @@ class FootballPredictorDashboard:
         except Exception as e:
             error_msg = f"Erro Pipeline Previsão: {e}"
             self.log(f"ERRO: {error_msg}")
-            traceback.print_exc()
+            traceback.logger.error_exc()
             self.gui_queue.put(("error", ("Erro Previsão", error_msg)))
             self.gui_queue.put(("prediction_complete", None))
         finally:
@@ -807,10 +800,10 @@ class FootballPredictorDashboard:
                 except Empty:
                     break
                 except (ValueError, TypeError):
-                    print(f"AVISO GUI: Erro unpack msg: {message}")
+                    logger.error(f"AVISO GUI: Erro unpack msg: {message}")
                     continue
                 except Exception as e_get:
-                    print(f"Erro get fila GUI: {e_get}")
+                    logger.error(f"Erro get fila GUI: {e_get}")
                     continue
 
                 # --- Trata tipos de mensagem ---
@@ -873,16 +866,16 @@ class FootballPredictorDashboard:
                 except tk.TclError:
                     pass  # Ignora erro se widget destruído
                 except Exception as e_proc:
-                    print(f"Erro processar msg '{msg_type}': {e_proc}")
-                    traceback.print_exc()
+                    logger.error(f"Erro processar msg '{msg_type}': {e_proc}")
+                    traceback.logger.error_exc()
 
         except Exception as e_loop:
-            print(f"Erro CRÍTICO loop fila GUI: {e_loop}")
-            traceback.print_exc()
+            logger.error(f"Erro CRÍTICO loop fila GUI: {e_loop}")
+            traceback.logger.error_exc()
         finally:
             # Reagenda
             try:
                 if self.main_tk_root and self.main_tk_root.winfo_exists():
                     self.main_tk_root.after(100, self.process_gui_queue)
             except Exception as e_resched:
-                print(f"Erro reagendar fila: {e_resched}")
+                logger.error(f"Erro reagendar fila: {e_resched}")

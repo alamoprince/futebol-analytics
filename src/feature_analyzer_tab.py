@@ -5,7 +5,9 @@ from typing import Optional, List, Dict, Any
 import os
 import sys
 import traceback
-import logging
+from logger_config import setup_logger
+
+logger = setup_logger("FeatureAnalyzerApp") # Configura o logger para este módulo
 
 try:
     # Path setup might be needed here if you ever run this file directly
@@ -156,28 +158,28 @@ class FeatureAnalyzerApp:
 
              # 2. Processamento Completo
             self.log("Processando features..."); df_p=self.df_historical_raw.copy(); # Usa cópia
-            logging.info("=== INÍCIO PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===") # Log de início
+            logger.info("=== INÍCIO PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===") # Log de início
 
             # Etapa 2.1: Intermediárias
             self.log(" -> Calculando Intermediárias..."); df_p=calculate_historical_intermediate(df_p);
-            logging.info(f"Após intermediate, cols: {list(df_p.columns)}")
+            logger.info(f"Após intermediate, cols: {list(df_p.columns)}")
             if 'IsDraw' not in df_p.columns: raise ValueError("Alvo 'IsDraw' ausente pós-intermediate.");
             if not all(c in df_p.columns for c in ['VG_H_raw','VG_A_raw','CG_H_raw','CG_A_raw']): raise ValueError("Stats Raw ausentes pós-intermediate.");
-            if not all(p in df_p.columns for p in['p_H','p_D','p_A']): df_p=calculate_probabilities(df_p); logging.info("Probs p_H/D/A recalculadas.");
+            if not all(p in df_p.columns for p in['p_H','p_D','p_A']): df_p=calculate_probabilities(df_p); logger.info("Probs p_H/D/A recalculadas.");
 
             # Etapa 2.2: Normalizadas
             self.log(" -> Calculando Normalizadas..."); df_p=calculate_normalized_probabilities(df_p);
-            logging.info(f"Após norm probs, cols: {list(df_p.columns)}")
+            logger.info(f"Após norm probs, cols: {list(df_p.columns)}")
             if 'p_D_norm' not in df_p.columns: raise ValueError("'p_D_norm' ausente pós-normalização.");
 
             # Etapa 2.3: Rolling Stats (Mean)
             self.log(" -> Calculando Rolling Means..."); df_p=calculate_rolling_stats(df_p,['VG','CG'],window=ROLLING_WINDOW);
-            logging.info(f"Após rolling means, cols: {list(df_p.columns)}")
+            logger.info(f"Após rolling means, cols: {list(df_p.columns)}")
             if 'Media_CG_H' not in df_p.columns: raise ValueError("'Media_CG_H' ausente pós-rolling mean.");
 
             # Etapa 2.4: Rolling Stats (Std)
             self.log(" -> Calculando Rolling Stds..."); df_p=calculate_rolling_std(df_p,['CG'],window=ROLLING_WINDOW);
-            logging.info(f"Após rolling stds, cols: {list(df_p.columns)}")
+            logger.info(f"Após rolling stds, cols: {list(df_p.columns)}")
             if 'Std_CG_H' not in df_p.columns: raise ValueError("'Std_CG_H' ausente pós-rolling std.");
 
             # 2.5: Rolling Goals + FA/FD **PASSANDO MÉDIAS DA LIGA**
@@ -194,24 +196,24 @@ class FeatureAnalyzerApp:
                                              avg_goals_home_league=avg_h_league, # <<< PASSA A MÉDIA
                                              avg_goals_away_league=avg_a_league, # <<< PASSA A MÉDIA
                                              max_goals=5);
-            if 'Prob_Empate_Poisson' not in df_p.columns: logging.warning("Coluna Poisson não foi criada."); # Log se falhar
+            if 'Prob_Empate_Poisson' not in df_p.columns: logger.warning("Coluna Poisson não foi criada."); # Log se falhar
 
             # Etapa 2.7: Binning
             self.log(" -> Calculando Binning..."); df_p=calculate_binned_features(df_p);
-            logging.info(f"Após Binning, cols: {list(df_p.columns)}")
-            if 'Odd_D_Cat' not in df_p.columns: logging.warning("'Odd_D_Cat' ausente pós-binning.");
+            logger.info(f"Após Binning, cols: {list(df_p.columns)}")
+            if 'Odd_D_Cat' not in df_p.columns: logger.warning("'Odd_D_Cat' ausente pós-binning.");
 
             # Etapa 2.8: Derivadas
             self.log(" -> Calculando Derivadas..."); df_p=calculate_derived_features(df_p);
-            logging.info(f"Após Derivadas, cols: {list(df_p.columns)}")
-            if 'CV_HDA' not in df_p.columns: logging.warning("'CV_HDA' ausente pós-derivadas.");
+            logger.info(f"Após Derivadas, cols: {list(df_p.columns)}")
+            if 'CV_HDA' not in df_p.columns: logger.warning("'CV_HDA' ausente pós-derivadas.");
 
             self.df_historical_processed = df_p; self.log("Processamento OK.");
-            logging.info("=== FIM PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===")
+            logger.info("=== FIM PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===")
 
             # 3. Preparar X, y para Análise
             self.log("Preparando X, y p/ análise..."); target_col='IsDraw';
-            if target_col not in self.df_historical_processed: logging.error("Alvo ausente!"); y=None;
+            if target_col not in self.df_historical_processed: logger.error("Alvo ausente!"); y=None;
             else: y = self.df_historical_processed[target_col];
 
             from config import FEATURE_COLUMNS # Usa a lista do config para treino/análise principal
