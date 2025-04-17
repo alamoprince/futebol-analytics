@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException, ElementNotInteractableException, StaleElementReferenceException
 from config import (
     SCRAPER_BASE_URL, SCRAPER_TARGET_DAY, CHROMEDRIVER_PATH,
-    SCRAPER_TIMEOUT, SCRAPER_ODDS_TIMEOUT, ODDS_COLS, OTHER_ODDS_OUTPUT_NAMES, # Nomes das odds que queremos
+    SCRAPER_TIMEOUT, SCRAPER_ODDS_TIMEOUT, ODDS_COLS, OTHER_ODDS_NAMES, # Nomes das odds que queremos
     TARGET_LEAGUES, SCRAPER_SLEEP_BETWEEN_GAMES, SCRAPER_SLEEP_AFTER_NAV
 )
 from typing import Dict, List, Optional, Any
@@ -30,6 +30,7 @@ USER_AGENTS = [
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
 ]
+
 
 # --- Funções Auxiliares (Adaptadas do seu script e do projeto) ---
 def _safe_float(text: Optional[str]) -> Optional[float]:
@@ -138,54 +139,110 @@ def _get_match_ids(driver, timeout):
 
 # --- Funções Adaptadas do Seu Script para Coleta de Dados por Jogo ---
 
+logger = logging.getLogger('Scraper') # Usar logger específico é melhor
+logger.setLevel(logging.INFO) # Ajustar nível conforme necessidade
+# Adicionar handlers se ainda não configurado globalmente...
+
 def get_basic_info(driver, id_jogo) -> Optional[Dict[str, Any]]:
     """Captura informações básicas: data, hora, país, liga, times."""
     info = {'Id': id_jogo, 'Date': None, 'Time': None, 'Country': None, 'League': None, 'HomeTeam': None, 'AwayTeam': None}
+    logger.info(f"  Buscando info básica para Jogo ID: {id_jogo}")
     try:
-        summary_url = f"{SCRAPER_BASE_URL}/match/{id_jogo}/#/match-summary"
+        summary_url = f"{SCRAPER_BASE_URL}/match/{id_jogo}/#/match-summary/match-summary"
+        logger.info(f"    Navegando para: {summary_url}")
         driver.get(summary_url)
-        # Espera um elemento chave carregar para evitar erros com página vazia
-        WebDriverWait(driver, SCRAPER_TIMEOUT).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.duelParticipant__startTime'))
-        )
-        # Adiciona uma pequena pausa extra para renderização completa
-        time.sleep(0.5)
+        wait = WebDriverWait(driver, SCRAPER_TIMEOUT) # Usar timeout do config
 
-        # Extrai os dados com seletores atualizados (VERIFICAR!)
-        datetime_str = driver.find_element(By.CSS_SELECTOR,'div.duelParticipant__startTime').text
-        info['Date'] = datetime_str.split(' ')[0].replace('.', '/') # Formata data
-        info['Time'] = datetime_str.split(' ')[1]
+        # 1. Esperar por elemento chave (ex: container do cabeçalho)
+        header_container_selector = "div.duelParticipant" # AJUSTE SE NECESSÁRIO
+        logger.info(f"    Aguardando container principal: '{header_container_selector}'")
+        # --- CORRIGIDO: Passa tupla para EC ---
+        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, header_container_selector)))
+        # ------------------------------------
+        logger.info(f"    Container principal encontrado.")
+        time.sleep(0.5) # Pausa extra
 
-        country_el = driver.find_element(By.CSS_SELECTOR, 'span.tournamentHeader__country')
-        info['Country'] = country_el.text.split(':')[0].strip()
+        # 2. Extrair Data e Hora
+        try:
+            datetime_selector = 'div.duelParticipant__startTime'
+            logger.info(f"    Buscando data/hora: '{datetime_selector}'")
+            # --- CORRIGIDO: Passa tupla ---
+            datetime_el = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, datetime_selector)))
+            # ------------------------------
+            datetime_str = datetime_el.text
+            parts = datetime_str.split(' ')
+            if len(parts) >= 2:
+                 info['Date'] = parts[0].replace('.', '/')
+                 info['Time'] = parts[1]
+                 logger.info(f"      Data/Hora: {info['Date']} {info['Time']}")
+            else: logger.warning(f"Formato data/hora inesperado: '{datetime_str}' ID: {id_jogo}")
+        except (TimeoutException, NoSuchElementException): logger.warning(f"Data/hora não encontrada ID: {id_jogo}")
+        except Exception as e: logger.error(f"Erro extrair data/hora ID {id_jogo}: {e}")
 
-        league_el = driver.find_element(By.CSS_SELECTOR, 'span.tournamentHeader__country > a')
-        info['League'] = league_el.text # Pega nome completo da liga
-        # Constrói nome completo para filtro (fora desta função)
-        # info['FullLeagueName'] = f"{info['Country']}: {info['League']}"
+        # 3. Extrair País e Liga
+        breadcrumb_list_selector = "ol.wcl-breadcrumbList_m5Npe" # CONFIRME ESTE SELETOR
+        try:
+            logger.info(f"    Buscando breadcrumbs: '{breadcrumb_list_selector}'")
+            # --- CORRIGIDO: Passa tupla ---
+            breadcrumb_list = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, breadcrumb_list_selector)))
+            # ------------------------------
+            logger.info("      Lista de breadcrumbs encontrada.")
 
-        # Extrai times (usando nomes consistentes HomeTeam/AwayTeam)
-        home_el = driver.find_element(By.CSS_SELECTOR,'div.duelParticipant__home div.participant__participantName')
-        info['HomeTeam'] = home_el.text
-        away_el = driver.find_element(By.CSS_SELECTOR,'div.duelParticipant__away div.participant__participantName')
-        info['AwayTeam'] = away_el.text
+            # Tenta País (2º item)
+            try:
+                 pais_selector_relative = "li[itemprop='itemListElement']:nth-child(2) span[itemprop='name']" # Seletor relativo à lista
+                 pais_el = breadcrumb_list.find_element(By.CSS_SELECTOR, pais_selector_relative)
+                 info['Country'] = pais_el.text.strip()
+                 logger.info(f"        País: {info['Country']}")
+            except NoSuchElementException: logger.warning(f"País (2º breadcrumb) não encontrado ID: {id_jogo}")
 
-        # Validação mínima
-        if not info['HomeTeam'] or not info['AwayTeam'] or not info['League']:
-            logging.warning(f"Informações básicas incompletas para Jogo ID: {id_jogo}")
-            return None # Retorna None se dados essenciais faltarem
+            # Tenta Liga (3º item)
+            try:
+                 liga_selector_relative = "li[itemprop='itemListElement']:nth-child(3) span[itemprop='name']" # Seletor relativo à lista
+                 liga_el = breadcrumb_list.find_element(By.CSS_SELECTOR, liga_selector_relative)
+                 info['League'] = liga_el.text.strip()
+                 logger.info(f"        Liga: {info['League']}")
+            except NoSuchElementException: logger.warning(f"Liga (3º breadcrumb) não encontrada ID: {id_jogo}")
 
+        except (TimeoutException, NoSuchElementException): logger.warning(f"Lista breadcrumbs não encontrada ID: {id_jogo}")
+        except Exception as e: logger.error(f"Erro processar breadcrumbs ID {id_jogo}: {e}")
+
+
+        # 4. Extrair Times
+        try:
+            home_selector = 'div.duelParticipant__home div.participant__participantName' # CONFIRME
+            logger.info(f"    Buscando Time Casa: '{home_selector}'")
+            # --- CORRIGIDO: Passa tupla ---
+            home_el = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, home_selector)))
+            # ------------------------------
+            info['HomeTeam'] = home_el.text
+            logger.info(f"      Casa: {info['HomeTeam']}")
+        except (TimeoutException, NoSuchElementException): logger.error(f"Time Casa não encontrado ID: {id_jogo}")
+        except Exception as e: logger.error(f"Erro extrair time casa ID {id_jogo}: {e}")
+
+        try:
+            away_selector = 'div.duelParticipant__away div.participant__participantName' # CONFIRME
+            logger.info(f"    Buscando Time Fora: '{away_selector}'")
+            # --- CORRIGIDO: Passa tupla ---
+            away_el = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, away_selector)))
+            # ------------------------------
+            info['AwayTeam'] = away_el.text
+            logger.info(f"      Fora: {info['AwayTeam']}")
+        except (TimeoutException, NoSuchElementException): logger.error(f"Time Fora não encontrado ID: {id_jogo}")
+        except Exception as e: logger.error(f"Erro extrair time fora ID {id_jogo}: {e}")
+
+
+        # Validação Mínima Essencial
+        if not info.get('HomeTeam') or not info.get('AwayTeam') or not info.get('League') or not info.get('Date'):
+            logger.error(f"Falha Crítica: Info básica ausente ID: {id_jogo}. Pulando jogo. Info coletada: {info}")
+            return None
+
+        logger.info(f"  -> Info básica OK para Jogo ID: {id_jogo}")
         return info
 
-    except (TimeoutException, NoSuchElementException) as e_basic:
-        logging.error(f"Erro (Timeout/Não Encontrado) ao buscar info básica Jogo ID {id_jogo}: {e_basic}")
-        # Tenta pegar o título e URL para debug em caso de erro
-        try: current_title = driver.title; current_url = driver.current_url
-        except: current_title = "N/A"; current_url = "N/A"
-        logging.error(f"  --> Título: '{current_title}', URL: '{current_url}'")
-        return None
-    except Exception as e_basic_other:
-        logging.error(f"Erro inesperado em get_basic_info Jogo ID {id_jogo}: {e_basic_other}")
+    # Tratamento de erro geral movido para o final para capturar qualquer exceção
+    except Exception as e_general:
+        logger.error(f"Erro inesperado GERAL em get_basic_info Jogo ID {id_jogo}: {e_general}", exc_info=True)
         return None
 
 
@@ -214,30 +271,47 @@ def get_odds_1x2_ft(driver, id_jogo) -> Dict[str, Optional[float]]:
         logging.error(f"Erro inesperado ao buscar odds 1x2 Jogo ID {id_jogo}: {e}")
     return odds
 
-
 def get_odds_ou25_ft(driver, id_jogo) -> Dict[str, Optional[float]]:
-    """Captura odds Over/Under 2.5 FT."""
-    odds = {'Odd_Over25': None, 'Odd_Under25': None}
+    """Captura odds Over/Under 2.5 FT usando data-testid."""
+    odds = {'Odd_Over25_FT': None, 'Odd_Under25_FT': None}
+    logger.info(f"  Buscando odds O/U 2.5 para Jogo ID: {id_jogo}")
     try:
         url = f"{SCRAPER_BASE_URL}/match/{id_jogo}/#/odds-comparison/over-under/full-time"
+        logger.info(f"    Navegando para: {url}")
         driver.get(url)
-        time.sleep(SCRAPER_SLEEP_AFTER_NAV)
-        # Espera por uma linha que contenha o span com '2.5'
-        xpath_selector = "//div[contains(@class, 'ui-table__row')]//span[contains(@class, 'oddsCell__noOddsCell') and normalize-space(.)='2.5']"
-        WebDriverWait(driver, SCRAPER_ODDS_TIMEOUT).until(EC.visibility_of_element_located((By.XPATH, xpath_selector)))
-        # Encontra a linha específica do 2.5
-        linha_25 = driver.find_element(By.XPATH, xpath_selector).find_element(By.XPATH, "./ancestor::div[contains(@class, 'ui-table__row')]")
+        wait = WebDriverWait(driver, SCRAPER_ODDS_TIMEOUT)
 
-        odds_cells = linha_25.find_elements(By.CSS_SELECTOR, 'a.oddsCell__odd, span.oddsCell__odd') # Tenta 'a' ou 'span'
-        if len(odds_cells) >= 2:
-            odds['Odd_Over25'] = _safe_float(odds_cells[0].text)
-            odds['Odd_Under25'] = _safe_float(odds_cells[1].text)
-        else: logging.warning(f"Não encontrou 2 células de odds O/U 2.5. Jogo ID: {id_jogo}")
+        # 1. Esperar e encontrar a LINHA que contém o span específico do 2.5
+        xpath_linha_25 = "//span[@data-testid='wcl-oddsValue' and normalize-space(.)='2.5']/ancestor::div[contains(@class, 'ui-table__row')]"
+        logger.info(f"    Aguardando linha O/U 2.5 com XPath: {xpath_linha_25}")
 
-    except (TimeoutException, NoSuchElementException):
-        logging.warning(f"Timeout ou elemento não encontrado para odds O/U 2.5. Jogo ID: {id_jogo}")
+        # Espera que a linha se torne visível
+        linha_25_encontrada = wait.until(EC.visibility_of_element_located((By.XPATH, xpath_linha_25)))
+        logger.info("    Linha O/U 2.5 encontrada.")
+        time.sleep(0.2) # Pequena pausa opcional
+
+        # 2. Extrair Odds de dentro da linha encontrada
+        if linha_25_encontrada:
+            try:
+                # Busca os elementos de odd DENTRO da linha encontrada
+                odds_cells = linha_25_encontrada.find_elements(By.CSS_SELECTOR, 'a.oddsCell__odd, span.oddsCell__odd') # Mantém este seletor SE ele estiver correto para as odds
+                logger.info(f"      Encontradas {len(odds_cells)} células de odds na linha 2.5.")
+                if len(odds_cells) >= 2:
+                    # A primeira geralmente é OVER, a segunda UNDER
+                    odds['Odd_Over25_FT'] = _safe_float(odds_cells[0].text)
+                    odds['Odd_Under25_FT'] = _safe_float(odds_cells[1].text)
+                    logger.info(f"      Odds O/U 2.5 extraídas: O={odds['Odd_Over25_FT']}, U={odds['Odd_Under25_FT']}")
+                else:
+                    logging.warning(f"Não encontrou 2+ células de odds ('a.oddsCell__odd' ou 'span.oddsCell__odd') na linha 2.5. Verifique o seletor de odds. Jogo ID: {id_jogo}")
+            except Exception as e_extract:
+                 logging.error(f"Erro ao extrair odds da linha 2.5 encontrada. Jogo ID {id_jogo}: {e_extract}")
+        # else: O wait.until() já daria TimeoutException se não encontrasse
+
+    except TimeoutException:
+        logging.warning(f"Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: {id_jogo}")
     except Exception as e:
-        logging.error(f"Erro inesperado ao buscar odds O/U 2.5 Jogo ID {id_jogo}: {e}")
+        logging.error(f"Erro inesperado ao buscar odds O/U 2.5 Jogo ID {id_jogo}: {e}", exc_info=True)
+
     return odds
 
 
@@ -334,12 +408,12 @@ def scrape_upcoming_fixtures(chromedriver_path: Optional[str] = CHROMEDRIVER_PAT
 
         # Log de odds ausentes
         missing_1x2 = df_fixtures[ODDS_COLS['home']].isnull().sum()
-        missing_ou = df_fixtures['Odd_Over25'].isnull().sum()
+        missing_ou = df_fixtures['Odd_Over25_FT'].isnull().sum()
         missing_btts = df_fixtures['Odd_BTTS_Yes'].isnull().sum()
         print(f"  Resumo de Odds Ausentes no resultado final: 1x2 FT={missing_1x2}, O/U 2.5 FT={missing_ou}, BTTS FT={missing_btts}")
 
         # Garante que as colunas de odds extras definidas no config existam, mesmo que vazias
-        expected_cols = list(ODDS_COLS.values()) + OTHER_ODDS_OUTPUT_NAMES
+        expected_cols = list(ODDS_COLS.values()) + OTHER_ODDS_NAMES
         for col in expected_cols:
             if col not in df_fixtures.columns:
                  df_fixtures[col] = None # Adiciona a coluna com None/NaN
@@ -372,7 +446,7 @@ if __name__ == '__main__':
              print("\nLigas presentes no resultado:")
              print(df_test['League'].value_counts())
              print("\nInfo das colunas de Odds:")
-             odds_cols_to_check = list(ODDS_COLS.values()) + OTHER_ODDS_OUTPUT_NAMES
+             odds_cols_to_check = list(ODDS_COLS.values()) + OTHER_ODDS_NAMES
              # Filtra para mostrar apenas colunas que existem no DF
              cols_exist = [c for c in odds_cols_to_check if c in df_test.columns]
              print(df_test[cols_exist].info())
@@ -381,4 +455,4 @@ if __name__ == '__main__':
              print("Nenhum jogo passou pelo filtro ou foi coletado.")
     else:
         print("\n--- Falha GERAL ao coletar dados ---")
-    print("--- Fim do Teste do Scraper V6 ---")
+    print("--- Fim do Teste do Scraper V1 ---")

@@ -20,6 +20,16 @@ MODEL_SUFFIX_ROI = "_backdraw_best_roi" # Sufixo para melhor ROI (ou 2nd F1)
 HISTORICAL_DATA_FILENAME = "Brasileirao_A_e_B (1).xlsx"
 HISTORICAL_DATA_PATH = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME)
 
+SCRAPER_BASE_URL = "https://flashscore.com"
+SCRAPER_TARGET_DAY =  "tomorrow" # "today" ou "tomorrow"
+SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d") 
+CHROMEDRIVER_PATH = os.path.join(BASE_DIR, 'chromedriver.exe')
+SCRAPER_TIMEOUT = 20
+SCRAPER_ODDS_TIMEOUT = 20
+TARGET_LEAGUES = {}
+SCRAPER_SLEEP_BETWEEN_GAMES = 20
+SCRAPER_SLEEP_AFTER_NAV = 10
+
 # --- Arquivos dos Modelos Salvos ---
 BEST_F1_MODEL_FILENAME = f"best_model{MODEL_SUFFIX_F1}.joblib"
 BEST_F1_MODEL_SAVE_PATH = os.path.join(DATA_DIR, BEST_F1_MODEL_FILENAME)
@@ -171,7 +181,7 @@ NEW_FEATURE_COLUMNS = [
     'Media_CG_H',           # Custo Gol Casa (Rolling Mean)
     'Media_CG_A',           # Custo Gol Fora (Rolling Mean)
     'Media_VG_H',           # Valor Gol Fora (Rolling Mean)
-    'Odd_H_FT',             # Odds Casa (do CSV ou Histórico)
+    'Avg_Gols_Sofridos_A',  # Média Gols Sofridos A (Poisson Simples)
     'CV_HDA',               # Coeficiente de Variação (HDA)
     'Std_CG_A',             # Custo Gol Fora (Rolling Std)
     'Prob_Empate_Poisson'   # Empate de Poisson

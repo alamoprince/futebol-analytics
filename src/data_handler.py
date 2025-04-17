@@ -19,9 +19,6 @@ from logger_config import setup_logger
 
 logger = setup_logger('DataHandler')
 
-logger.warning('ignore', category=RuntimeWarning)
-logger.warning('ignore', category=pd.errors.PerformanceWarning)
-
 def roi(y_test: pd.Series, y_pred: np.ndarray, X_test_odds_aligned: pd.DataFrame, odd_draw_col_name: str) -> Optional[float]:
     if X_test_odds_aligned is None:
         return None

@@ -1,6 +1,4 @@
 # --- src/main.py ---
-# VERSÃO CORRIGIDA - Focada APENAS na Aba de Treino e Previsão
-
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 # Removidos imports não usados mais nesta classe: Listbox, MULTIPLE, Scrollbar, io
