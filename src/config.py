@@ -100,7 +100,7 @@ REQUIRED_FIXTURE_COLS = ['League', 'HomeTeam', 'AwayTeam', 'Odd_H_FT', 'Odd_D_FT
 
 
 # --- Configurações Gerais do Modelo ---
-RANDOM_STATE = 42; TEST_SIZE = 0.2; CROSS_VALIDATION_SPLITS = 3; N_JOBS_GRIDSEARCH = -1; ROLLING_WINDOW = 10
+RANDOM_STATE = 42; TEST_SIZE = 0.2; CROSS_VALIDATION_SPLITS = 5; N_JOBS_GRIDSEARCH = -1; ROLLING_WINDOW = 7 #mudei o rolling_window para 7 dias (1 semana) antes era 10 dias
 RESULT_MAPPING = {'D': 0, 'H': 1, 'A': 2} # Usado para Ptos
 CLASS_NAMES = ['Nao_Empate', 'Empate'] # Alvo binário
 
@@ -226,35 +226,42 @@ BEST_MODEL_METRIC = 'f1_score_draw' # Ou 'roi'
 
 # RandomForest (Grid Corrigido)
 rf_param_grid = {
-    'n_estimators': [100, 200],
-    'max_depth': [10, 20, None], # Adicionado None de volta
+    'n_estimators': [50, 150], # antes: 100,200
+    'max_depth': [5, 8, 12, None], # Adicionado None de volta/ antes:10, 20, None
     'criterion': ["gini", "entropy"],
     'max_features': ["sqrt", "log2"], # None removido (pode ser lento)
-    'min_samples_split': [2, 5, 10], # Corrigido: mínimo é 2
-    'min_samples_leaf': [1, 2], # Ajustado
-    'bootstrap': [True, False], # Corrigido: usar booleanos
+    'min_samples_split': [5, 10, 20], # Corrigido: mínimo é 2/ antes: 2, 5, 10
+    'min_samples_leaf': [3, 5, 10], # Ajustado/ antes: 1,2
+    'bootstrap': [True], # Corrigido: usar booleanos/ antes: [True, False]
     'class_weight': [None, 'balanced']
 }
 
 # Regressão Logística (Mantido da versão anterior)
 lr_param_grid = {
-    'C': [0.1, 1, 10], 'penalty': ['l2'], 'solver': ['liblinear'],
+    'C': [0.05, 0.1, 0.5, 1, 5, 10], #0.1, 1, 10
+    'penalty': ['l1', 'l2'], #antes: 'l2'
+    'solver': ['liblinear', 'saga'], # antes: 'liblinear'
     'class_weight': [None, 'balanced']
 }
 
 # LightGBM (Mantido da versão anterior)
 lgbm_param_grid = {
-    'n_estimators': [50, 100, 200], 'learning_rate': [0.05, 0.1],
-    'num_leaves': [15, 31, 50], 'max_depth': [-1, 5, 10],
+    'n_estimators': [75, 150, 250], #antes:50, 100, 200
+    'learning_rate': [0.02, 0.05, 0.1],   #antes:0.05, 0.1
+    'num_leaves': [10, 20, 31, 40],     #antes:15, 31, 50
+    'max_depth': [4, 6, 8, -1],       #antes:-1, 5, 10
+    'reg_alpha': [0, 0.01, 0.1],                   # Regularização L1/ add
+    'reg_lambda': [0, 0.01, 0.1],                  # Regularização L2/ add
+    'colsample_bytree': [0.7, 0.9, 1.0],           # add
     # 'is_unbalance': [True] # Passar no model_kwargs
 }
 
 # SVM (SVC - Grid Adaptado/Corrigido)
 svm_param_grid = {
-    'C': [1, 10],  # Menos opções para C
-    'gamma': ['scale', 0.1], # Menos opções para gamma
+    'C': [0.5, 1, 5, 10],  # Menos opções para C/ antes:1, 10
+    'gamma': ['scale','auto',  0.1], # Menos opções para gamma/ antes: 'scale', 0.1
     'kernel': ['poly', 'rbf'], # Sigmoid muitas vezes não performa bem
-    'degree': [2, 3], # Apenas relevante para kernel='poly'
+    'degree': [2, 3, 4], # Apenas relevante para kernel='poly'/antes: 2,3
     'class_weight': [None, 'balanced'],
     'decision_function_shape': ['ovo'],
 
@@ -268,9 +275,10 @@ gnb_param_grid = {
 
 # KNN (Grid Adaptado)
 knn_param_grid = {
-    'n_neighbors': [3, 5, 7, 9, 11, 13, 15], # Ímpares evitam empates na votação
+    'n_neighbors': [5, 9, 15, 21, 29, 35], # Ímpares evitam empates na votação/antes:3, 5, 7, 9, 11, 13, 15
     'weights': ['uniform', 'distance'], # Testar pesos diferentes
-    'metric': ['minkowski', 'euclidean', 'manhattan'] # Métricas comuns
+    'metric': ['minkowski', 'manhattan'], # Métricas comuns/antes:'minkowski', 'euclidean', 'manhattan'
+    'p': [1, 2] # p=1 é Manhattan, p=2 é Euclidiana
     # 'algorithm': ['auto'] # 'auto' geralmente é suficiente
     # 'leaf_size': [30] # Menos relevante se usar 'auto' ou 'brute'
 }
@@ -299,11 +307,11 @@ MODEL_CONFIG = {
         'param_grid': svm_param_grid,
         'needs_scaling': True # SVM PRECISA de scaling
     },
-    #'GaussianNB': { # Gaussian Naive Bayes
-    #    'model_kwargs': {}, 
-    #    'param_grid': gnb_param_grid,
-    #    'needs_scaling': False # Geralmente não precisa, mas pode testar
-    #},
+    'GaussianNB': { # Gaussian Naive Bayes
+        'model_kwargs': {}, 
+        'param_grid': gnb_param_grid,
+        'needs_scaling': False # Geralmente não precisa, mas pode testar
+    },
     'KNeighborsClassifier': { # K-Nearest Neighbors
         'model_kwargs': {'n_jobs': N_JOBS_GRIDSEARCH},
         'param_grid': knn_param_grid,
