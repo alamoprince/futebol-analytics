@@ -16,9 +16,12 @@ MODEL_TYPE_NAME = "BackDraw_MultiSelect"
 MODEL_SUFFIX_F1 = "_backdraw_best_f1" # Sufixo para melhor F1
 MODEL_SUFFIX_ROI = "_backdraw_best_roi" # Sufixo para melhor ROI (ou 2nd F1)
 
-# Arquivo de Dados Históricos (Excel)
-HISTORICAL_DATA_FILENAME = "Brasileirao_A_e_B (1).xlsx"
-HISTORICAL_DATA_PATH = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME)
+# Arquivo de Dados Históricos (CSV) - FootyStats
+HISTORICAL_DATA_FILENAME_1 = "Base_de_Dados_FootyStats_(2006_2021).csv"
+HISTORICAL_DATA_PATH_1 = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME_1)
+
+HISTORICAL_DATA_FILENAME_2 = "Base_de_Dados_FootyStats_(2022_2025).csv"
+HISTORICAL_DATA_PATH_2 = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME_2)
 
 SCRAPER_BASE_URL = "https://flashscore.com"
 SCRAPER_TARGET_DAY =  "tomorrow" # "today" ou "tomorrow"
@@ -26,7 +29,7 @@ SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 CHROMEDRIVER_PATH = os.path.join(BASE_DIR, 'chromedriver.exe')
 SCRAPER_TIMEOUT = 20
 SCRAPER_ODDS_TIMEOUT = 20
-TARGET_LEAGUES = {}
+TARGET_LEAGUES = {'Argentina Primera División':'ARGENTINA 1','SPAIN 2':'Spain Segunda División', 'Italy Serie A':'ITALY 1', 'Italy Serie B':'ITALY 2', 'Brazil Serie A':'BRAZIL 1','Brazil Serie B':'BRAZIL 2', 'ROMANIA 1':'Romania Liga I'}
 SCRAPER_SLEEP_BETWEEN_GAMES = 20
 SCRAPER_SLEEP_AFTER_NAV = 10
 
@@ -43,43 +46,58 @@ MODEL_SAVE_PATH = BEST_F1_MODEL_SAVE_PATH # Caminho padrão para salvar o modelo
 MODEL_ID_F1 = "Melhor F1 (Empate)"
 MODEL_ID_ROI = "Melhor ROI (Empate)"
 
-# --- Configurações da Fonte de Dados de Jogos Futuros (CSV GitHub) ---
-FIXTURE_FETCH_DAY = "today"
-FIXTURE_CSV_URL_TEMPLATE = "https://github.com/futpythontrader/YouTube/raw/main/Jogos_do_Dia/FootyStats/Jogos_do_Dia_FootyStats_{date_str}.csv"
-
 # --- Fonte de Dados Futuros (CSV GitHub) ---
 FIXTURE_FETCH_DAY = "today"
 FIXTURE_CSV_URL_TEMPLATE = "https://github.com/futpythontrader/YouTube/raw/main/Jogos_do_Dia/FootyStats/Jogos_do_Dia_FootyStats_{date_str}.csv"
 
+XG_COLS = {'home': 'XG_H', 'away': 'XG_A'}
+XG_COLS['total'] = 'XG_Total' # Adiciona a coluna total (se necessário)
 # Colunas base ESPERADAS no CSV (nomes ORIGINAIS do CSV) - VERIFIQUE!
-CSV_EXPECTED_COLS = [
-    'Date', 'Time', 'League', 'Rodada', 'Home', 'Away',
-    'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', # Odds 1x2
-    'Odd_Over25_FT', 'Odd_Under25_FT',
-    'Odd_BTTS_Yes', 'Odd_BTTS_No',
-    # Adicione outras que o FICTURE_CSV_COL_MAP use
+CSV_EXPECTED_COLS_HIST = [
+    'Date',
+    'Home',             # <<< Nome REAL do CSV
+    'Away',             # <<< Nome REAL do CSV
+    'Goals_H_FT',       # <<< Nome REAL do CSV
+    'Goals_A_FT',       # <<< Nome REAL do CSV
+    'Odd_H_FT',         # <<< Nome REAL da Odd Casa (já coincide com interno)
+    'Odd_D_FT',         # <<< Nome REAL da Odd Empate (já coincide com interno)
+    'Odd_A_FT',         # <<< Nome REAL da Odd Fora (já coincide com interno)
+    'League',           # <<< Nome REAL da Liga
+    # Opcional - Adicione se quiser usar (nomes REAIS do CSV):
+    'Odd_Over25_FT',
+    'Odd_Under25_FT',
+    'Odd_BTTS_Yes',
+    'Odd_BTTS_No',
+    'XG_Home_Pre',      # (Se for usar xG pré-jogo)
+    'XG_Away_Pre',      # (Se for usar xG pré-jogo)
+    'XG_Total_Pre',     # (Se for usar xG pré-jogo)
 ]
+
 # Mapeamento CSV -> Nomes Internos
-FIXTURE_CSV_COL_MAP = {k: k for k in CSV_EXPECTED_COLS} # Inicia mapeando para si mesmo
-FIXTURE_CSV_COL_MAP.update({ # Sobrescreve os que precisam de renomeação
-    'Date': 'Date_Str', 'Time': 'Time_Str', 'Rodada': 'Round',
-    'Home': 'HomeTeam', 'Away': 'AwayTeam',
-    # Se os nomes no CSV forem diferentes, ajuste as CHAVES aqui
-    # 'CSV_Nome_H': 'Odd_H_FT',
-    # 'CSV_Nome_D': 'Odd_D_FT',
-    # 'CSV_Nome_A': 'Odd_A_FT',
-    # 'CSV_Nome_O25': 'Odd_Over25_FT',
-    # 'CSV_Nome_U25': 'Odd_Under25_FT',
-    # 'CSV_Nome_BTTSY': 'Odd_BTTS_Yes',
-    # 'CSV_Nome_BTTSN': 'Odd_BTTS_No',
+CSV_HIST_COL_MAP = {k: k for k in CSV_EXPECTED_COLS_HIST} # Inicia mapeando para si mesmo
+CSV_HIST_COL_MAP.update({ # Sobrescreve os que precisam de renomeação
+    'Date': 'Date',
+    'Home': 'Home',             # <<< CHAVE é 'Home', VALOR é 'Home'
+    'Away': 'Away',             # <<< CHAVE é 'Away', VALOR é 'Away'
+    'Goals_H_FT': 'Goals_H_FT', # <<< Nomes já coincidem
+    'Goals_A_FT': 'Goals_A_FT', # <<< Nomes já coincidem
+    'Odd_H_FT': 'Odd_H_FT',      # <<< Nomes já coincidem
+    'Odd_D_FT': 'Odd_D_FT',      # <<< Nomes já coincidem
+    'Odd_A_FT': 'Odd_A_FT',      # <<< Nomes já coincidem
+    'League': 'League',          # <<< Nomes já coincidem (ou ajuste se for diferente)
+    # Adicione mapeamentos SE os nomes no CSV forem diferentes dos internos desejados
+    'Odd_Over25_FT': 'Odd_Over25_FT', # Ex: Nomes já coincidem
+    'Odd_Under25_FT': 'Odd_Under25_FT',
+    'Odd_BTTS_Yes': 'Odd_BTTS_Yes',
+    'Odd_BTTS_No': 'Odd_BTTS_No',
+    'XG_Home_Pre': XG_COLS['home'], # Mapeia para 'XG_H'
+    'XG_Away_Pre': XG_COLS['away'], # Mapeia para 'XG_A'
+    'XG_Total_Pre': 'XG_Total', # Exemplo de nome interno
 })
 # Colunas internas essenciais após ler e mapear o CSV
 REQUIRED_FIXTURE_COLS = ['League', 'HomeTeam', 'AwayTeam', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 
                          'Odd_Over25_FT', 'Odd_BTTS_Yes']
 
-# Lista de Ligas Alvo - AJUSTE COM NOMES DO CSV (coluna 'League')
-TARGET_LEAGUES = [ # ... etc ...
-]
 
 # --- Configurações Gerais do Modelo ---
 RANDOM_STATE = 42; TEST_SIZE = 0.2; CROSS_VALIDATION_SPLITS = 3; N_JOBS_GRIDSEARCH = -1; ROLLING_WINDOW = 10
@@ -92,11 +110,12 @@ GOALS_COLS = {'home': 'Goals_H_FT', 'away': 'Goals_A_FT'}
 OTHER_ODDS_NAMES = [ 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No' ]
 
 # Colunas base ESPERADAS no Excel (nomes ORIGINAIS do Excel)
-EXCEL_EXPECTED_COLS = [
+CSV_PATTERN_COLS = [
     'Date', 'Home', 'Away',
     'Goals_H_FT', 'Goals_A_FT', # Nomes que GOALS_COLS usa nas CHAVES
     'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', # Nomes que ODDS_COLS usa
     'Odd_Over25_FT', 'Odd_BTTS_Yes' # Outras odds diretas usadas como features
+    'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre' # Odds de xG (Expected Goals)
 ]
 
 ALL_CANDIDATE_FEATURES = [
@@ -149,6 +168,11 @@ ALL_CANDIDATE_FEATURES = [
 
     #Probabilidade Poisson de Empate
     'Prob_Empate_Poisson'
+
+    #xG (Expected Goals) - Se disponível e relevante
+    'XG_Home_Pre', 
+    'XG_Away_Pre',
+    'XG_Total_Pre'
 ]
 
 # --- Lista das Features FINAIS para o Modelo BackDraw ---

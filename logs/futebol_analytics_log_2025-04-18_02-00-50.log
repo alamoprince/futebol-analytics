@@ -1,0 +1,580 @@
+2025-04-18 02:00:50 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-18 02:00:50 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-18 02:00:50 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics
+2025-04-18 02:00:50 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-04-18 02:00:52 - MainApp - INFO - DPI Awareness set (Windows).
+2025-04-18 02:00:52 - MainApp - INFO - FeatureAnalyzerApp instanciada com sucesso.
+2025-04-18 02:00:52 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-04-17 19:30:12)
+2025-04-18 02:00:52 - PredictorApp - INFO -   Tipo Modelo: SVC
+2025-04-18 02:00:52 - PredictorApp - INFO -   Calibrador: Sim
+2025-04-18 02:00:52 - PredictorApp - INFO -   Limiar EV Carregado: 0.1900
+2025-04-18 02:00:52 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-04-17 19:30:12)
+2025-04-18 02:00:52 - PredictorApp - INFO -   Tipo Modelo: LogisticRegression
+2025-04-18 02:00:52 - PredictorApp - INFO -   Calibrador: Sim
+2025-04-18 02:00:52 - PredictorApp - INFO -   Limiar EV Carregado: 0.0700
+2025-04-18 02:00:52 - DataHandler - INFO - Iniciando carregamento de dados históricos de: ['c:\\Users\\princ\\Desktop\\modelagem\\Modelagem_Exemplos\\futebol_analytics\\data\\Base_de_Dados_FootyStats_(2006_2021).csv', 'c:\\Users\\princ\\Desktop\\modelagem\\Modelagem_Exemplos\\futebol_analytics\\data\\Base_de_Dados_FootyStats_(2022_2025).csv']
+2025-04-18 02:00:52 - DataHandler - INFO - Colunas brutas esperadas (baseado no map): ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'League', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre']
+2025-04-18 02:00:52 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2006_2021).csv...
+2025-04-18 02:00:54 - DataHandler - INFO -   -> Lido 169433 linhas. Colunas no CSV: ['Id_Jogo', 'League', 'Season', 'Date', 'Rodada', 'Home', 'Away', 'Goals_H_HT', 'Goals_A_HT', 'TotalGoals_HT', 'Goals_H_FT', 'Goals_A_FT', 'TotalGoals_FT', 'Goals_H_Minutes', 'Goals_A_Minutes', 'Odd_H_HT', 'Odd_D_HT', 'Odd_A_HT', 'Odd_Over05_HT', 'Odd_Under05_HT', 'Odd_Over15_HT', 'Odd_Under15_HT', 'Odd_Over25_HT', 'Odd_Under25_HT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over05_FT', 'Odd_Under05_FT', 'Odd_Over15_FT', 'Odd_Under15_FT', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'Odd_DC_1X', 'Odd_DC_12', 'Odd_DC_X2', 'PPG_Home_Pre', 'PPG_Away_Pre', 'PPG_Home', 'PPG_Away', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre', 'ShotsOnTarget_H', 'ShotsOnTarget_A', 'ShotsOffTarget_H', 'ShotsOffTarget_A', 'Shots_H', 'Shots_A', 'Corners_H_FT', 'Corners_A_FT', 'TotalCorners_FT', 'Odd_Corners_H', 'Odd_Corners_D', 'Odd_Corners_A', 'Odd_Corners_Over75', 'Odd_Corners_Under75', 'Odd_Corners_Over85', 'Odd_Corners_Under85', 'Odd_Corners_Over95', 'Odd_Corners_Under95', 'Odd_Corners_Over105', 'Odd_Corners_Under105', 'Odd_Corners_Over115', 'Odd_Corners_Under115']
+2025-04-18 02:00:54 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2022_2025).csv...
+2025-04-18 02:00:54 - DataHandler - INFO -   -> Lido 49477 linhas. Colunas no CSV: ['Id_Jogo', 'League', 'Season', 'Date', 'Rodada', 'Home', 'Away', 'Goals_H_HT', 'Goals_A_HT', 'TotalGoals_HT', 'Goals_H_FT', 'Goals_A_FT', 'TotalGoals_FT', 'Goals_H_Minutes', 'Goals_A_Minutes', 'Odd_H_HT', 'Odd_D_HT', 'Odd_A_HT', 'Odd_Over05_HT', 'Odd_Under05_HT', 'Odd_Over15_HT', 'Odd_Under15_HT', 'Odd_Over25_HT', 'Odd_Under25_HT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over05_FT', 'Odd_Under05_FT', 'Odd_Over15_FT', 'Odd_Under15_FT', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'Odd_DC_1X', 'Odd_DC_12', 'Odd_DC_X2', 'PPG_Home_Pre', 'PPG_Away_Pre', 'PPG_Home', 'PPG_Away', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre', 'ShotsOnTarget_H', 'ShotsOnTarget_A', 'ShotsOffTarget_H', 'ShotsOffTarget_A', 'Shots_H', 'Shots_A', 'Corners_H_FT', 'Corners_A_FT', 'TotalCorners_FT', 'Odd_Corners_H', 'Odd_Corners_D', 'Odd_Corners_A', 'Odd_Corners_Over75', 'Odd_Corners_Under75', 'Odd_Corners_Over85', 'Odd_Corners_Under85', 'Odd_Corners_Over95', 'Odd_Corners_Under95', 'Odd_Corners_Over105', 'Odd_Corners_Under105', 'Odd_Corners_Over115', 'Odd_Corners_Under115']
+2025-04-18 02:00:54 - DataHandler - INFO - Concatenando 2 DFs...
+2025-04-18 02:00:54 - DataHandler - INFO - DF combinado inicial: (218910, 16)
+2025-04-18 02:00:54 - DataHandler - INFO - Renomeando colunas para nomes internos...
+2025-04-18 02:00:55 - DataHandler - INFO - DF após seleção de colunas internas: (218910, 16)
+2025-04-18 02:00:55 - DataHandler - INFO - Filtrando para as ligas: ['ARGENTINA 1', 'Spain Segunda División', 'ITALY 1', 'ITALY 2', 'BRAZIL 1', 'BRAZIL 2', 'Romania Liga I']...
+2025-04-18 02:00:55 - DataHandler - INFO - Filtro Liga: 8849/218910 jogos restantes.
+2025-04-18 02:00:55 - DataHandler - INFO - Convertendo tipos e tratando NaNs/Zeros inválidos...
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'Odd_H_FT': 1552 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'Odd_D_FT': 1554 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'Odd_A_FT': 1551 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'Odd_Over25_FT': 1689 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'Odd_Under25_FT': 1784 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'Odd_BTTS_Yes': 1549 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'Odd_BTTS_No': 1549 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'XG_H': 1858 XG == 0 convertidos para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'XG_A': 1858 XG == 0 convertidos para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Coluna 'XG_Total': 1824 XG == 0 convertidos para NaN.
+2025-04-18 02:00:55 - DataHandler - INFO - Verificando NaNs nas colunas essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-04-18 02:00:55 - DataHandler - INFO - Removidas 1558 linhas com NaNs em colunas essenciais.
+2025-04-18 02:00:55 - DataHandler - INFO - DF histórico ordenado por Data.
+2025-04-18 02:00:55 - DataHandler - INFO - Carregamento e tratamento inicial OK. Shape Final: (7291, 16)
+2025-04-18 02:00:55 - DataHandler - INFO - Contagem de NaNs restantes em colunas opcionais:
+Odd_Over25_FT     142
+Odd_Under25_FT    237
+Odd_BTTS_Yes        1
+Odd_BTTS_No         1
+XG_H              515
+XG_A              515
+XG_Total          481
+dtype: int64
+2025-04-18 02:00:55 - MainApp - INFO - FootballPredictorDashboard instanciada com sucesso.
+2025-04-18 02:00:57 - DataHandler - INFO - Iniciando carregamento de dados históricos de: ['c:\\Users\\princ\\Desktop\\modelagem\\Modelagem_Exemplos\\futebol_analytics\\data\\Base_de_Dados_FootyStats_(2006_2021).csv', 'c:\\Users\\princ\\Desktop\\modelagem\\Modelagem_Exemplos\\futebol_analytics\\data\\Base_de_Dados_FootyStats_(2022_2025).csv']
+2025-04-18 02:00:57 - DataHandler - INFO - Colunas brutas esperadas (baseado no map): ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'League', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre']
+2025-04-18 02:00:57 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2006_2021).csv...
+2025-04-18 02:00:58 - DataHandler - INFO -   -> Lido 169433 linhas. Colunas no CSV: ['Id_Jogo', 'League', 'Season', 'Date', 'Rodada', 'Home', 'Away', 'Goals_H_HT', 'Goals_A_HT', 'TotalGoals_HT', 'Goals_H_FT', 'Goals_A_FT', 'TotalGoals_FT', 'Goals_H_Minutes', 'Goals_A_Minutes', 'Odd_H_HT', 'Odd_D_HT', 'Odd_A_HT', 'Odd_Over05_HT', 'Odd_Under05_HT', 'Odd_Over15_HT', 'Odd_Under15_HT', 'Odd_Over25_HT', 'Odd_Under25_HT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over05_FT', 'Odd_Under05_FT', 'Odd_Over15_FT', 'Odd_Under15_FT', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'Odd_DC_1X', 'Odd_DC_12', 'Odd_DC_X2', 'PPG_Home_Pre', 'PPG_Away_Pre', 'PPG_Home', 'PPG_Away', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre', 'ShotsOnTarget_H', 'ShotsOnTarget_A', 'ShotsOffTarget_H', 'ShotsOffTarget_A', 'Shots_H', 'Shots_A', 'Corners_H_FT', 'Corners_A_FT', 'TotalCorners_FT', 'Odd_Corners_H', 'Odd_Corners_D', 'Odd_Corners_A', 'Odd_Corners_Over75', 'Odd_Corners_Under75', 'Odd_Corners_Over85', 'Odd_Corners_Under85', 'Odd_Corners_Over95', 'Odd_Corners_Under95', 'Odd_Corners_Over105', 'Odd_Corners_Under105', 'Odd_Corners_Over115', 'Odd_Corners_Under115']
+2025-04-18 02:00:58 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2022_2025).csv...
+2025-04-18 02:00:58 - DataHandler - INFO -   -> Lido 49477 linhas. Colunas no CSV: ['Id_Jogo', 'League', 'Season', 'Date', 'Rodada', 'Home', 'Away', 'Goals_H_HT', 'Goals_A_HT', 'TotalGoals_HT', 'Goals_H_FT', 'Goals_A_FT', 'TotalGoals_FT', 'Goals_H_Minutes', 'Goals_A_Minutes', 'Odd_H_HT', 'Odd_D_HT', 'Odd_A_HT', 'Odd_Over05_HT', 'Odd_Under05_HT', 'Odd_Over15_HT', 'Odd_Under15_HT', 'Odd_Over25_HT', 'Odd_Under25_HT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over05_FT', 'Odd_Under05_FT', 'Odd_Over15_FT', 'Odd_Under15_FT', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'Odd_DC_1X', 'Odd_DC_12', 'Odd_DC_X2', 'PPG_Home_Pre', 'PPG_Away_Pre', 'PPG_Home', 'PPG_Away', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre', 'ShotsOnTarget_H', 'ShotsOnTarget_A', 'ShotsOffTarget_H', 'ShotsOffTarget_A', 'Shots_H', 'Shots_A', 'Corners_H_FT', 'Corners_A_FT', 'TotalCorners_FT', 'Odd_Corners_H', 'Odd_Corners_D', 'Odd_Corners_A', 'Odd_Corners_Over75', 'Odd_Corners_Under75', 'Odd_Corners_Over85', 'Odd_Corners_Under85', 'Odd_Corners_Over95', 'Odd_Corners_Under95', 'Odd_Corners_Over105', 'Odd_Corners_Under105', 'Odd_Corners_Over115', 'Odd_Corners_Under115']
+2025-04-18 02:00:58 - DataHandler - INFO - Concatenando 2 DFs...
+2025-04-18 02:00:58 - DataHandler - INFO - DF combinado inicial: (218910, 16)
+2025-04-18 02:00:58 - DataHandler - INFO - Renomeando colunas para nomes internos...
+2025-04-18 02:00:58 - DataHandler - INFO - DF após seleção de colunas internas: (218910, 16)
+2025-04-18 02:00:58 - DataHandler - INFO - Filtrando para as ligas: ['ARGENTINA 1', 'Spain Segunda División', 'ITALY 1', 'ITALY 2', 'BRAZIL 1', 'BRAZIL 2', 'Romania Liga I']...
+2025-04-18 02:00:58 - DataHandler - INFO - Filtro Liga: 8849/218910 jogos restantes.
+2025-04-18 02:00:58 - DataHandler - INFO - Convertendo tipos e tratando NaNs/Zeros inválidos...
+2025-04-18 02:00:58 - DataHandler - INFO - Coluna 'Odd_H_FT': 1552 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'Odd_D_FT': 1554 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'Odd_A_FT': 1551 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'Odd_Over25_FT': 1689 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'Odd_Under25_FT': 1784 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'Odd_BTTS_Yes': 1549 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'Odd_BTTS_No': 1549 odds <= 1 convertidas para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'XG_H': 1858 XG == 0 convertidos para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'XG_A': 1858 XG == 0 convertidos para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Coluna 'XG_Total': 1824 XG == 0 convertidos para NaN.
+2025-04-18 02:00:59 - DataHandler - INFO - Verificando NaNs nas colunas essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-04-18 02:00:59 - DataHandler - INFO - Removidas 1558 linhas com NaNs em colunas essenciais.
+2025-04-18 02:00:59 - DataHandler - INFO - DF histórico ordenado por Data.
+2025-04-18 02:00:59 - DataHandler - INFO - Carregamento e tratamento inicial OK. Shape Final: (7291, 16)
+2025-04-18 02:00:59 - DataHandler - INFO - Contagem de NaNs restantes em colunas opcionais:
+Odd_Over25_FT     142
+Odd_Under25_FT    237
+Odd_BTTS_Yes        1
+Odd_BTTS_No         1
+XG_H              515
+XG_A              515
+XG_Total          481
+dtype: int64
+2025-04-18 02:00:59 - DataHandler - INFO - --- Iniciando Pré-processamento e Engenharia de Features (Histórico) ---
+2025-04-18 02:00:59 - DataHandler - INFO - Médias Globais Liga (Histórico, NaN-ignored): Casa=1.320, Fora=1.007
+2025-04-18 02:00:59 - DataHandler - INFO - Calculando stats intermediárias...
+2025-04-18 02:00:59 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-04-18 02:00:59 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-04-18 02:00:59 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-04-18 02:00:59 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-04-18 02:00:59 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-04-18 02:00:59 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-04-18 02:00:59 - DataHandler - INFO - Iniciando cálculo Médias Rolling (Janela=10)...
+2025-04-18 02:00:59 - DataHandler - INFO - Calculando Médias rolling para: ['VG_H', 'VG_A', 'CG_H', 'CG_A']
+2025-04-18 02:00:59 - DataHandler - INFO - Médias Rolling calculadas. Colunas adicionadas: ['Media_VG_H', 'Media_VG_A', 'Media_CG_H', 'Media_CG_A']
+2025-04-18 02:00:59 - DataHandler - INFO - Iniciando cálculo Desvio Padrão Rolling (Janela=10)...
+2025-04-18 02:00:59 - DataHandler - INFO - Calculando StDev rolling para: ['CG_H', 'CG_A']
+2025-04-18 02:01:00 - DataHandler - INFO - StDev Rolling calculado. Colunas adicionadas: ['Std_CG_H', 'Std_CG_A']
+2025-04-18 02:01:00 - DataHandler - INFO - Calculando Rolling Gols e Forças FA/FD (Janela=10)...
+2025-04-18 02:01:01 - DataHandler - INFO - Rolling Gols/FA/FD calculado. Colunas: ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'FA_H', 'FD_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'FA_A', 'FD_A']
+2025-04-18 02:01:01 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_gols=5)...
+2025-04-18 02:01:01 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-04-18 02:01:01 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-04-18 02:01:01 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG)...
+2025-04-18 02:01:01 - DataHandler - INFO - Selecionando features FINAIS da config: ['p_D_norm', 'Media_CG_H', 'Media_CG_A', 'Media_VG_H', 'Avg_Gols_Sofridos_A', 'CV_HDA', 'Std_CG_A', 'Prob_Empate_Poisson']
+2025-04-18 02:01:01 - DataHandler - INFO - DF selecionado para dropna final: (7291, 9). Verificando NaNs nas features selecionadas...
+2025-04-18 02:01:01 - DataHandler - WARNING - NaNs encontrados ANTES do dropna final (nas features a serem usadas):
+Media_CG_H             123
+Media_CG_A             107
+Media_VG_H              75
+Avg_Gols_Sofridos_A     80
+Std_CG_A               231
+dtype: int64
+2025-04-18 02:01:01 - DataHandler - INFO - Removidas 258 linhas com NaNs (nas features selecionadas ou no alvo).
+2025-04-18 02:01:01 - DataHandler - INFO - --- Pré-proc Histórico OK --- Shape X:(7033, 8), y:(7033,).
+2025-04-18 02:01:01 - DataHandler - INFO - Calculando stats intermediárias...
+2025-04-18 02:01:01 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-04-18 02:01:01 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-04-18 02:01:01 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-04-18 02:01:01 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-04-18 02:01:01 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-04-18 02:01:01 - Main2 - INFO - DEBUG Main: df_full_data_aligned_for_split criado com shape (7033, 27)
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - --- Treinando/Calibrando 5 Modelos ---
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - Dividindo dados...
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - Split: Treino=4219, Val=1407, Teste=1407
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - --- DEBUG: Verificando X_test_with_odds (<class 'pandas.core.frame.DataFrame'>) ---
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - DEBUG: X_tst_odds shape (7033, 27). Col Odd ('Odd_D_FT'): True
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - DEBUG: Idx Val:1407/Hist:7033 -> Intersec:1407
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - DEBUG: X_val_odds CRIADO (1407, 1).
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - DEBUG: Idx Teste:1407/Hist:7033 -> Intersec:1407
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - DEBUG: X_test_odds CRIADO (1407, 1).
+2025-04-18 02:01:01 - ModelTrainerApp - INFO - 
+--- Modelo 1/5:RandomForestClassifier ---
+2025-04-18 02:01:01 - ModelTrainerApp - INFO -   Scaling não requerido.
+2025-04-18 02:01:01 - ModelTrainerApp - INFO -     -> GridSearch criado.
+2025-04-18 02:01:01 - ModelTrainerApp - INFO -   Iniciando GridSearchCV...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> GridSearch OK. CV F1: 0.4313. Params: {'bootstrap': False, 'class_weight': 'balanced', 'criterion': 'entropy', 'max_depth': 10, 'max_features': 'log2', 'min_samples_leaf': 1, 'min_samples_split': 10, 'n_estimators': 100}
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Calibrando probs com isotonic...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   -> Calibrador treinado.
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Otimizando limiar EV (Val)...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO - DEBUG CALIB: Probs Val Calibradas (Min: 0.2000, Max: 0.3953, Mean: 0.2942, Std: 0.0490)
+2025-04-18 02:12:26 - ModelTrainerApp - INFO - DEBUG CALIB: Contagem de valores únicos Calib (Top 10): 
+0.239766    513
+0.308390    441
+0.370732    205
+0.311111    180
+0.395349     43
+0.250000     20
+0.200000      5
+Name: count, dtype: int64
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.000): ROI=3.05%, Bets=554, Profit=16.889999999999983
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.010): ROI=3.07%, Bets=507, Profit=15.570000000000007
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.020): ROI=2.13%, Bets=461, Profit=9.839999999999993
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.030): ROI=4.00%, Bets=440, Profit=17.609999999999996
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.040): ROI=3.16%, Bets=405, Profit=12.809999999999999
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.050): ROI=4.03%, Bets=369, Profit=14.869999999999994
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.060): ROI=3.83%, Bets=349, Profit=13.380000000000003
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.070): ROI=4.86%, Bets=339, Profit=16.479999999999997
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.080): ROI=4.37%, Bets=292, Profit=12.750000000000004
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.090): ROI=1.70%, Bets=287, Profit=4.890000000000004
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.100): ROI=5.00%, Bets=278, Profit=13.889999999999997
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.110): ROI=5.43%, Bets=267, Profit=14.509999999999998
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.120): ROI=15.25%, Bets=225, Profit=34.31
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.130): ROI=14.64%, Bets=218, Profit=31.909999999999993
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.140): ROI=20.09%, Bets=203, Profit=40.78000000000001
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.150): ROI=6.19%, Bets=172, Profit=10.64
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.160): ROI=5.85%, Bets=169, Profit=9.89
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.170): ROI=0.88%, Bets=154, Profit=1.360000000000002
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.180): ROI=2.41%, Bets=148, Profit=3.559999999999998
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.190): ROI=-9.19%, Bets=113, Profit=-10.389999999999997
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.200): ROI=-4.10%, Bets=107, Profit=-4.389999999999997
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     Limiar EV ótimo(Val): 0.140 (ROI=20.09%)
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Avaliando teste (Estratégia EV > 0.140)...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Base Metrics@0.5: Acc=0.5068, F1=0.4148, P=0.3187, R=0.5942
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> ROI@0.5: ROI=-1.42%, Bets=772
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> LogLoss(Raw)=0.6785
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> AUC(Calib)=0.5415
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Brier(Calib)=0.2069
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.140): ROI=-15.54%, Bets=203, Profit=-31.540000000000003
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     ==> DEBUG: Adicionando resultado RandomForestClassifier (Eval OK: True)
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Tempo p/ RandomForestClassifier (total): 684.70 seg.
+2025-04-18 02:12:26 - ModelTrainerApp - INFO - 
+--- Modelo 2/5:LogisticRegression ---
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Scaling p/ LogisticRegression (scaler=standard)...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Ajustando StandardScaler no treino...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Aplicando transform em treino, validação e teste...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Scaling OK para LogisticRegression.
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> GridSearch criado.
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Iniciando GridSearchCV...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> GridSearch OK. CV F1: 0.4430. Params: {'C': 10, 'class_weight': 'balanced', 'penalty': 'l2', 'solver': 'liblinear'}
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Calibrando probs com isotonic...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   -> Calibrador treinado.
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Otimizando limiar EV (Val)...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO - DEBUG CALIB: Probs Val Calibradas (Min: 0.0000, Max: 1.0000, Mean: 0.2942, Std: 0.0682)
+2025-04-18 02:12:26 - ModelTrainerApp - INFO - DEBUG CALIB: Contagem de valores únicos Calib (Top 10): 
+0.294624    465
+0.325581    215
+0.292929    198
+0.358289    187
+0.247423     97
+0.186813     91
+0.200000     70
+0.435897     39
+0.166667     12
+0.363636     11
+Name: count, dtype: int64
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.000): ROI=13.95%, Bets=554, Profit=77.29
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.010): ROI=13.26%, Bets=461, Profit=61.15000000000004
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.020): ROI=14.04%, Bets=440, Profit=61.770000000000024
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.030): ROI=13.48%, Bets=385, Profit=51.90000000000001
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.040): ROI=12.05%, Bets=327, Profit=39.40000000000003
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.050): ROI=16.90%, Bets=297, Profit=50.20000000000002
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.060): ROI=19.07%, Bets=256, Profit=48.81000000000001
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.070): ROI=17.05%, Bets=227, Profit=38.71000000000001
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.080): ROI=13.45%, Bets=192, Profit=25.830000000000005
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.090): ROI=14.84%, Bets=180, Profit=26.710000000000004
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.100): ROI=21.47%, Bets=159, Profit=34.130000000000024
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.110): ROI=18.77%, Bets=148, Profit=27.780000000000012
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.120): ROI=18.68%, Bets=115, Profit=21.48
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.130): ROI=21.18%, Bets=102, Profit=21.599999999999998
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.140): ROI=23.81%, Bets=97, Profit=23.099999999999998
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.150): ROI=15.58%, Bets=79, Profit=12.309999999999999
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.160): ROI=20.14%, Bets=76, Profit=15.310000000000002
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.170): ROI=27.44%, Bets=64, Profit=17.559999999999995
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.180): ROI=33.66%, Bets=59, Profit=19.860000000000003
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.190): ROI=46.04%, Bets=54, Profit=24.860000000000003
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.200): ROI=43.84%, Bets=51, Profit=22.360000000000003
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     Limiar EV ótimo(Val): 0.190 (ROI=46.04%)
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Avaliando teste (Estratégia EV > 0.190)...
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Base Metrics@0.5: Acc=0.5160, F1=0.4234, P=0.3259, R=0.6039
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> ROI@0.5: ROI=0.06%, Bets=767
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> LogLoss(Raw)=0.6853
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> AUC(Calib)=0.5675
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Brier(Calib)=0.2055
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.190): ROI=-10.34%, Bets=61, Profit=-6.310000000000001
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     ==> DEBUG: Adicionando resultado LogisticRegression (Eval OK: True)
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Tempo p/ LogisticRegression (total): 0.25 seg.
+2025-04-18 02:12:26 - ModelTrainerApp - INFO - 
+--- Modelo 3/5:LGBMClassifier ---
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Scaling não requerido.
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -     -> GridSearch criado.
+2025-04-18 02:12:26 - ModelTrainerApp - INFO -   Iniciando GridSearchCV...
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> GridSearch OK. CV F1: 0.4117. Params: {'learning_rate': 0.05, 'max_depth': 5, 'n_estimators': 50, 'num_leaves': 15}
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -   Calibrando probs com isotonic...
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -   -> Calibrador treinado.
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -   Otimizando limiar EV (Val)...
+2025-04-18 02:12:40 - ModelTrainerApp - INFO - DEBUG CALIB: Probs Val Calibradas (Min: 0.0000, Max: 0.3392, Mean: 0.2942, Std: 0.0506)
+2025-04-18 02:12:40 - ModelTrainerApp - INFO - DEBUG CALIB: Contagem de valores únicos Calib (Top 10): 
+0.313539    421
+0.339152    401
+0.239234    209
+0.269461    167
+0.325000     80
+0.146341     41
+0.256410     39
+0.120000     25
+0.250000     16
+0.285714      7
+Name: count, dtype: int64
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.000): ROI=6.41%, Bets=668, Profit=42.85
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.010): ROI=4.75%, Bets=604, Profit=28.700000000000014
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.020): ROI=6.43%, Bets=486, Profit=31.24
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.030): ROI=7.23%, Bets=457, Profit=33.06000000000004
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.040): ROI=8.25%, Bets=405, Profit=33.42000000000004
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.050): ROI=9.99%, Bets=390, Profit=38.95000000000004
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.060): ROI=-0.03%, Bets=308, Profit=-0.0799999999999974
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.070): ROI=2.30%, Bets=256, Profit=5.88
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.080): ROI=1.38%, Bets=231, Profit=3.180000000000004
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.090): ROI=-0.71%, Bets=187, Profit=-1.3200000000000065
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.100): ROI=-8.63%, Bets=164, Profit=-14.160000000000004
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.110): ROI=-18.07%, Bets=131, Profit=-23.67000000000001
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.120): ROI=-10.33%, Bets=105, Profit=-10.850000000000001
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.130): ROI=-14.32%, Bets=96, Profit=-13.75
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.140): ROI=-14.31%, Bets=88, Profit=-12.59
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.150): ROI=-16.26%, Bets=86, Profit=-13.98
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.160): ROI=-16.34%, Bets=65, Profit=-10.620000000000001
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.170): ROI=-22.32%, Bets=59, Profit=-13.169999999999998
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.180): ROI=-23.71%, Bets=51, Profit=-12.09
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.190): ROI=-29.16%, Bets=43, Profit=-12.540000000000001
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.200): ROI=-34.98%, Bets=41, Profit=-14.34
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     Limiar EV ótimo(Val): 0.050 (ROI=9.99%)
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -   Avaliando teste (Estratégia EV > 0.050)...
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Base Metrics@0.5: Acc=0.5124, F1=0.4024, P=0.3147, R=0.5580
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> ROI@0.5: ROI=-3.40%, Bets=734
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> LogLoss(Raw)=0.6705
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> AUC(Calib)=0.5547
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Brier(Calib)=0.2058
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.050): ROI=-14.36%, Bets=391, Profit=-56.12999999999999
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     ==> DEBUG: Adicionando resultado LGBMClassifier (Eval OK: True)
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -   Tempo p/ LGBMClassifier (total): 13.97 seg.
+2025-04-18 02:12:40 - ModelTrainerApp - INFO - 
+--- Modelo 4/5:SVC ---
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -   Scaling p/ SVC (scaler=standard)...
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Ajustando StandardScaler no treino...
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Aplicando transform em treino, validação e teste...
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> Scaling OK para SVC.
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -     -> GridSearch criado.
+2025-04-18 02:12:40 - ModelTrainerApp - INFO -   Iniciando GridSearchCV...
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> GridSearch OK. CV F1: 0.4454. Params: {'C': 1, 'class_weight': 'balanced', 'decision_function_shape': 'ovo', 'degree': 3, 'gamma': 'scale', 'kernel': 'poly'}
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -   Calibrando probs com isotonic...
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -   -> Calibrador treinado.
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -   Otimizando limiar EV (Val)...
+2025-04-18 02:14:46 - ModelTrainerApp - INFO - DEBUG CALIB: Probs Val Calibradas (Min: 0.0000, Max: 1.0000, Mean: 0.2942, Std: 0.0626)
+2025-04-18 02:14:46 - ModelTrainerApp - INFO - DEBUG CALIB: Contagem de valores únicos Calib (Top 10): 
+0.320922    564
+0.280303    396
+0.285714    196
+0.216495     97
+0.245614     57
+0.425000     40
+0.190476     21
+0.100000     20
+0.166667      6
+0.600000      5
+Name: count, dtype: int64
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.000): ROI=-2.66%, Bets=477, Profit=-12.700000000000005
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.010): ROI=-2.62%, Bets=462, Profit=-12.100000000000003
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.020): ROI=-2.81%, Bets=428, Profit=-12.020000000000003
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.030): ROI=-2.79%, Bets=360, Profit=-10.050000000000004
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.040): ROI=-2.95%, Bets=342, Profit=-10.079999999999995
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.050): ROI=-7.29%, Bets=301, Profit=-21.950000000000003
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.060): ROI=-10.43%, Bets=257, Profit=-26.81000000000001
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.070): ROI=-8.85%, Bets=240, Profit=-21.250000000000007
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.080): ROI=-4.06%, Bets=224, Profit=-9.100000000000001
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.090): ROI=-0.51%, Bets=216, Profit=-1.0999999999999979
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.100): ROI=8.14%, Bets=183, Profit=14.900000000000006
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.110): ROI=8.41%, Bets=173, Profit=14.550000000000004
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.120): ROI=6.61%, Bets=169, Profit=11.170000000000002
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.130): ROI=6.65%, Bets=144, Profit=9.580000000000005
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.140): ROI=3.91%, Bets=140, Profit=5.480000000000003
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.150): ROI=-2.53%, Bets=134, Profit=-3.389999999999998
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.160): ROI=4.49%, Bets=125, Profit=5.610000000000004
+2025-04-18 02:14:46 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.170): ROI=7.45%, Bets=119, Profit=8.860000000000007
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.180): ROI=9.44%, Bets=113, Profit=10.670000000000005
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.190): ROI=6.73%, Bets=108, Profit=7.270000000000003
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.200): ROI=11.55%, Bets=100, Profit=11.550000000000004
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     Limiar EV ótimo(Val): 0.200 (ROI=11.55%)
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -   Avaliando teste (Estratégia EV > 0.200)...
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Base Metrics@0.5: Acc=0.4286, F1=0.4501, P=0.3139, R=0.7947
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> ROI@0.5: ROI=0.00%, Bets=0
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> LogLoss(Raw)=0.6050
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> AUC(Calib)=0.5344
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Brier(Calib)=0.2144
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.200): ROI=-28.51%, Bets=108, Profit=-30.790000000000006
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     ==> DEBUG: Adicionando resultado SVC (Eval OK: True)
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -   Tempo p/ SVC (total): 126.59 seg.
+2025-04-18 02:14:47 - ModelTrainerApp - INFO - 
+--- Modelo 5/5:KNeighborsClassifier ---
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -   Scaling p/ KNeighborsClassifier (scaler=standard)...
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Ajustando StandardScaler no treino...
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Aplicando transform em treino, validação e teste...
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> Scaling OK para KNeighborsClassifier.
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -     -> GridSearch criado.
+2025-04-18 02:14:47 - ModelTrainerApp - INFO -   Iniciando GridSearchCV...
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> GridSearch OK. CV F1: 0.2798. Params: {'metric': 'manhattan', 'n_neighbors': 3, 'weights': 'distance'}
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -   Calibrando probs com isotonic...
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -   -> Calibrador treinado.
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -   Otimizando limiar EV (Val)...
+2025-04-18 02:14:50 - ModelTrainerApp - INFO - DEBUG CALIB: Probs Val Calibradas (Min: 0.2766, Max: 0.4186, Mean: 0.2942, Std: 0.0303)
+2025-04-18 02:14:50 - ModelTrainerApp - INFO - DEBUG CALIB: Contagem de valores únicos Calib (Top 10): 
+0.276562    640
+0.295238    630
+0.375000     64
+0.418605     43
+0.312500     16
+0.285714     14
+Name: count, dtype: int64
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.000): ROI=-3.26%, Bets=464, Profit=-15.129999999999992
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.010): ROI=-3.24%, Bets=421, Profit=-13.639999999999997
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.020): ROI=-3.73%, Bets=409, Profit=-15.240000000000006
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.030): ROI=-4.95%, Bets=395, Profit=-19.559999999999995
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.040): ROI=-5.71%, Bets=357, Profit=-20.390000000000004
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.050): ROI=-3.98%, Bets=340, Profit=-13.51999999999999
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.060): ROI=-0.71%, Bets=325, Profit=-2.3200000000000034
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.070): ROI=-1.66%, Bets=302, Profit=-5.010000000000003
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.080): ROI=1.08%, Bets=291, Profit=3.129999999999998
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.090): ROI=2.48%, Bets=287, Profit=7.130000000000003
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.100): ROI=1.81%, Bets=278, Profit=5.030000000000005
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.110): ROI=4.17%, Bets=254, Profit=10.590000000000005
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.120): ROI=3.02%, Bets=249, Profit=7.5300000000000065
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.130): ROI=2.67%, Bets=225, Profit=6.010000000000003
+2025-04-18 02:14:50 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.140): ROI=4.57%, Bets=217, Profit=9.910000000000005
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.150): ROI=4.09%, Bets=214, Profit=8.760000000000007
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.160): ROI=2.82%, Bets=202, Profit=5.690000000000001
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.170): ROI=3.26%, Bets=187, Profit=6.090000000000002
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.180): ROI=2.49%, Bets=182, Profit=4.540000000000003
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.190): ROI=7.38%, Bets=170, Profit=12.540000000000004
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.200): ROI=5.02%, Bets=159, Profit=7.98
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     Limiar EV ótimo(Val): 0.190 (ROI=7.38%)
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   Avaliando teste (Estratégia EV > 0.190)...
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Base Metrics@0.5: Acc=0.6318, F1=0.2621, P=0.3194, R=0.2222
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> ROI@0.5: ROI=3.27%, Bets=288
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> LogLoss(Raw)=4.5807
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> AUC(Calib)=0.5145
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Brier(Calib)=0.2084
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     -> Métricas EV (Th=0.190): ROI=-17.34%, Bets=171, Profit=-29.65
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -     ==> DEBUG: Adicionando resultado KNeighborsClassifier (Eval OK: True)
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   Tempo p/ KNeighborsClassifier (total): 4.04 seg.
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - --- Treino concluído (829.58 seg) ---
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - --- DEBUG: Iniciando processamento de 5 resultados ---
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG SELEÇÃO: DF pós conversão:
+               model_name  f1_score_draw        roi  optimal_threshold
+0  RandomForestClassifier       0.414840 -15.536946               0.14
+1      LogisticRegression       0.423370 -10.344262               0.19
+2          LGBMClassifier       0.402439 -14.355499               0.05
+3                     SVC       0.450068 -28.509259               0.20
+4    KNeighborsClassifier       0.262108 -17.339181               0.19
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG SELEÇÃO: Tipos F1/ROI:float64/float64
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG SELEÇÃO: Ordenando F1...
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG SELEÇÃO: Ranking F1:
+               model_name  f1_score_draw        roi
+0                     SVC       0.450068 -28.509259
+1      LogisticRegression       0.423370 -10.344262
+2  RandomForestClassifier       0.414840 -15.536946
+3          LGBMClassifier       0.402439 -14.355499
+4    KNeighborsClassifier       0.262108 -17.339181
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - SELEÇÃO: Melhor F1: SVC (F1=0.4501)
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG SELEÇÃO: Ordenando ROI...
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG SELEÇÃO: Ranking ROI:
+               model_name  f1_score_draw        roi
+0      LogisticRegression       0.423370 -10.344262
+1          LGBMClassifier       0.402439 -14.355499
+2  RandomForestClassifier       0.414840 -15.536946
+3    KNeighborsClassifier       0.262108 -17.339181
+4                     SVC       0.450068 -28.509259
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG SELEÇÃO: Procurando ROI válido (> -inf)...
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   -> Verificando ROI LogisticRegression:-10.34426229508197(<class 'float'>)
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   -> ENCONTRADO Melhor ROI:LogisticRegression(ROI=-10.3443)
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - SELEÇÃO: Melhor ROI Válido:LogisticRegression(ROI=-10.34%)
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - --- DEBUG SELEÇÃO: Decidindo slot ROI ---
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   Best F1:SVC
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   Best ROI:LogisticRegression
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   DEBUG: F1 e ROI diferentes.
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG FINAL: Modelo _f1:SVC
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - DEBUG FINAL: Modelo _roi:LogisticRegression
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - Salvando Melhor F1 (SVC)...
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   -> Modelo 'SVC' (EV Thresh=0.200) salvo em best_model_backdraw_best_f1.joblib.
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - Salvando Melhor ROI/2nd F1 (LogisticRegression)...
+2025-04-18 02:14:51 - ModelTrainerApp - INFO -   -> Modelo 'LogisticRegression' (EV Thresh=0.190) salvo em best_model_backdraw_best_roi.joblib.
+2025-04-18 02:14:51 - ModelTrainerApp - INFO - --- Processo Completo ---
+2025-04-18 02:14:51 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-04-18 02:14:51)
+2025-04-18 02:14:51 - PredictorApp - INFO -   Tipo Modelo: SVC
+2025-04-18 02:14:51 - PredictorApp - INFO -   Calibrador: Sim
+2025-04-18 02:14:51 - PredictorApp - INFO -   Limiar EV Carregado: 0.2000
+2025-04-18 02:14:51 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-04-18 02:14:51)
+2025-04-18 02:14:51 - PredictorApp - INFO -   Tipo Modelo: LogisticRegression
+2025-04-18 02:14:51 - PredictorApp - INFO -   Calibrador: Sim
+2025-04-18 02:14:51 - PredictorApp - INFO -   Limiar EV Carregado: 0.1900
+2025-04-18 02:19:36 - FeatureAnalyzerApp - INFO - [GUI] Iniciando: Carregando & Processando dados históricos...
+2025-04-18 02:19:36 - FeatureAnalyzerApp - INFO - [GUI] Etapa 1: Carregando dados brutos...
+2025-04-18 02:19:36 - DataHandler - INFO - Iniciando carregamento de dados históricos de: ['c:\\Users\\princ\\Desktop\\modelagem\\Modelagem_Exemplos\\futebol_analytics\\data\\Base_de_Dados_FootyStats_(2006_2021).csv', 'c:\\Users\\princ\\Desktop\\modelagem\\Modelagem_Exemplos\\futebol_analytics\\data\\Base_de_Dados_FootyStats_(2022_2025).csv']
+2025-04-18 02:19:36 - DataHandler - INFO - Colunas brutas esperadas (baseado no map): ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'League', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre']
+2025-04-18 02:19:36 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2006_2021).csv...
+2025-04-18 02:19:37 - DataHandler - INFO -   -> Lido 169433 linhas. Colunas no CSV: ['Id_Jogo', 'League', 'Season', 'Date', 'Rodada', 'Home', 'Away', 'Goals_H_HT', 'Goals_A_HT', 'TotalGoals_HT', 'Goals_H_FT', 'Goals_A_FT', 'TotalGoals_FT', 'Goals_H_Minutes', 'Goals_A_Minutes', 'Odd_H_HT', 'Odd_D_HT', 'Odd_A_HT', 'Odd_Over05_HT', 'Odd_Under05_HT', 'Odd_Over15_HT', 'Odd_Under15_HT', 'Odd_Over25_HT', 'Odd_Under25_HT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over05_FT', 'Odd_Under05_FT', 'Odd_Over15_FT', 'Odd_Under15_FT', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'Odd_DC_1X', 'Odd_DC_12', 'Odd_DC_X2', 'PPG_Home_Pre', 'PPG_Away_Pre', 'PPG_Home', 'PPG_Away', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre', 'ShotsOnTarget_H', 'ShotsOnTarget_A', 'ShotsOffTarget_H', 'ShotsOffTarget_A', 'Shots_H', 'Shots_A', 'Corners_H_FT', 'Corners_A_FT', 'TotalCorners_FT', 'Odd_Corners_H', 'Odd_Corners_D', 'Odd_Corners_A', 'Odd_Corners_Over75', 'Odd_Corners_Under75', 'Odd_Corners_Over85', 'Odd_Corners_Under85', 'Odd_Corners_Over95', 'Odd_Corners_Under95', 'Odd_Corners_Over105', 'Odd_Corners_Under105', 'Odd_Corners_Over115', 'Odd_Corners_Under115']
+2025-04-18 02:19:37 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2022_2025).csv...
+2025-04-18 02:19:38 - DataHandler - INFO -   -> Lido 49477 linhas. Colunas no CSV: ['Id_Jogo', 'League', 'Season', 'Date', 'Rodada', 'Home', 'Away', 'Goals_H_HT', 'Goals_A_HT', 'TotalGoals_HT', 'Goals_H_FT', 'Goals_A_FT', 'TotalGoals_FT', 'Goals_H_Minutes', 'Goals_A_Minutes', 'Odd_H_HT', 'Odd_D_HT', 'Odd_A_HT', 'Odd_Over05_HT', 'Odd_Under05_HT', 'Odd_Over15_HT', 'Odd_Under15_HT', 'Odd_Over25_HT', 'Odd_Under25_HT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over05_FT', 'Odd_Under05_FT', 'Odd_Over15_FT', 'Odd_Under15_FT', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'Odd_DC_1X', 'Odd_DC_12', 'Odd_DC_X2', 'PPG_Home_Pre', 'PPG_Away_Pre', 'PPG_Home', 'PPG_Away', 'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre', 'ShotsOnTarget_H', 'ShotsOnTarget_A', 'ShotsOffTarget_H', 'ShotsOffTarget_A', 'Shots_H', 'Shots_A', 'Corners_H_FT', 'Corners_A_FT', 'TotalCorners_FT', 'Odd_Corners_H', 'Odd_Corners_D', 'Odd_Corners_A', 'Odd_Corners_Over75', 'Odd_Corners_Under75', 'Odd_Corners_Over85', 'Odd_Corners_Under85', 'Odd_Corners_Over95', 'Odd_Corners_Under95', 'Odd_Corners_Over105', 'Odd_Corners_Under105', 'Odd_Corners_Over115', 'Odd_Corners_Under115']
+2025-04-18 02:19:38 - DataHandler - INFO - Concatenando 2 DFs...
+2025-04-18 02:19:38 - DataHandler - INFO - DF combinado inicial: (218910, 16)
+2025-04-18 02:19:38 - DataHandler - INFO - Renomeando colunas para nomes internos...
+2025-04-18 02:19:38 - DataHandler - INFO - DF após seleção de colunas internas: (218910, 16)
+2025-04-18 02:19:38 - DataHandler - INFO - Filtrando para as ligas: ['ARGENTINA 1', 'Spain Segunda División', 'ITALY 1', 'ITALY 2', 'BRAZIL 1', 'BRAZIL 2', 'Romania Liga I']...
+2025-04-18 02:19:38 - DataHandler - INFO - Filtro Liga: 8849/218910 jogos restantes.
+2025-04-18 02:19:38 - DataHandler - INFO - Convertendo tipos e tratando NaNs/Zeros inválidos...
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'Odd_H_FT': 1552 odds <= 1 convertidas para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'Odd_D_FT': 1554 odds <= 1 convertidas para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'Odd_A_FT': 1551 odds <= 1 convertidas para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'Odd_Over25_FT': 1689 odds <= 1 convertidas para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'Odd_Under25_FT': 1784 odds <= 1 convertidas para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'Odd_BTTS_Yes': 1549 odds <= 1 convertidas para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'Odd_BTTS_No': 1549 odds <= 1 convertidas para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'XG_H': 1858 XG == 0 convertidos para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'XG_A': 1858 XG == 0 convertidos para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Coluna 'XG_Total': 1824 XG == 0 convertidos para NaN.
+2025-04-18 02:19:38 - DataHandler - INFO - Verificando NaNs nas colunas essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-04-18 02:19:38 - DataHandler - INFO - Removidas 1558 linhas com NaNs em colunas essenciais.
+2025-04-18 02:19:38 - DataHandler - INFO - DF histórico ordenado por Data.
+2025-04-18 02:19:38 - DataHandler - INFO - Carregamento e tratamento inicial OK. Shape Final: (7291, 16)
+2025-04-18 02:19:38 - DataHandler - INFO - Contagem de NaNs restantes em colunas opcionais:
+Odd_Over25_FT     142
+Odd_Under25_FT    237
+Odd_BTTS_Yes        1
+Odd_BTTS_No         1
+XG_H              515
+XG_A              515
+XG_Total          481
+dtype: int64
+2025-04-18 02:19:38 - FeatureAnalyzerApp - INFO - [GUI] Dados brutos carregados: (7291, 16)
+2025-04-18 02:19:38 - FeatureAnalyzerApp - INFO - [GUI] Etapa 2: Calculando médias da liga...
+2025-04-18 02:19:38 - FeatureAnalyzerApp - INFO - [GUI] Médias Liga (NaN-safe): H=1.320, A=1.007
+2025-04-18 02:19:38 - FeatureAnalyzerApp - INFO - [GUI] Etapa 3: Processando features (Pipeline Completo)...
+2025-04-18 02:19:38 - FeatureAnalyzerApp - INFO - === INÍCIO PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===
+2025-04-18 02:19:38 - FeatureAnalyzerApp - INFO - [GUI]  -> 3.1 Calculando Intermediárias...
+2025-04-18 02:19:38 - DataHandler - INFO - Calculando stats intermediárias...
+2025-04-18 02:19:38 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-04-18 02:19:38 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-04-18 02:19:38 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-04-18 02:19:38 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-04-18 02:19:38 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-04-18 02:19:38 - FeatureAnalyzerApp - INFO - [GUI]  -> 3.2 Calculando Normalizadas...
+2025-04-18 02:19:38 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-04-18 02:19:38 - FeatureAnalyzerApp - INFO - [GUI]  -> 3.3 Calculando Rolling Means (VG, CG)...
+2025-04-18 02:19:38 - DataHandler - INFO - Iniciando cálculo Médias Rolling (Janela=10)...
+2025-04-18 02:19:38 - DataHandler - INFO - Calculando Médias rolling para: ['VG_H', 'VG_A', 'CG_H', 'CG_A']
+2025-04-18 02:19:39 - DataHandler - INFO - Médias Rolling calculadas. Colunas adicionadas: ['Media_VG_H', 'Media_VG_A', 'Media_CG_H', 'Media_CG_A']
+2025-04-18 02:19:39 - FeatureAnalyzerApp - INFO - [GUI]  -> 3.4 Calculando Rolling Stds (CG)...
+2025-04-18 02:19:39 - DataHandler - INFO - Iniciando cálculo Desvio Padrão Rolling (Janela=10)...
+2025-04-18 02:19:39 - DataHandler - INFO - Calculando StDev rolling para: ['CG_H', 'CG_A']
+2025-04-18 02:19:39 - DataHandler - INFO - StDev Rolling calculado. Colunas adicionadas: ['Std_CG_H', 'Std_CG_A']
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI]  -> 3.5 Calculando Rolling Goals e FA/FD...
+2025-04-18 02:19:40 - DataHandler - INFO - Calculando Rolling Gols e Forças FA/FD (Janela=10)...
+2025-04-18 02:19:40 - DataHandler - INFO - Rolling Gols/FA/FD calculado. Colunas: ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'FA_H', 'FD_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'FA_A', 'FD_A']
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI]  -> 3.6 Calculando Poisson Draw Prob...
+2025-04-18 02:19:40 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_gols=5)...
+2025-04-18 02:19:40 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI]  -> 3.7 Calculando Binning...
+2025-04-18 02:19:40 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI]  -> 3.8 Calculando Derivadas...
+2025-04-18 02:19:40 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG)...
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Processamento de features concluído.
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - === FIM PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - Contagem NaNs APÓS processamento completo:
+Odd_Over25_FT           142
+Odd_Under25_FT          237
+Odd_BTTS_Yes              1
+Odd_BTTS_No               1
+XG_H                    515
+XG_A                    515
+XG_Total                481
+CG_H_raw               1894
+CG_A_raw               2675
+Media_VG_H               75
+Media_VG_A               80
+Media_CG_H              123
+Media_CG_A              107
+Std_CG_H                233
+Std_CG_A                231
+Avg_Gols_Marcados_H      75
+Avg_Gols_Sofridos_H      75
+FA_H                     75
+FD_H                     75
+Avg_Gols_Marcados_A      80
+Avg_Gols_Sofridos_A      80
+FA_A                     80
+FD_A                     80
+Diff_Media_CG           163
+dtype: int64
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Etapa 4: Preparando X, y para análise...
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Usando lista de features da config: ['p_D_norm', 'Media_CG_H', 'Media_CG_A', 'Media_VG_H', 'Avg_Gols_Sofridos_A', 'CV_HDA', 'Std_CG_A', 'Prob_Empate_Poisson']
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Shape de X (features selecionadas) ANTES do dropna: (7291, 8)
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Shape de y ANTES do dropna: (7291,)
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] NaNs ANTES do dropna final (em 5 cols das features selecionadas):
+Media_CG_H             123
+Media_CG_A             107
+Media_VG_H              75
+Avg_Gols_Sofridos_A     80
+Std_CG_A               231
+dtype: int64
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Executando dropna final baseado em ['p_D_norm', 'Media_CG_H', 'Media_CG_A', 'Media_VG_H', 'Avg_Gols_Sofridos_A', 'CV_HDA', 'Std_CG_A', 'Prob_Empate_Poisson', 'IsDraw']
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Dados para análise (shape final): (7033, 9) (258 linhas removidas por NaNs/Infs em features selecionadas ou alvo).
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Etapa 5: Atualizando Describe/Target...
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Etapa 6: Executando Análise Avançada (Importância/Correlação)...
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - [GUI] Chamando analyze_features com X_clean ((7033, 8)) e y_clean ((7033,))...
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - --- ANÁLISE FEATURES (model_trainer): Iniciando ---
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO - ANÁLISE FEATURES: Calculando importância RF...
+2025-04-18 02:19:40 - FeatureAnalyzerApp - INFO -     -> Fitting RF (X shape: (7033, 8), y shape: (7033,))
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO -     -> Fit RF concluído.
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO - ANÁLISE FEATURES: Importância calculada OK. Shape: (8, 2)
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO - ANÁLISE FEATURES: Calculando correlação...
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO -     -> Calculando corr() em df_numeric_temp (shape: (7033, 9))
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO - ANÁLISE FEATURES: Correlação com o alvo calculada OK. Shape: (9, 1)
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO - --- ANÁLISE FEATURES (model_trainer): Concluída ---
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO - [GUI] analyze_features retornou.
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO - [GUI] Resultado Importância recebido e válido.
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO - [GUI] Resultado Correlação recebido e válido.
+2025-04-18 02:19:41 - FeatureAnalyzerApp - INFO - [GUI] Análise avançada concluida.
+2025-04-18 02:34:45 - MainApp - INFO - Fechando aplicação.

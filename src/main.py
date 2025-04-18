@@ -22,8 +22,8 @@ except NameError: # Avoid error in environments where __file__ is not defined
 try:
     # Imports necessários para Treino/Previsão
     from config import (
-        HISTORICAL_DATA_PATH, CLASS_NAMES, ODDS_COLS, FIXTURE_FETCH_DAY,
-        MODEL_TYPE_NAME, TEST_SIZE, RANDOM_STATE, ODDS_COLS as CONFIG_ODDS_COLS,
+        CLASS_NAMES, FIXTURE_FETCH_DAY,
+        MODEL_TYPE_NAME, ODDS_COLS as CONFIG_ODDS_COLS,
         BEST_F1_MODEL_SAVE_PATH, BEST_ROI_MODEL_SAVE_PATH, MODEL_ID_F1, MODEL_ID_ROI,
         FEATURE_COLUMNS, DEFAULT_EV_THRESHOLD # FEATURE_COLUMNS é usado no prepare_fixture_data e pipeline de treino
         # Removido MODEL_CONFIG se optimize_single_model for removido ou não usado aqui
@@ -476,7 +476,7 @@ class FootballPredictorDashboard:
         self.gui_queue.put(("progress_start", (100,)))
         self.gui_queue.put(("progress_update", (5, "Carregando Histórico...")))
         try:
-            df_hist = load_historical_data(HISTORICAL_DATA_PATH)
+            df_hist = load_historical_data()
             if df_hist is None:
                 raise ValueError("Falha carregar histórico.")
             self.historical_data = df_hist
@@ -776,7 +776,7 @@ class FootballPredictorDashboard:
         # Carrega histórico (se necessário)
         if self.historical_data is None:
             self.log("Carregando dados históricos..."); 
-            df_hist = load_historical_data(HISTORICAL_DATA_PATH)
+            df_hist = load_historical_data()
             if df_hist is not None: 
                 self.historical_data = df_hist; 
                 self.log("Histórico carregado.")

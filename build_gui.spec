@@ -79,7 +79,7 @@ hiddenimports = [
 
 # --- Análise Principal ---
 a = Analysis(
-    ['src\\main.py'], # Script principal da GUI
+    ['src\\app_launcher.py'], # Script principal da GUI
     pathex=pathex,
     binaries=[],
     datas=datas,
