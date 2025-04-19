@@ -5,8 +5,9 @@ from config import (
     FEATURE_COLUMNS,
     ODDS_COLS, GOALS_COLS, ROLLING_WINDOW,
     FIXTURE_FETCH_DAY, FIXTURE_CSV_URL_TEMPLATE,
-    REQUIRED_FIXTURE_COLS, TARGET_LEAGUES, CSV_HIST_COL_MAP,
-    HISTORICAL_DATA_PATH_1, HISTORICAL_DATA_PATH_2,
+    REQUIRED_FIXTURE_COLS, 
+    TARGET_LEAGUES_INTERNAL_IDS, TARGET_LEAGUES_1,TARGET_LEAGUES_2, INTERNAL_LEAGUE_NAMES,
+    CSV_HIST_COL_MAP,HISTORICAL_DATA_PATH_1, HISTORICAL_DATA_PATH_2,
     OTHER_ODDS_NAMES, XG_COLS
     
 )
@@ -82,188 +83,199 @@ def roi(y_test: pd.Series, y_pred: np.ndarray, X_test_odds_aligned: pd.DataFrame
 # Função load_historical_data
 def load_historical_data() -> Optional[pd.DataFrame]:
     """
-    Carrega dados históricos de múltiplos arquivos CSV, une, filtra colunas/ligas,
-    renomeia, converte tipos e trata NaNs/zeros inválidos (incluindo XG=0).
+    Carrega dados históricos, aplica mapeamentos de liga ESPECÍFICOS,
+    filtra por IDs internos, concatena, e processa o restante.
     """
-    all_dfs: List[pd.DataFrame] = []
-    file_paths: List[str] = [HISTORICAL_DATA_PATH_1, HISTORICAL_DATA_PATH_2]
-    logger.info(f"Iniciando carregamento de dados históricos de: {file_paths}")
+    all_dfs_processed: List[pd.DataFrame] = []
+    file_configs = [
+        {'path': HISTORICAL_DATA_PATH_1, 'league_map': TARGET_LEAGUES_1},
+        {'path': HISTORICAL_DATA_PATH_2, 'league_map': TARGET_LEAGUES_2}
+    ]
+    logger.info(f"Iniciando carregamento e mapeamento de ligas de dados históricos...")
 
-    # 1. Leitura
-    expected_raw_cols = list(CSV_HIST_COL_MAP.keys())
-    logger.info(f"Colunas brutas esperadas (baseado no map): {expected_raw_cols}")
+    for config in file_configs:
+        file_path = config['path']
+        current_league_map = config['league_map']
+        base_filename = os.path.basename(file_path)
 
-    for file_path in file_paths:
         if not os.path.exists(file_path):
             logger.error(f"Arquivo histórico não encontrado: {file_path}")
             continue
 
         try:
-            logger.info(f"Lendo {os.path.basename(file_path)}...")
+            logger.info(f"Lendo {base_filename}...")
             try:
                  df_part = pd.read_csv(file_path, low_memory=False, encoding='ISO-8859-1')
             except UnicodeDecodeError:
-                 logger.warning(f"Falha ao ler {os.path.basename(file_path)} com ISO-8859-1. Tentando UTF-8...")
+                 logger.warning(f"Falha ISO-8859-1 em {base_filename}. Tentando UTF-8...")
                  try:
                      df_part = pd.read_csv(file_path, low_memory=False, encoding='utf-8')
                  except Exception as e_enc:
-                      logger.error(f"Falha ao ler {os.path.basename(file_path)} com UTF-8 também: {e_enc}")
+                      logger.error(f"Falha ao ler {base_filename} com UTF-8: {e_enc}")
                       continue
 
-            logger.info(f"  -> Lido {df_part.shape[0]} linhas. Colunas no CSV: {list(df_part.columns)}")
-            cols_found = [col for col in expected_raw_cols if col in df_part.columns]
-            missing_expected = [col for col in expected_raw_cols if col not in df_part.columns]
+            logger.info(f"  -> Lido {df_part.shape[0]} linhas.")
+            logger.debug(f"    Colunas originais em {base_filename}: {list(df_part.columns)}")
 
-            if not cols_found:
-                logger.error(f"  -> Nenhuma coluna esperada (do CSV_HIST_COL_MAP) encontrada em {os.path.basename(file_path)}. Pulando.")
-                continue
-            if missing_expected:
-                logger.info(f"  -> Colunas esperadas ausentes neste CSV: {missing_expected}")
+            # --- Etapa A: Identificar nome original da coluna 'League' ---
+            original_league_col_name = None
+            internal_league_col_name = 'League' # Nome interno padrão
+            for csv_name_key, internal_name_val in CSV_HIST_COL_MAP.items():
+                 if internal_name_val == internal_league_col_name and csv_name_key in df_part.columns:
+                      original_league_col_name = csv_name_key
+                      break
 
-            all_dfs.append(df_part[cols_found].copy())
+            if not original_league_col_name:
+                 logger.warning(f"Coluna 'League' original não encontrada ou não mapeada para {base_filename}. Pulando arquivo.")
+                 continue
 
+            # --- Etapa B: Mapear a Liga para ID Interno (Cria coluna temporária) ---
+            logger.info(f"  Aplicando mapeamento de liga específico para {base_filename} (Coluna original: '{original_league_col_name}')...")
+            if original_league_col_name not in df_part.columns:
+                 logger.error(f"Erro interno: Coluna original da liga '{original_league_col_name}' desapareceu inesperadamente.")
+                 continue
+            df_part[original_league_col_name] = df_part[original_league_col_name].astype(str).str.strip()
+
+            # Cria a coluna temporária com os IDs mapeados
+            df_part['_MappedLeagueID'] = df_part[original_league_col_name].map(current_league_map)
+
+            # Log de ligas não mapeadas
+            original_leagues_unmapped_mask = df_part['_MappedLeagueID'].isnull()
+            original_unmapped_names = df_part.loc[original_leagues_unmapped_mask, original_league_col_name].unique()
+            if len(original_unmapped_names) > 0:
+                 logger.warning(f"    Ligas NÃO mapeadas (mapa específico) em {base_filename}: {list(original_unmapped_names)}")
+
+            # --- Etapa C: Filtrar pelas Ligas Alvo (usando a coluna temporária) ---
+            initial_count_part = len(df_part)
+            # FILTRA usando a coluna '_MappedLeagueID' que acabamos de criar
+            df_part_filtered = df_part[df_part['_MappedLeagueID'].isin(TARGET_LEAGUES_INTERNAL_IDS)].copy() # Filtra e COPIA
+            logger.info(f"  Filtro de Liga (pós-map) em {base_filename}: {len(df_part_filtered)}/{initial_count_part} jogos restantes.")
+
+            if df_part_filtered.empty:
+                logger.warning(f"  Nenhum jogo restante em {base_filename} após filtro/map.")
+                continue # Pula para o próximo arquivo
+
+            # --- Etapa D: Mapeamento Geral de Colunas (APÓS filtro) ---
+            logger.info(f"  Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...")
+            # Identifica quais colunas do mapa GERAL (exceto a liga original) existem no DF filtrado
+            cols_to_map_general = {
+                k: v for k, v in CSV_HIST_COL_MAP.items()
+                if k in df_part_filtered.columns and k != original_league_col_name
+            }
+
+            # Seleciona as colunas a manter (as que serão renomeadas + a coluna de ID mapeada)
+            # Remove a coluna original da liga se ela ainda existir (não deveria, mas por segurança)
+            cols_to_keep_final = list(cols_to_map_general.keys()) + ['_MappedLeagueID']
+            cols_to_keep_final = [c for c in cols_to_keep_final if c in df_part_filtered.columns] # Garante que todas existem
+
+            df_processed = df_part_filtered[cols_to_keep_final].copy()
+
+            # Renomeia as colunas gerais
+            df_processed.rename(columns=cols_to_map_general, inplace=True)
+
+            # Renomeia a coluna de ID mapeada para o nome interno padrão ('League')
+            df_processed.rename(columns={'_MappedLeagueID': internal_league_col_name}, inplace=True)
+
+            logger.debug(f"    Colunas após rename final: {list(df_processed.columns)}")
+
+            # --- Etapa E: Adicionar DF Processado à Lista ---
+            all_dfs_processed.append(df_processed)
+            logger.info(f"  DataFrame de {base_filename} processado e adicionado.")
+
+        except KeyError as ke:
+             # Captura especificamente o KeyError que pode ocorrer no filtro
+             logger.error(f"Erro de Chave ao processar {base_filename}: {ke}. Verifique se a coluna '_MappedLeagueID' foi criada corretamente antes do filtro.", exc_info=True)
+             continue
         except Exception as e:
-            logger.error(f"Erro ao ler/processar {os.path.basename(file_path)}: {e}", exc_info=True)
-            continue
+            logger.error(f"Erro CRÍTICO ao processar {base_filename}: {e}", exc_info=True)
+            continue # Pula arquivo com erro
 
-    if not all_dfs:
-        logger.error("Nenhum CSV histórico carregado com sucesso.")
+    # --- Fim do loop por arquivo ---
+
+    # ... (resto da função: concatenação, processamento comum, etc., como antes) ...
+    if not all_dfs_processed:
+        logger.error("Nenhum CSV histórico processado com sucesso após mapeamento/filtro individual.")
         return None
 
-    # 2. Concatenação
-    logger.info(f"Concatenando {len(all_dfs)} DFs...")
+    # Concatenação Final
+    logger.info(f"Concatenando {len(all_dfs_processed)} DFs processados...")
     try:
-        df = pd.concat(all_dfs, ignore_index=True, sort=False)
-        logger.info(f"DF combinado inicial: {df.shape}")
+        df = pd.concat(all_dfs_processed, ignore_index=True, sort=False)
+        # ... (resto da concatenação e processamento comum) ...
+        logger.info(f"DF histórico combinado e mapeado: {df.shape}")
+        if df.empty: logger.error("DF histórico vazio após concatenação."); return None
+        logger.debug(f"Colunas presentes após concatenação final: {list(df.columns)}")
     except Exception as e:
-        logger.error(f"Erro ao concatenar DFs: {e}", exc_info=True)
+        logger.error(f"Erro ao concatenar DFs processados: {e}", exc_info=True)
         return None
 
-    # 3. Mapeamento e Seleção
-    logger.info("Renomeando colunas para nomes internos...")
-    valid_map = {k: v for k, v in CSV_HIST_COL_MAP.items() if k in df.columns}
-    if not valid_map:
-        logger.error(f"Nenhuma coluna do CSV_HIST_COL_MAP encontrada no DF concatenado! Cols DF: {list(df.columns)}")
-        return None
-    df.rename(columns=valid_map, inplace=True)
-    internal_cols_to_keep = list(valid_map.values())
-    df = df[internal_cols_to_keep].copy()
-    logger.info(f"DF após seleção de colunas internas: {df.shape}")
-    logger.debug(f"Colunas internas presentes: {list(df.columns)}")
-
-    # 4. Filtro de Liga
-    if TARGET_LEAGUES:
-        if 'League' in df.columns:
-            logger.info(f"Filtrando para as ligas: {list(TARGET_LEAGUES.values())}...")
-            df['League'] = df['League'].astype(str).str.strip()
-            initial_count = len(df)
-            df = df[df['League'].isin(TARGET_LEAGUES.values())]
-            logger.info(f"Filtro Liga: {len(df)}/{initial_count} jogos restantes.")
-            # No longer returning empty DF here, let subsequent steps handle it
-        else:
-            logger.warning("Coluna 'League' ausente para filtro de liga.")
-    else:
-        logger.info("Sem filtro de liga.")
+    # Processamento Comum Pós-Concatenação
+    logger.info("Iniciando processamento comum pós-concatenação (Tipos, NaNs, Dropna Essencial, Ordenação)...")
+    # ... (Todo o código de conversão de tipos, tratamento de NaNs/zeros, dropna essencial, ordenação) ...
+    # ... (Garante que esta parte está correta como nas versões anteriores) ...
 
     # 5. Conversão e Tratamento de Zeros/NaNs
-    logger.info("Convertendo tipos e tratando NaNs/Zeros inválidos...")
-    epsilon = 1e-6 # Small number to avoid division by zero
-
-    # --- Conversão de Data ---
+    epsilon = 1e-6
     if 'Date' in df.columns:
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         date_nan_before = df['Date'].isnull().sum()
         df.dropna(subset=['Date'], inplace=True)
         date_nan_after = date_nan_before - df['Date'].isnull().sum()
-        if date_nan_after > 0: logger.info(f"Removidas {date_nan_after} linhas com Datas inválidas.")
-        if df.empty: logger.error("Nenhuma linha após remover datas inválidas."); return None;
-    else:
-        logger.error("Coluna 'Date' interna ausente. Não é possível ordenar/processar.")
-        return None
+        if date_nan_after > 0: logger.info(f"  Removidas {date_nan_after} linhas com Datas inválidas.")
+        if df.empty: logger.error("  Nenhuma linha após remover datas inválidas."); return None;
+    else: logger.error("  Coluna 'Date' interna ausente."); return None
 
-    # --- Colunas Numéricas Essenciais (Gols) ---
     essential_numeric_cols = list(GOALS_COLS.values())
     for col in essential_numeric_cols:
-        if col not in df.columns:
-            logger.error(f"Erro CRÍTICO: Coluna essencial interna '{col}' ausente APÓS rename!")
-            return None
-        if not pd.api.types.is_numeric_dtype(df[col]):
-             nan_before = df[col].isnull().sum()
+         if col not in df.columns: logger.error(f"  Erro CRÍTICO: Coluna Gols '{col}' ausente!"); return None
+         if not pd.api.types.is_numeric_dtype(df[col]):
              df[col] = pd.to_numeric(df[col], errors='coerce')
-             nan_after = df[col].isnull().sum()
-             coerced_count = nan_after - nan_before
-             if coerced_count > 0: logger.info(f"Coluna '{col}': {coerced_count} valores não numéricos convertidos para NaN.")
 
-    # --- Colunas Numéricas de Odds (1x2 + Outras) ---
     all_odds_internal_names = list(ODDS_COLS.values()) + OTHER_ODDS_NAMES
     for col in all_odds_internal_names:
         if col in df.columns:
-            if not pd.api.types.is_numeric_dtype(df[col]):
-                 nan_before = df[col].isnull().sum()
+             if not pd.api.types.is_numeric_dtype(df[col]):
                  df[col] = pd.to_numeric(df[col], errors='coerce')
-                 nan_after = df[col].isnull().sum()
-                 coerced_count = nan_after - nan_before
-                 if coerced_count > 0: logger.info(f"Coluna '{col}': {coerced_count} valores não numéricos convertidos para NaN.")
+             df.loc[df[col] <= 1, col] = np.nan
 
-            invalid_odds_count = (df[col] <= 1).sum()
-            if invalid_odds_count > 0:
-                df.loc[df[col] <= 1, col] = np.nan
-                logger.info(f"Coluna '{col}': {invalid_odds_count} odds <= 1 convertidas para NaN.")
-        # else: logger.debug(f"Coluna de odd opcional '{col}' não encontrada no DF.")
-
-    # --- Colunas Numéricas Opcionais (xG) ---
     xg_internal_cols = list(XG_COLS.values())
     for col in xg_internal_cols:
         if col in df.columns:
-            if not pd.api.types.is_numeric_dtype(df[col]):
-                 nan_before = df[col].isnull().sum()
+             if not pd.api.types.is_numeric_dtype(df[col]):
                  df[col] = pd.to_numeric(df[col], errors='coerce')
-                 nan_after = df[col].isnull().sum()
-                 coerced_count = nan_after - nan_before
-                 if coerced_count > 0: logger.info(f"Coluna '{col}': {coerced_count} valores não numéricos convertidos para NaN.")
-
-            # *** NOVO: Converte XG == 0 para NaN ***
-            zero_xg = (df[col] == 0).sum()
-            if zero_xg > 0:
-                df.loc[df[col] == 0, col] = np.nan
-                logger.info(f"Coluna '{col}': {zero_xg} XG == 0 convertidos para NaN.")
-        # else: logger.debug(f"Coluna xG opcional '{col}' não encontrada no DF.")
+             df.loc[df[col] == 0, col] = np.nan
 
     # 6. Dropna Final para colunas essenciais
     essential_dropna_cols = ['Date', 'Home', 'Away'] + list(GOALS_COLS.values()) + list(ODDS_COLS.values())
     cols_to_dropna_present = [c for c in essential_dropna_cols if c in df.columns]
-    logger.info(f"Verificando NaNs nas colunas essenciais: {cols_to_dropna_present}")
+    logger.info(f"Verificando NaNs nas colunas essenciais finais: {cols_to_dropna_present}")
     initial_rows = len(df)
     df.dropna(subset=cols_to_dropna_present, inplace=True)
     rows_dropped = initial_rows - len(df)
-    if rows_dropped > 0: logger.info(f"Removidas {rows_dropped} linhas com NaNs em colunas essenciais.")
-    if df.empty: logger.error("Nenhum jogo restante após dropna essencial."); return None
+    if rows_dropped > 0: logger.info(f"Removidas {rows_dropped} linhas com NaNs essenciais finais.")
+    if df.empty: logger.error("Nenhum jogo restante após dropna essencial final."); return None
 
     # 7. Ordenar por Data
     df = df.sort_values(by='Date').reset_index(drop=True)
-    logger.info("DF histórico ordenado por Data.")
+    logger.info("DF histórico final ordenado por Data.")
 
-    # Log final
+    # --- Log final ---
     final_cols = list(df.columns)
-    logger.info(f"Carregamento e tratamento inicial OK. Shape Final: {df.shape}")
+    logger.info(f"Carregamento e mapeamento históricos OK. Shape Final: {df.shape}")
     logger.debug(f"Colunas finais no DF histórico: {final_cols}")
+    # ... (log de NaNs restantes e verificação de tipos como antes) ...
     optional_cols_with_nan = df.isnull().sum()
     optional_cols_with_nan = optional_cols_with_nan[optional_cols_with_nan > 0]
     if not optional_cols_with_nan.empty:
-        logger.info(f"Contagem de NaNs restantes em colunas opcionais:\n{optional_cols_with_nan}")
+        logger.info(f"Contagem de NaNs finais em colunas opcionais:\n{optional_cols_with_nan}")
     else:
-        logger.info("Nenhum NaN restante detectado após carregamento inicial.")
+        logger.info("Nenhum NaN restante detectado no DF histórico final.")
 
-
-    # --- Adiciona verificação de tipos numéricos ---
     numeric_cols_check = df.select_dtypes(include=np.number).columns.tolist()
     logger.debug(f"Colunas detectadas como numéricas após carregamento: {numeric_cols_check}")
     non_numeric_cols = list(set(df.columns) - set(numeric_cols_check) - {'Date', 'Home', 'Away', 'League', 'FT_Result'}) # Exclui colunas sabidamente não numéricas
     if non_numeric_cols:
          logger.warning(f"Colunas que podem não ser numéricas após carregamento: {non_numeric_cols}")
-         # Opcional: Logar os tipos reais dessas colunas
-         # logger.warning(f"Tipos dessas colunas:\n{df[non_numeric_cols].dtypes}")
-
 
     return df
     
@@ -866,151 +878,118 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     return X, y, available_features # Return the list of features actually used
 
 def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
+    # Importar mapas e IDs corretos
+    from config import ( TARGET_LEAGUES_INTERNAL_IDS,
+                        CSV_HIST_COL_MAP, REQUIRED_FIXTURE_COLS, ODDS_COLS,
+                        OTHER_ODDS_NAMES, XG_COLS, FIXTURE_FETCH_DAY,
+                        FIXTURE_CSV_URL_TEMPLATE) # Adicionar imports necessários
+
     # Determine target date
-    if FIXTURE_FETCH_DAY == "tomorrow":
-        target_date = date.today() + timedelta(days=1)
-    else:
-        target_date = date.today()
+    if FIXTURE_FETCH_DAY == "tomorrow": target_date = date.today() + timedelta(days=1)
+    else: target_date = date.today()
     date_str = target_date.strftime('%Y-%m-%d')
     fixture_url = FIXTURE_CSV_URL_TEMPLATE.format(date_str=date_str)
     logger.info(f"Buscando jogos de {FIXTURE_FETCH_DAY} ({date_str}): {fixture_url}")
 
     # Fetch data
     try:
-        # Use requests for better error handling and headers
-        headers = {'User-Agent': 'Mozilla/5.0'} # Some sources might require a User-Agent
-        response = requests.get(fixture_url, headers=headers, timeout=20) # Added timeout
-        response.raise_for_status() # Raises HTTPError for bad responses (4xx or 5xx)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(fixture_url, headers=headers, timeout=20)
+        response.raise_for_status()
         logger.info("Arquivo CSV encontrado. Lendo...")
-        # Read CSV directly from response content using io.StringIO
         from io import StringIO
         csv_content = StringIO(response.text)
         df_fix = pd.read_csv(csv_content)
         logger.info(f"CSV baixado e lido. Shape: {df_fix.shape}")
-
-    except requests.exceptions.RequestException as e_req:
-        logger.error(f"Erro na requisição HTTP ao buscar CSV: {e_req}")
-        return None
-    except pd.errors.EmptyDataError:
-        logger.warning(f"Arquivo CSV em {fixture_url} está vazio.")
-        return pd.DataFrame() # Return empty DataFrame if CSV is empty
-    except Exception as e_load:
-        logger.error(f"Erro ao baixar ou ler CSV de jogos futuros: {e_load}", exc_info=True)
-        return None
+    except requests.exceptions.RequestException as e_req: logger.error(f"Erro HTTP ao buscar CSV futuro: {e_req}"); return None
+    except pd.errors.EmptyDataError: logger.warning(f"CSV futuro {fixture_url} vazio."); return pd.DataFrame()
+    except Exception as e_load: logger.error(f"Erro baixar/ler CSV futuro: {e_load}", exc_info=True); return None
 
     # Process data
     try:
         logger.info("Processando CSV de jogos futuros...")
         logger.debug(f"Colunas no CSV futuro: {list(df_fix.columns)}")
 
-        # Use the same map as historical data for consistency
-        raw_cols_map = CSV_HIST_COL_MAP
-        raw_fixture_cols = list(raw_cols_map.keys())
+        # --- Mapeamento Geral (exceto Liga) ---
+        cols_to_map_general = {k: v for k, v in CSV_HIST_COL_MAP.items() if k in df_fix.columns and v != 'League'}
+        original_league_col_name = None
+        internal_league_col_name = 'League'
+        for csv_name, internal_name in CSV_HIST_COL_MAP.items():
+            if internal_name == internal_league_col_name and csv_name in df_fix.columns:
+                original_league_col_name = csv_name
+                break
+        if not original_league_col_name: logger.warning("Coluna Liga não encontrada/mapeada no CSV futuro."); # Continuar sem filtro?
 
-        # Keep only columns present in the CSV that are in our map
-        cols_to_keep = [col for col in raw_fixture_cols if col in df_fix.columns]
-        if not cols_to_keep:
-            logger.error("Nenhuma coluna esperada (do map) encontrada no CSV de jogos futuros.")
-            return None
-        logger.debug(f"Colunas brutas a serem mantidas/renomeadas: {cols_to_keep}")
+        cols_to_keep_initial = list(cols_to_map_general.keys())
+        if original_league_col_name: cols_to_keep_initial.append(original_league_col_name)
+        df_processed = df_fix[cols_to_keep_initial].copy()
+        df_processed.rename(columns=cols_to_map_general, inplace=True)
 
-        df_processed = df_fix[cols_to_keep].copy()
+        # --- Mapeamento Específico Liga Futuro e Filtro ---
+        if original_league_col_name:
+            if original_league_col_name != internal_league_col_name:
+                df_processed.rename(columns={original_league_col_name: internal_league_col_name}, inplace=True)
 
-        # Rename columns to internal names
-        rename_map_valid = {k: v for k, v in raw_cols_map.items() if k in df_processed.columns}
-        df_processed.rename(columns=rename_map_valid, inplace=True)
-        logger.debug(f"Colunas após rename (internas): {list(df_processed.columns)}")
+            logger.info(f"Aplicando mapeamento de liga para CSV futuro...")
+            df_processed[internal_league_col_name] = df_processed[internal_league_col_name].astype(str).str.strip()
+            mapped_leagues = df_processed[internal_league_col_name].map(TARGET_LEAGUES_INTERNAL_IDS) # USA MAPA DO FUTURO
+            original_leagues_unmapped_mask = mapped_leagues.isnull()
+            original_unmapped_names = df_processed.loc[original_leagues_unmapped_mask, internal_league_col_name].unique()
+            if len(original_unmapped_names) > 0: logger.warning(f"    Ligas NÃO mapeadas no CSV futuro: {list(original_unmapped_names)}")
+            df_processed[internal_league_col_name] = mapped_leagues
 
-        # Define REQUIRED columns using internal names for fixtures
-        # These might differ slightly from historical if some features can't be calculated for fixtures
-        # Example: We need at least teams and odds 1x2. Others might be optional.
-        # Use REQUIRED_FIXTURE_COLS from config if defined, otherwise define here
-        try:
-            # Use the config definition if it exists
-            current_required_fixture_cols = REQUIRED_FIXTURE_COLS
-        except NameError:
-            # Fallback definition if not in config
-            logger.warning("REQUIRED_FIXTURE_COLS not found in config, using fallback definition.")
-            current_required_fixture_cols = ['League', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+            initial_count = len(df_processed)
+            df_processed = df_processed[df_processed[internal_league_col_name].isin(TARGET_LEAGUES_INTERNAL_IDS)] # FILTRA POR ID
+            logger.info(f"Filtro de ligas (Futuro, pós-map): {len(df_processed)}/{initial_count} jogos restantes.")
+            if df_processed.empty: logger.info("Nenhum jogo futuro restante após filtro/map."); return df_processed
 
+        # --- Restante do processamento (colunas requeridas, tipos, NaNs) ---
+        try: current_required_fixture_cols = REQUIRED_FIXTURE_COLS
+        except NameError: logger.warning("REQUIRED_FIXTURE_COLS não no config."); current_required_fixture_cols = ['League', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
 
-        # Check for essential columns *after* renaming
         missing_required = [c for c in current_required_fixture_cols if c not in df_processed.columns]
-        if missing_required:
-            logger.error(f"Colunas essenciais internas ausentes no CSV futuro: {missing_required}")
-            logger.debug(f"Colunas disponíveis após rename: {list(df_processed.columns)}")
-            return None
+        if missing_required: logger.error(f"Colunas essenciais internas ausentes CSV futuro: {missing_required}"); return None
 
-        # Filter leagues (using internal 'League' name)
-        if TARGET_LEAGUES:
-            if 'League' in df_processed.columns:
-                 initial_count = len(df_processed)
-                 df_processed['League'] = df_processed['League'].astype(str).str.strip()
-                 # Compare with the *values* of the TARGET_LEAGUES dict
-                 df_processed = df_processed[df_processed['League'].isin(TARGET_LEAGUES.values())]
-                 logger.info(f"Filtro de ligas (Futuro): {len(df_processed)} de {initial_count} jogos restantes.")
-                 if df_processed.empty:
-                      logger.info("Nenhum jogo futuro nas ligas alvo.")
-                      return df_processed # Return empty DF
-            else:
-                 logger.warning("Coluna 'League' não encontrada para filtro de ligas futuras.")
-
-        # Convert types and handle invalid odds (<=1) for required odds cols
-        for col in list(ODDS_COLS.values()): # Only essential 1x2 odds
+        # ... (Código de conversão de tipos/NaNs para Odds/XG como na função load_historical_data) ...
+        # Convert types and handle invalid odds (<=1)
+        for col in list(ODDS_COLS.values()):
             if col in df_processed.columns:
-                df_processed[col] = pd.to_numeric(df_processed[col], errors='coerce')
-                invalid_odds_count = (df_processed[col] <= 1).sum()
-                if invalid_odds_count > 0:
-                    df_processed.loc[df_processed[col] <= 1, col] = np.nan
-                    logger.info(f"Futuro: Coluna '{col}': {invalid_odds_count} odds <= 1 convertidas para NaN.")
-
-        # Convert other optional numeric columns if they exist
+                 df_processed[col] = pd.to_numeric(df_processed[col], errors='coerce')
+                 df_processed.loc[df_processed[col] <= 1, col] = np.nan
         optional_numeric = OTHER_ODDS_NAMES + list(XG_COLS.values())
         for col in optional_numeric:
              if col in df_processed.columns:
                   df_processed[col] = pd.to_numeric(df_processed[col], errors='coerce')
-                  # Add specific NaN logic if needed (e.g., odds <= 1, xg < 0)
-                  if col in OTHER_ODDS_NAMES:
-                      invalid_odds_count = (df_processed[col] <= 1).sum()
-                      if invalid_odds_count > 0:
-                          df_processed.loc[df_processed[col] <= 1, col] = np.nan
-                          logger.info(f"Futuro: Coluna '{col}': {invalid_odds_count} odds <= 1 convertidas para NaN.")
+                  if col in OTHER_ODDS_NAMES: df_processed.loc[df_processed[col] <= 1, col] = np.nan
+                  if col in XG_COLS.values(): df_processed.loc[df_processed[col] == 0, col] = np.nan
 
 
-        # Drop rows with NaNs in the absolutely essential columns only
-        logger.info(f"Verificando NaNs nas colunas essenciais (Futuro): {current_required_fixture_cols}")
-        nan_counts_before_drop = df_processed[current_required_fixture_cols].isnull().sum()
-        logger.debug(f"Contagem de NaNs ANTES do dropna essencial (Futuro):\n{nan_counts_before_drop[nan_counts_before_drop > 0]}")
-
+        # Dropna essencial
+        logger.info(f"Verificando NaNs essenciais (Futuro): {current_required_fixture_cols}")
+        # ... (dropna e logs) ...
         initial_rows_fix = len(df_processed)
         df_processed.dropna(subset=current_required_fixture_cols, inplace=True)
         rows_dropped_fix = initial_rows_fix - len(df_processed)
         if rows_dropped_fix > 0: logger.info(f"Futuro: Removidas {rows_dropped_fix} linhas com NaNs essenciais.")
+        if df_processed.empty: logger.info("Nenhum jogo futuro restante após limpeza essencial."); return df_processed
 
-        if df_processed.empty:
-             logger.info("Nenhum jogo futuro restante após limpeza essencial.")
-             return df_processed # Return empty DF
-
-        # Add Date/Time columns if 'Date' exists
+        # Date/Time columns
+        # ... (código Date_Str/Time_Str) ...
         if 'Date' in df_processed.columns:
              df_processed['Date'] = pd.to_datetime(df_processed['Date'], errors='coerce')
-             df_processed.dropna(subset=['Date'], inplace=True) # Drop if date conversion failed
-             if 'Date' in df_processed.columns: # Check again after dropna
-                 df_processed['Date_Str'] = df_processed['Date'].dt.strftime('%Y-%m-%d')
-                 df_processed['Time_Str'] = df_processed['Date'].dt.strftime('%H:%M')
-             else:
-                 df_processed[['Date_Str', 'Time_Str']] = 'N/A'
-        else:
-             df_processed[['Date_Str', 'Time_Str']] = 'N/A'
+             df_processed.dropna(subset=['Date'], inplace=True)
+             if 'Date' in df_processed.columns:
+                  df_processed['Date_Str'] = df_processed['Date'].dt.strftime('%Y-%m-%d')
+                  df_processed['Time_Str'] = df_processed['Date'].dt.strftime('%H:%M')
+             else: df_processed[['Date_Str', 'Time_Str']] = 'N/A'
+        else: df_processed[['Date_Str', 'Time_Str']] = 'N/A'
 
-
-        df_processed.reset_index(drop=True, inplace=True) # Reset index
+        df_processed.reset_index(drop=True, inplace=True)
         logger.info(f"Processamento CSV jogos futuros OK. Shape final: {df_processed.shape}")
-        logger.debug(f"Colunas finais jogos futuros: {list(df_processed.columns)}")
         return df_processed
 
     except Exception as e_proc:
-        logger.error(f"Erro durante processamento do CSV de jogos futuros: {e_proc}", exc_info=True)
+        logger.error(f"Erro processamento CSV futuro: {e_proc}", exc_info=True)
         return None
 
 def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, feature_columns: List[str]) -> Optional[pd.DataFrame]:

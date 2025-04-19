@@ -4,19 +4,22 @@ import pandas as pd
 from datetime import date, timedelta
 
 # --- Configurar Path ---
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.join(APP_DIR, 'src')
-if SRC_DIR not in sys.path:
-    sys.path.insert(0, SRC_DIR)
-if APP_DIR not in sys.path: # Adiciona diretório pai também
-    sys.path.insert(0, APP_DIR)
+# Assume que este script está em 'src'
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) # -> futebol_analytics/src
+# Adiciona o diretório PAI ('futebol_analytics') ao path
+BASE_DIR = os.path.dirname(SCRIPT_DIR)
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+# Adiciona o próprio diretório 'src' (pode não ser estritamente necessário agora, mas não prejudica)
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
 
 # --- Importar Módulos ---
 try:
     from src.scraper_predictor import scrape_upcoming_fixtures # Importa a função do scraper
     from src.github_manager import GitHubManager  # Importa a classe do GitHub Manager
     from src.config import (
-        SCRAPER_TARGET_DAY, GITHUB_REPO_NAME, GITHUB_PREDICTIONS_PATH, MODEL_TYPE_NAME
+        SCRAPER_TARGET_DAY, GITHUB_REPO_NAME
     ) # Importa configs relevantes
     from dotenv import load_dotenv # Para carregar GITHUB_TOKEN do .env
 except ImportError as e:
@@ -30,7 +33,7 @@ def main():
 
     # 1. Carregar variáveis de ambiente (necessário para GitHubManager)
     print("Carregando variáveis de ambiente (se .env existir)...")
-    dotenv_path = os.path.join(APP_DIR, '.env') # Procura .env no mesmo nível do script
+    dotenv_path = os.path.join(SCRIPT_DIR, '.env') # Procura .env no mesmo nível do script
     if os.path.exists(dotenv_path):
         load_dotenv(dotenv_path=dotenv_path, override=True)
         print(".env carregado.")

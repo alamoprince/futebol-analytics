@@ -29,7 +29,38 @@ SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 CHROMEDRIVER_PATH = os.path.join(BASE_DIR, 'chromedriver.exe')
 SCRAPER_TIMEOUT = 20
 SCRAPER_ODDS_TIMEOUT = 20
-TARGET_LEAGUES = {'Argentina Primera División':'ARGENTINA 1','SPAIN 2':'Spain Segunda División', 'Italy Serie A':'ITALY 1', 'Italy Serie B':'ITALY 2', 'Brazil Serie A':'BRAZIL 1','Brazil Serie B':'BRAZIL 2', 'ROMANIA 1':'Romania Liga I'}
+
+# 1. NOMES INTERNOS PADRÃO (Seus identificadores únicos)
+INTERNAL_LEAGUE_NAMES = {
+    'ARGENTINA 1': 'Argentina - Primera División', # Nome descritivo opcional
+    'SPAIN 2': 'Espanha - Segunda División',
+    'ITALY 1': 'Itália - Serie A',
+    'ITALY 2': 'Itália - Serie B',
+    'BRAZIL 1': 'Brasil - Série A',
+    'BRAZIL 2': 'Brasil - Série B',
+    'ROMANIA 1': 'Romênia - Liga 1'
+    # Adicione mais se precisar
+}
+
+# Lista apenas dos identificadores curtos, se preferir usá-los internamente
+TARGET_LEAGUES_INTERNAL_IDS = list(INTERNAL_LEAGUE_NAMES.keys())
+
+#database 
+
+TARGET_LEAGUES_1 = {'Argentina Primera División':'ARGENTINA 1','Spain Segunda División':'SPAIN 2', 'Italy Serie A':'ITALY 1', 'Italy Serie B':'ITALY 2', 'Brazil Serie A':'BRAZIL 1','Brazil Serie B':'BRAZIL 2', 'Romania Liga I':'ROMANIA 1'}
+TARGET_LEAGUES_2 = {'ARGENTINA 1':'ARGENTINA 1','SPAIN 2':'SPAIN 2', 'ITALY 1':'ITALY 1', 'ITALY 2':'ITALY 2', 'BRAZIL 1':'BRAZIL 1','BRAZIL 2':'BRAZIL 2', 'ROMANIA 1':'ROMANIA 1'}
+#database futuro
+SCRAPER_TO_INTERNAL_LEAGUE_MAP = {
+     # Nome no Scraper : Nome Interno/Histórico
+    'ARGENTINA: Torneo Betano - Apertura': 'ARGENTINA 1',
+    'SPAIN: LaLiga2': 'SPAIN 2',
+    'ITÁLY: Serie A': 'ITALY 1',
+    'ITÁLY: Serie B': 'ITALY 2',
+    'BRAZIL: Serie A Betano': 'BRAZIL 1',
+    'BRAZIL: Serie B': 'BRAZIL 2',
+    'ROMANIA: Superliga - Relegation Group': 'ROMANIA 1'
+}
+
 SCRAPER_SLEEP_BETWEEN_GAMES = 20
 SCRAPER_SLEEP_AFTER_NAV = 10
 
@@ -48,7 +79,7 @@ MODEL_ID_ROI = "Melhor ROI (Empate)"
 
 # --- Fonte de Dados Futuros (CSV GitHub) ---
 FIXTURE_FETCH_DAY = "today"
-FIXTURE_CSV_URL_TEMPLATE = "https://github.com/futpythontrader/YouTube/raw/main/Jogos_do_Dia/FootyStats/Jogos_do_Dia_FootyStats_{date_str}.csv"
+FIXTURE_CSV_URL_TEMPLATE = "https://github.com/alamoprince/data_base_fut_analytics/tree/main/data/raw_scraped/scraped_fixtures_{date_str}.csv"
 
 XG_COLS = {'home': 'XG_H', 'away': 'XG_A'}
 XG_COLS['total'] = 'XG_Total' # Adiciona a coluna total (se necessário)
@@ -115,7 +146,7 @@ CSV_PATTERN_COLS = [
     'Goals_H_FT', 'Goals_A_FT', # Nomes que GOALS_COLS usa nas CHAVES
     'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', # Nomes que ODDS_COLS usa
     'Odd_Over25_FT', 'Odd_BTTS_Yes' # Outras odds diretas usadas como features
-    'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total_Pre' # Odds de xG (Expected Goals)
+    'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total' # Odds de xG (Expected Goals)
 ]
 
 ALL_CANDIDATE_FEATURES = [
@@ -172,7 +203,7 @@ ALL_CANDIDATE_FEATURES = [
     #xG (Expected Goals) - Se disponível e relevante
     'XG_Home_Pre', 
     'XG_Away_Pre',
-    'XG_Total_Pre'
+    'XG_Total'
 ]
 
 # --- Lista das Features FINAIS para o Modelo BackDraw ---
@@ -202,25 +233,18 @@ FEATURE_COLUMNS = [
 
 NEW_FEATURE_COLUMNS = [
     'p_D_norm',             # Probabilidade Empate Normalizada
-    'Media_CG_H',           # Custo Gol Casa (Rolling Mean)
     'Media_CG_A',           # Custo Gol Fora (Rolling Mean)
     'Media_VG_H',           # Valor Gol Fora (Rolling Mean)
-    'Avg_Gols_Sofridos_A',  # Média Gols Sofridos A (Poisson Simples)
     'CV_HDA',               # Coeficiente de Variação (HDA)
     'Std_CG_A',             # Custo Gol Fora (Rolling Std)
-    'Prob_Empate_Poisson'   # Empate de Poisson
+    'Prob_Empate_Poisson',   # Empate de Poisson
+    'XG_Total',         # xG Total (Expected Goals) - Se disponível e relevante
 ]
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
 
 # --- Métrica para Selecionar o Melhor Modelo ---
-BEST_MODEL_METRIC = 'f1_score_draw'
-
-# --- Configuração dos Modelos a Testar (SVC e GNB) ---
-#svm_param_grid = { 'C': [0.5, 1, 5, 10], 'gamma': ['scale', 0.1, 0.5], 'kernel': ['rbf', 'linear'], 'class_weight': [None, 'balanced'], }
-#gnb_param_grid = { 'var_smoothing': np.logspace(-9, -2, num=15) }
-# --- Métrica para Selecionar o Melhor Modelo ---
-BEST_MODEL_METRIC = 'f1_score_draw' # Ou 'roi'
+BEST_MODEL_METRIC = 'f1_score' #antes:'f1_score'
 
 # --- Configuração dos Modelos a Testar ---
 
@@ -295,13 +319,13 @@ MODEL_CONFIG = {
         'param_grid': lr_param_grid,
         'needs_scaling': True
     },
-    'LGBMClassifier': { # LightGBM Classifier
-        'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
-                         'objective': 'binary', 'metric': 'logloss',
-                         'is_unbalance': True}, # Usar is_unbalance para LGBM
-        'param_grid': lgbm_param_grid,
-        'needs_scaling': False
-    },
+    #'LGBMClassifier': { # LightGBM Classifier
+    #    'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
+    #                     'objective': 'binary', 'metric': 'logloss',
+    #                     'is_unbalance': True}, # Usar is_unbalance para LGBM
+    #    'param_grid': lgbm_param_grid,
+    #    'needs_scaling': False
+    #},
      'SVC': { # Support Vector Classifier
         'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True}, # probability=True é necessário para predict_proba (e log_loss/AUC)
         'param_grid': svm_param_grid,

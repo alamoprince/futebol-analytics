@@ -4,13 +4,19 @@ from tkinter import ttk, messagebox
 import sys
 import os
 from logger_config import setup_logger
+import datetime # Import datetime
 
 logger = setup_logger("MainApp")
 
-# --- Path Setup (Corrigido: Assumindo app_launcher.py DENTRO de src) ---
+# --- Path Setup (Verificar se está correto para sua estrutura) ---
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = APP_DIR
-BASE_DIR = os.path.dirname(SRC_DIR)
+# Se app_launcher.py estiver na raiz (futebol_analytics):
+SRC_DIR = os.path.join(APP_DIR, 'src')
+BASE_DIR = APP_DIR
+# Se app_launcher.py estiver DENTRO de src:
+# SRC_DIR = APP_DIR
+# BASE_DIR = os.path.dirname(SRC_DIR)
+
 if BASE_DIR not in sys.path: sys.path.insert(0, BASE_DIR)
 if SRC_DIR not in sys.path: sys.path.insert(0, SRC_DIR)
 logger.info(f"APP_DIR (launcher): {APP_DIR}")
@@ -20,20 +26,22 @@ logger.info(f"sys.path includes SRC_DIR?: {SRC_DIR in sys.path}, BASE_DIR?: {BAS
 # --- End Path Setup ---
 
 try:
-    # --- Importa as DUAS classes separadas ---
-    from feature_analyzer_tab import FeatureAnalyzerApp
-    from main import FootballPredictorDashboard # main.py contém FootballPredictorDashboard
+    # --- Importa as TRÊS classes ---
+    from scraper_tab import ScraperUploadTab            # <<< NOVA ABA
+    from main import FootballPredictorDashboard         # Aba de Treino/Previsão
+    from feature_analyzer_tab import FeatureAnalyzerApp # Aba de Análise
+
 except ImportError as e:
-    logger.error(f"Erro ao importar classes da GUI: {e}")
+    logger.error(f"Erro ao importar classes da GUI: {e}", exc_info=True) # Adiciona traceback ao log
     logger.error("Verifique os nomes dos arquivos/classes e se os arquivos estão em 'src'.")
-    try: # Tenta mostrar erro na GUI se possível
+    try:
         root_err = tk.Tk(); root_err.withdraw()
-        messagebox.showerror("Erro de Importação", f"Não foi possível importar componentes da GUI:\n{e}\n\nVerifique o console.")
+        messagebox.showerror("Erro de Importação", f"Não foi possível importar componentes da GUI:\n{e}\n\nVerifique o console/logs.")
         root_err.destroy()
     except tk.TclError: pass
     sys.exit(1)
 except Exception as e_init:
-    logger.critical(f"Erro fatal durante imports iniciais: {e_init}")
+    logger.critical(f"Erro fatal durante imports iniciais: {e_init}", exc_info=True)
     try: messagebox.showerror("Erro Fatal", f"Erro durante inicialização:\n{e_init}")
     except: pass
     sys.exit(1)
@@ -41,53 +49,75 @@ except Exception as e_init:
 class MainApplication:
     def __init__(self, root):
         self.root = root
-        self.root.title("Futebol Predictor Pro (BackDraw_MultiSelect) - Abas") # Título mais específico
-        self.root.geometry("1000x800")
-        self.root.minsize(800, 600)
+        self.root.title("Futebol Predictor Pro (v3 Abas)") # Título Atualizado
+        self.root.geometry("1100x850") # Ajustar tamanho se necessário
+        self.root.minsize(900, 700)
 
-        # Cria o Notebook (abas) diretamente na janela principal
+        # Cria o Notebook (abas)
         self.notebook = ttk.Notebook(self.root)
 
-        # Cria o Frame para a primeira aba
-        self.tab1_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab1_frame, text=' Análise de Features ')
+        # --- Cria os Frames para as TRÊS abas ---
+        self.tab1_frame = ttk.Frame(self.notebook) # Scraper
+        self.tab2_frame = ttk.Frame(self.notebook) # Treino/Previsão
+        self.tab3_frame = ttk.Frame(self.notebook) # Análise Features
 
-        # Cria o Frame para a segunda aba
-        self.tab2_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab2_frame, text=' Treino e Previsão ')
+        # --- Adiciona os frames ao Notebook NA ORDEM DESEJADA ---
+        self.notebook.add(self.tab1_frame, text=' Coleta & Upload ')
+        self.notebook.add(self.tab2_frame, text=' Treino & Previsão ')
+        self.notebook.add(self.tab3_frame, text=' Análise de Features ')
 
-        # Empacota o notebook para preencher a janela
+        # Empacota o notebook
         self.notebook.pack(expand=True, fill='both', padx=10, pady=10)
 
-        # --- Instancia a Classe de Análise na Primeira Aba ---
+        # --- Instancia a Classe de Scraper/Upload na Primeira Aba ---
         try:
-            # Passa apenas o frame da aba como pai
-            self.feature_analyzer = FeatureAnalyzerApp(self.tab1_frame)
-            logger.info("FeatureAnalyzerApp instanciada com sucesso.")
+            # Passa o frame da aba E a janela principal (para .after())
+            self.scraper_tab = ScraperUploadTab(self.tab1_frame, main_root=self.root)
+            logger.info("ScraperUploadTab instanciada com sucesso.")
         except Exception as e:
-            logger.error(f"Erro ao instanciar FeatureAnalyzerApp: {e}")
-            import traceback; logger.debug(traceback.format_exc())
-            messagebox.showerror("Erro Aba 1", f"Falha ao carregar Aba Análise:\n{e}")
-            ttk.Label(self.tab1_frame, text=f"Erro:\n{e}", foreground="red").pack(pady=20)
+            logger.error(f"Erro ao instanciar ScraperUploadTab: {e}", exc_info=True)
+            messagebox.showerror("Erro Aba 1", f"Falha ao carregar Aba Coleta:\n{e}")
+            ttk.Label(self.tab1_frame, text=f"Erro ao carregar:\n{e}", foreground="red").pack(pady=20)
 
         # --- Instancia a Classe de Treino/Previsão na Segunda Aba ---
         try:
-            # Passa o frame da aba E a janela principal (para o .after())
+            # Passa o frame da aba E a janela principal
             self.predictor_dashboard = FootballPredictorDashboard(self.tab2_frame, main_root=self.root)
             logger.info("FootballPredictorDashboard instanciada com sucesso.")
         except Exception as e:
-            logger.error(f"Erro ao instanciar FootballPredictorDashboard: {e}")
-            import traceback; logger.debug(traceback.format_exc())
+            logger.error(f"Erro ao instanciar FootballPredictorDashboard: {e}", exc_info=True)
             messagebox.showerror("Erro Aba 2", f"Falha ao carregar Aba Treino/Previsão:\n{e}")
-            ttk.Label(self.tab2_frame, text=f"Erro:\n{e}", foreground="red").pack(pady=20)
+            ttk.Label(self.tab2_frame, text=f"Erro ao carregar:\n{e}", foreground="red").pack(pady=20)
+
+        # --- Instancia a Classe de Análise na Terceira Aba ---
+        try:
+            # Passa apenas o frame da aba como pai
+            self.feature_analyzer = FeatureAnalyzerApp(self.tab3_frame)
+            logger.info("FeatureAnalyzerApp instanciada com sucesso.")
+        except Exception as e:
+            logger.error(f"Erro ao instanciar FeatureAnalyzerApp: {e}", exc_info=True)
+            messagebox.showerror("Erro Aba 3", f"Falha ao carregar Aba Análise:\n{e}")
+            ttk.Label(self.tab3_frame, text=f"Erro ao carregar:\n{e}", foreground="red").pack(pady=20)
 
         # --- Tratamento de Fechamento ---
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def on_closing(self):
         if messagebox.askokcancel("Sair", "Deseja realmente sair?"):
-            # (Adicionar lógica para parar threads se necessário)
+            # Adicionar lógica para parar threads se necessário (mais complexo)
+            # Por enquanto, apenas fecha
             logger.info("Fechando aplicação.")
+            # Tentar fechar o driver do scraper se ele existir e estiver ativo
+            # O driver agora é gerenciado dentro da classe ScraperUploadTab
+            # O ideal seria ter um método 'shutdown' na ScraperUploadTab
+            # Mas por simplicidade, vamos tentar acessá-lo (menos ideal)
+            try:
+                 if hasattr(self, 'scraper_tab') and hasattr(self.scraper_tab, 'driver_instance') and self.scraper_tab.driver_instance:
+                      logger.info("Tentando fechar WebDriver do scraper (se ativo)...")
+                      self.scraper_tab.driver_instance.quit()
+            except Exception as e_quit:
+                 logger.warning(f"Aviso: Erro ao tentar fechar driver do scraper ao sair: {e_quit}")
+
             self.root.destroy()
 
 # --- Execução Principal ---
@@ -99,6 +129,9 @@ if __name__ == "__main__":
     except Exception:
         logger.debug("Falha ao configurar DPI Awareness (provavelmente não é Windows).")
 
+    # Cria a janela principal do Tkinter
     main_root = tk.Tk()
+    # Instancia a aplicação principal que gerencia as abas
     app = MainApplication(main_root)
+    # Inicia o loop principal da GUI
     main_root.mainloop()
