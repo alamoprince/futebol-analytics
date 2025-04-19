@@ -234,9 +234,12 @@ FEATURE_COLUMNS = [
 NEW_FEATURE_COLUMNS = [
     'p_D_norm',             # Probabilidade Empate Normalizada
     'Media_CG_A',           # Custo Gol Fora (Rolling Mean)
+    'Media_CG_H',           # Custo Gol Casa (Rolling Mean)
     'Media_VG_H',           # Valor Gol Fora (Rolling Mean)
+    'Media_VG_A',           # Valor Gol Casa (Rolling Mean)
     'CV_HDA',               # Coeficiente de Variação (HDA)
     'Std_CG_A',             # Custo Gol Fora (Rolling Std)
+    'Std_CG_H',             # Custo Gol Casa (Rolling Std)
     'Prob_Empate_Poisson',   # Empate de Poisson
     'XG_Total',         # xG Total (Expected Goals) - Se disponível e relevante
 ]
