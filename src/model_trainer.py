@@ -14,6 +14,18 @@ from sklearn.calibration import CalibratedClassifierCV
 from logger_config import setup_logger
 
 logger = setup_logger("ModelTrainerApp")
+
+try:
+    from skopt import BayesSearchCV
+    SKOPT_AVAILABLE = True
+except ImportError:
+    logger.warning("AVISO: scikit-optimize (skopt) não instalado. Usando GridSearchCV como fallback.")
+    SKOPT_AVAILABLE = False
+    BayesSearchCV = GridSearchCV # Define BayesSearchCV como GridSearchCV se skopt não estiver lá
+
+# Importar BAYESIAN_OPT_N_ITER do config
+from config import BAYESIAN_OPT_N_ITER
+
 try:
     import lightgbm as lgb
     LGBMClassifier = lgb.LGBMClassifier
@@ -173,7 +185,10 @@ def train_evaluate_and_save_best_models(
 
         try:
             model_class = eval(model_name)
-            model_kwargs=config.get('model_kwargs',{}); param_grid=config.get('param_grid',{}); needs_scaling=config.get('needs_scaling',False);
+            model_kwargs=config.get('model_kwargs',{}); 
+            needs_scaling=config.get('needs_scaling',False);
+            use_bayes_opt = SKOPT_AVAILABLE and 'search_spaces' in config
+            param_space = config.get('search_spaces') if use_bayes_opt else config.get('param_grid')
             X_train_m, X_val_m, X_test_m = X_train.copy(), X_val.copy(), X_test.copy();
 
             # Scaling
@@ -198,27 +213,45 @@ def train_evaluate_and_save_best_models(
                 except Exception as scale_err: logger.error(f"  ERRO scaling {model_name}: {scale_err}", exc_info=True); continue
 
             # Treino (Grid ou Padrão)
-            if param_grid:
+            if param_space:
+                logger.info(f"  Iniciando busca de Hiperparâmetros (Método: {'BayesSearchCV' if use_bayes_opt else 'GridSearchCV'})...")
                 try:
-                    search_cv = GridSearchCV(estimator=model_class(**model_kwargs), param_grid=param_grid, cv=CROSS_VALIDATION_SPLITS, n_jobs=N_JOBS_GRIDSEARCH, scoring='f1', verbose=0, error_score='raise'); # Mantem F1 para CV
-                    logger.info(f"  Iniciando GridSearchCV (CV Folds={CROSS_VALIDATION_SPLITS}, Scoring='f1')...");
-                    if progress_callback: progress_callback(i, len(available_models), f"Ajustando {model_name} (CV)...");
-                    search_cv.fit(X_train_m, y_train);
+                    if use_bayes_opt:
+                        # Configura BayesSearchCV
+                        search_cv = BayesSearchCV(
+                            estimator=model_class(**model_kwargs),
+                            search_spaces=param_space,
+                            n_iter=BAYESIAN_OPT_N_ITER, # Número de iterações bayesianas
+                            cv=CROSS_VALIDATION_SPLITS,
+                            n_jobs=N_JOBS_GRIDSEARCH,
+                            scoring='f1', # Métrica a ser otimizada (maximizar F1)
+                            random_state=RANDOM_STATE,
+                            verbose=0, # Pode aumentar para ver progresso do BayesOpt
+                            #optimizer_kwargs={'base_estimator': 'GP'} # Pode experimentar 'GP', 'RF', 'ET'
+                        )
+                        logger.info(f"    Configurado BayesSearchCV (n_iter={BAYESIAN_OPT_N_ITER}, CV={CROSS_VALIDATION_SPLITS}, Scoring='f1')")
+                    else: # Fallback para GridSearchCV (ou para modelos como GNB)
+                        search_cv = GridSearchCV(
+                            estimator=model_class(**model_kwargs),
+                            param_grid=param_space, # Aqui é param_grid
+                            cv=CROSS_VALIDATION_SPLITS,
+                            n_jobs=N_JOBS_GRIDSEARCH,
+                            scoring='f1',
+                            verbose=0, error_score='raise'
+                        )
+                        logger.info(f"    Configurado GridSearchCV (CV={CROSS_VALIDATION_SPLITS}, Scoring='f1')")
+
+                    if progress_callback: progress_callback(i, len(available_models), f"Ajustando {model_name} ({'Bayes' if use_bayes_opt else 'Grid'})...");
+                    search_cv.fit(X_train_m, y_train); # Executa a busca
                     model_trained = search_cv.best_estimator_;
-                    best_params = search_cv.best_params_;
-                    logger.info(f"    -> GridSearch OK. Melhor CV F1: {search_cv.best_score_:.4f}. Params: {best_params}");
-                except Exception as e: logger.error(f"    Erro GridSearchCV.fit: {e}", exc_info=True); model_trained = None; logger.warning("    -> Tentando fallback...");
-            else: logger.info(f"  Sem grid. Treinando c/ params padrão.");
+                    best_params = search_cv.best_params_; # BayesSearchCV também tem .best_params_
+                    # BayesSearchCV retorna o score *negativo* se otimiza, ou positivo se maximiza.
+                    # Como scikit-learn > 0.18 maximiza score, usamos best_score_ diretamente.
+                    best_cv_score = search_cv.best_score_
+                    logger.info(f"    -> Busca OK. Melhor CV F1: {best_cv_score:.4f}. Params: {best_params}");
 
-            if model_trained is None: # Fallback
-                logger.info("  -> Tentando treino padrão/fallback...");
-                try:
-                    model_inst = model_class(**model_kwargs);
-                    if progress_callback: progress_callback(i, len(available_models), f"Ajustando {model_name} (Padrão)...");
-                    model_trained = model_inst.fit(X_train_m, y_train); logger.info("    -> Treino fallback OK.");
-                except Exception as e: logger.error(f"    Erro treino fallback: {e}", exc_info=True); continue;
-
-            if model_trained is None: logger.error(f"ERRO CRITICO: {model_name} NULO pós treino."); continue;
+                except Exception as e: logger.error(f"    Erro {'BayesSearchCV' if use_bayes_opt else 'GridSearchCV'}.fit: {e}", exc_info=True); model_trained = None; logger.warning("    -> Tentando fallback...");
+            else: logger.info(f"  Sem grid/space. Treinando c/ params padrão.");
 
             # --- Calibração (Usando Conjunto de Validação) ---
             logger.info(f"  Calibrando probs com {calibration_method} (usando Val)...")

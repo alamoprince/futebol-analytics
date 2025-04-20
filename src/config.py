@@ -300,7 +300,7 @@ lr_search_spaces = {
 
 # SVC
 svc_search_spaces = {
-    'C': sp.Real(0.1, 50.0, prior='log-uniform'),
+    'C': sp.Real(0.1, 30, prior='log-uniform'),
     'kernel': sp.Categorical(['poly', 'rbf']),
     'degree': sp.Integer(2, 4), # Só para poly
     'gamma': sp.Real(1e-3, 1.0, prior='log-uniform'), # Mais relevante para RBF
