@@ -3,6 +3,7 @@ import os
 import numpy as np
 from datetime import date, timedelta
 import random
+import skopt.space as sp
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -29,6 +30,11 @@ SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 CHROMEDRIVER_PATH = os.path.join(BASE_DIR, 'chromedriver.exe')
 SCRAPER_TIMEOUT = 20
 SCRAPER_ODDS_TIMEOUT = 20
+
+# --- Configurações Pi-Rating ---
+PI_RATING_INITIAL = 1500  # Rating inicial para times não vistos
+PI_RATING_K_FACTOR = 30   # Fator K (ajusta a magnitude da mudança de rating)
+PI_RATING_HOME_ADVANTAGE = 65 # Pontos de rating adicionados ao time da casa para cálculo da expectativa (ajuste experimental)
 
 # 1. NOMES INTERNOS PADRÃO (Seus identificadores únicos)
 INTERNAL_LEAGUE_NAMES = {
@@ -79,37 +85,38 @@ MODEL_ID_ROI = "Melhor ROI (Empate)"
 
 # --- Fonte de Dados Futuros (CSV GitHub) ---
 FIXTURE_FETCH_DAY = "today"
-FIXTURE_CSV_URL_TEMPLATE = "https://github.com/alamoprince/data_base_fut_analytics/tree/main/data/raw_scraped/scraped_fixtures_{date_str}.csv"
+FIXTURE_CSV_URL_TEMPLATE = "https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/refs/heads/main/data/raw_scraped/scraped_fixtures_{date_str}.csv"
 
 XG_COLS = {'home': 'XG_H', 'away': 'XG_A'}
 XG_COLS['total'] = 'XG_Total' # Adiciona a coluna total (se necessário)
 # Colunas base ESPERADAS no CSV (nomes ORIGINAIS do CSV) - VERIFIQUE!
-CSV_EXPECTED_COLS_HIST = [
-    'Date',
-    'Home',             # <<< Nome REAL do CSV
-    'Away',             # <<< Nome REAL do CSV
-    'Goals_H_FT',       # <<< Nome REAL do CSV
-    'Goals_A_FT',       # <<< Nome REAL do CSV
-    'Odd_H_FT',         # <<< Nome REAL da Odd Casa (já coincide com interno)
-    'Odd_D_FT',         # <<< Nome REAL da Odd Empate (já coincide com interno)
-    'Odd_A_FT',         # <<< Nome REAL da Odd Fora (já coincide com interno)
-    'League',           # <<< Nome REAL da Liga
-    # Opcional - Adicione se quiser usar (nomes REAIS do CSV):
-    'Odd_Over25_FT',
-    'Odd_Under25_FT',
-    'Odd_BTTS_Yes',
-    'Odd_BTTS_No',
-    'XG_Home_Pre',      # (Se for usar xG pré-jogo)
-    'XG_Away_Pre',      # (Se for usar xG pré-jogo)
-    'XG_Total_Pre',     # (Se for usar xG pré-jogo)
-]
+CSV_EXPECTED_COLS_HIST = {
+    'Id': 'Id_Jogo',         # Mapeia 'Id' do CSV para 'Id_Jogo' interno (opcional)
+    'Date': 'Date',          # Mapeia 'Date' do CSV para 'Date' interno (PODE conter hora?)
+    'Time': 'Time_Str',          # Mapeia 'Time' do CSV para 'Time' interno
+    'Country': 'Country',    # Mapeia 'Country' para 'Country'
+    'League': 'League',      # Mapeia 'League' (que já tem ID interno) para 'League'
+    'Home': 'Home',      # Mapeia 'HomeTeam' do CSV para 'Home' interno <<-- IMPORTANTE
+    'Away': 'Away',      # Mapeia 'AwayTeam' do CSV para 'Away' interno <<-- IMPORTANTE
+    'Odd_H_FT': 'Odd_H_FT',  # Nomes já coincidem
+    'Odd_D_FT': 'Odd_D_FT',
+    'Odd_A_FT': 'Odd_A_FT',
+    'Odd_Over25_FT': 'Odd_Over25_FT',
+    'Odd_Under25_FT': 'Odd_Under25_FT',
+    'Odd_BTTS_Yes': 'Odd_BTTS_Yes',
+    'Odd_BTTS_No': 'Odd_BTTS_No',
+    # Adicione mapeamentos para XG se o scraper os salvar com nomes diferentes
+    # Ex: 'XG_Home': XG_COLS['home'],
+    # Ex: 'XG_Away': XG_COLS['away'],
+    # Ex: 'XG_T': XG_COLS['total'],
+}
 
 # Mapeamento CSV -> Nomes Internos
 CSV_HIST_COL_MAP = {k: k for k in CSV_EXPECTED_COLS_HIST} # Inicia mapeando para si mesmo
 CSV_HIST_COL_MAP.update({ # Sobrescreve os que precisam de renomeação
     'Date': 'Date',
-    'Home': 'Home',             # <<< CHAVE é 'Home', VALOR é 'Home'
-    'Away': 'Away',             # <<< CHAVE é 'Away', VALOR é 'Away'
+    'HomeTeam': 'Home',             # <<< CHAVE é 'Home', VALOR é 'Home'
+    'AwayTeam': 'Away',             # <<< CHAVE é 'Away', VALOR é 'Away'
     'Goals_H_FT': 'Goals_H_FT', # <<< Nomes já coincidem
     'Goals_A_FT': 'Goals_A_FT', # <<< Nomes já coincidem
     'Odd_H_FT': 'Odd_H_FT',      # <<< Nomes já coincidem
@@ -126,7 +133,7 @@ CSV_HIST_COL_MAP.update({ # Sobrescreve os que precisam de renomeação
     'XG_Total_Pre': 'XG_Total', # Exemplo de nome interno
 })
 # Colunas internas essenciais após ler e mapear o CSV
-REQUIRED_FIXTURE_COLS = ['League', 'HomeTeam', 'AwayTeam', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 
+REQUIRED_FIXTURE_COLS = ['League','Time', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 
                          'Odd_Over25_FT', 'Odd_BTTS_Yes']
 
 
@@ -204,6 +211,12 @@ ALL_CANDIDATE_FEATURES = [
     'XG_Home_Pre', 
     'XG_Away_Pre',
     'XG_Total'
+
+    # Novas Features Pi-Rating (Exemplos)
+    'PiRating_H',       # Rating do time da casa ANTES do jogo
+    'PiRating_A',       # Rating do time visitante ANTES do jogo
+    'PiRating_Diff',    # Diferença (PiRating_H - PiRating_A)
+    'PiRating_Prob_H',  # Probabilidade de vitória da casa segundo Pi-Ratings
 ]
 
 # --- Lista das Features FINAIS para o Modelo BackDraw ---
@@ -227,7 +240,8 @@ FEATURE_COLUMNS = [
 
     # Consistência Custo Gol Casa (Rolling Std)
     'Std_CG_H',   
-    'Std_CG_A',                   
+    'Std_CG_A',    
+                   
     
 ]
 
@@ -241,7 +255,9 @@ NEW_FEATURE_COLUMNS = [
     'Std_CG_A',             # Custo Gol Fora (Rolling Std)
     'Std_CG_H',             # Custo Gol Casa (Rolling Std)
     'Prob_Empate_Poisson',   # Empate de Poisson
-    'XG_Total',         # xG Total (Expected Goals) - Se disponível e relevante
+    'PiRating_Diff',    # Diferença (PiRating_H - PiRating_A)
+    'PiRating_Prob_H',  # Probabilidade de vitória da casa segundo Pi-Ratings
+
 ]
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
@@ -251,101 +267,90 @@ BEST_MODEL_METRIC = 'f1_score' #antes:'f1_score'
 
 # --- Configuração dos Modelos a Testar ---
 
-# RandomForest (Grid Corrigido)
-rf_param_grid = {
-    'n_estimators': [50, 150], # antes: 100,200
-    'max_depth': [5, 8, 12, None], # Adicionado None de volta/ antes:10, 20, None
-    'criterion': ["gini", "entropy"],
-    'max_features': ["sqrt", "log2"], # None removido (pode ser lento)
-    'min_samples_split': [5, 10, 20], # Corrigido: mínimo é 2/ antes: 2, 5, 10
-    'min_samples_leaf': [3, 5, 10], # Ajustado/ antes: 1,2
-    'bootstrap': [True], # Corrigido: usar booleanos/ antes: [True, False]
-    'class_weight': [None, 'balanced']
+rf_search_spaces = {
+    'n_estimators': sp.Integer(100, 300), # Inteiro entre 100 e 300
+    'criterion': sp.Categorical(['gini', 'entropy']), # Categórico
+    'max_depth': sp.Integer(5, 20, prior='uniform'), # Inteiro entre 5 e 20
+    'min_samples_split': sp.Integer(5, 30), # Inteiro
+    'min_samples_leaf': sp.Integer(3, 20), # Inteiro
+    'max_features': sp.Categorical(['sqrt', 'log2']), # Categórico
+    'class_weight': sp.Categorical(['balanced', None]),
+    'bootstrap': sp.Categorical([True, False]), # Manteve False como opção
 }
 
-# Regressão Logística (Mantido da versão anterior)
-lr_param_grid = {
-    'C': [0.05, 0.1, 0.5, 1, 5, 10], #0.1, 1, 10
-    'penalty': ['l1', 'l2'], #antes: 'l2'
-    'solver': ['liblinear', 'saga'], # antes: 'liblinear'
-    'class_weight': [None, 'balanced']
+# Regressão Logística
+lr_search_spaces = {
+    'C': sp.Real(0.01, 100.0, prior='log-uniform'), # Real em escala logarítmica
+    'penalty': sp.Categorical(['l1', 'l2']),
+    'solver': sp.Categorical(['liblinear', 'saga']),
+    'class_weight': sp.Categorical(['balanced', None]),
+    'max_iter': sp.Integer(2000, 5000), # Aumentar se saga não convergir
 }
 
-# LightGBM (Mantido da versão anterior)
-lgbm_param_grid = {
-    'n_estimators': [75, 150, 250], #antes:50, 100, 200
-    'learning_rate': [0.02, 0.05, 0.1],   #antes:0.05, 0.1
-    'num_leaves': [10, 20, 31, 40],     #antes:15, 31, 50
-    'max_depth': [4, 6, 8, -1],       #antes:-1, 5, 10
-    'reg_alpha': [0, 0.01, 0.1],                   # Regularização L1/ add
-    'reg_lambda': [0, 0.01, 0.1],                  # Regularização L2/ add
-    'colsample_bytree': [0.7, 0.9, 1.0],           # add
-    # 'is_unbalance': [True] # Passar no model_kwargs
+# LightGBM (Se for usar)
+# lgbm_search_spaces = {
+#     'n_estimators': sp.Integer(50, 300),
+#     'learning_rate': sp.Real(0.01, 0.2, prior='log-uniform'),
+#     'num_leaves': sp.Integer(10, 50),
+#     'max_depth': sp.Integer(3, 15),
+#     'reg_alpha': sp.Real(0.0, 0.5), # L1 reg
+#     'reg_lambda': sp.Real(0.0, 0.5), # L2 reg
+#     'colsample_bytree': sp.Real(0.6, 1.0),
+# }
+
+# SVC
+svc_search_spaces = {
+    'C': sp.Real(0.1, 50.0, prior='log-uniform'),
+    'kernel': sp.Categorical(['poly', 'rbf']),
+    'degree': sp.Integer(2, 4), # Só para poly
+    'gamma': sp.Real(1e-3, 1.0, prior='log-uniform'), # Mais relevante para RBF
+    'class_weight': sp.Categorical(['balanced', None]),
 }
 
-# SVM (SVC - Grid Adaptado/Corrigido)
-svm_param_grid = {
-    'C': [0.5, 1, 5, 10],  # Menos opções para C/ antes:1, 10
-    'gamma': ['scale','auto',  0.1], # Menos opções para gamma/ antes: 'scale', 0.1
-    'kernel': ['poly', 'rbf'], # Sigmoid muitas vezes não performa bem
-    'degree': [2, 3, 4], # Apenas relevante para kernel='poly'/antes: 2,3
-    'class_weight': [None, 'balanced'],
-    'decision_function_shape': ['ovo'],
-
+# KNN
+knn_search_spaces = {
+    'n_neighbors': sp.Integer(3, 41, prior='uniform'), # Ímpares numa faixa maior
+    'weights': sp.Categorical(['uniform', 'distance']),
+    'metric': sp.Categorical(['minkowski', 'manhattan']),
+    'p': sp.Integer(1, 2), # 1 para manhattan, 2 para minkowski(euclidean)
 }
 
-# Gaussian Naive Bayes (Grid Corrigido)
-gnb_param_grid = {
-    'var_smoothing': np.logspace(-9, -2, num=15),
-    
-}
-
-# KNN (Grid Adaptado)
-knn_param_grid = {
-    'n_neighbors': [5, 9, 15, 21, 29, 35], # Ímpares evitam empates na votação/antes:3, 5, 7, 9, 11, 13, 15
-    'weights': ['uniform', 'distance'], # Testar pesos diferentes
-    'metric': ['minkowski', 'manhattan'], # Métricas comuns/antes:'minkowski', 'euclidean', 'manhattan'
-    'p': [1, 2] # p=1 é Manhattan, p=2 é Euclidiana
-    # 'algorithm': ['auto'] # 'auto' geralmente é suficiente
-    # 'leaf_size': [30] # Menos relevante se usar 'auto' ou 'brute'
-}
+# GaussianNB (Não tem muitos hiperparâmetros para otimizar com Bayes, GridSearchCV é ok)
+gnb_param_grid = { 'var_smoothing': np.logspace(-9, -2, num=15) }
 
 MODEL_CONFIG = {
-    'RandomForestClassifier': { # Random Forest Classifier
+    'RandomForestClassifier': {
         'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH},
-        'param_grid': rf_param_grid,
+        'search_spaces': rf_search_spaces, # <--- MUDOU
         'needs_scaling': False
     },
-    
-    'LogisticRegression': { # Regressão Logística
-        'model_kwargs': {'random_state': RANDOM_STATE, 'max_iter': 2000},
-        'param_grid': lr_param_grid,
+    'LogisticRegression': {
+        'model_kwargs': {'random_state': RANDOM_STATE}, # max_iter está no space
+        'search_spaces': lr_search_spaces, # <--- MUDOU
         'needs_scaling': True
     },
-    #'LGBMClassifier': { # LightGBM Classifier
-    #    'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
-    #                     'objective': 'binary', 'metric': 'logloss',
-    #                     'is_unbalance': True}, # Usar is_unbalance para LGBM
-    #    'param_grid': lgbm_param_grid,
-    #    'needs_scaling': False
-    #},
-     'SVC': { # Support Vector Classifier
-        'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True}, # probability=True é necessário para predict_proba (e log_loss/AUC)
-        'param_grid': svm_param_grid,
-        'needs_scaling': True # SVM PRECISA de scaling
+    # 'LGBMClassifier': { ... use lgbm_search_spaces ... },
+     'SVC': {
+        'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True},
+        'search_spaces': svc_search_spaces, # <--- MUDOU
+        'needs_scaling': True
     },
-    'GaussianNB': { # Gaussian Naive Bayes
-        'model_kwargs': {}, 
+    'GaussianNB': { # Mantém GridSearchCV para GNB
+        'model_kwargs': {},
         'param_grid': gnb_param_grid,
-        'needs_scaling': False # Geralmente não precisa, mas pode testar
+        'needs_scaling': False
     },
-    'KNeighborsClassifier': { # K-Nearest Neighbors
+    'KNeighborsClassifier': {
         'model_kwargs': {'n_jobs': N_JOBS_GRIDSEARCH},
-        'param_grid': knn_param_grid,
-        'needs_scaling': True # KNN PRECISA de scaling
+        'search_spaces': knn_search_spaces, # <--- MUDOU
+        'needs_scaling': True
     },
 }
 
+# Número de iterações para Otimização Bayesiana
+BAYESIAN_OPT_N_ITER = 50 # Ajuste conforme necessário (mais iterações = melhor, porém mais lento)
+
+# Número de iterações para GridSearchCV (se não usar Bayes)
 DEFAULT_EV_THRESHOLD = 0.05 # Threshold padrão para EV (Expected Value) - Ajuste conforme necessário
 
 # --- Configuração GitHub ---

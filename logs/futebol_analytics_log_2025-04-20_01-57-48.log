@@ -1,0 +1,51 @@
+2025-04-20 01:57:48 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-20 01:57:48 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-04-20 01:57:48 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-20 01:57:48 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-04-20 01:57:50 - MainApp - INFO - DPI Awareness set (Windows).
+2025-04-20 01:57:50 - MainApp - INFO - ScraperUploadTab instanciada com sucesso.
+2025-04-20 01:57:50 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-04-19 20:36:59)
+2025-04-20 01:57:50 - PredictorApp - INFO -   Tipo Modelo: LogisticRegression
+2025-04-20 01:57:50 - PredictorApp - INFO -   Calibrador: Sim
+2025-04-20 01:57:50 - PredictorApp - INFO -   Limiar EV Carregado: 0.2000
+2025-04-20 01:57:50 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-04-19 20:36:59)
+2025-04-20 01:57:50 - PredictorApp - INFO -   Tipo Modelo: RandomForestClassifier
+2025-04-20 01:57:50 - PredictorApp - INFO -   Calibrador: Sim
+2025-04-20 01:57:50 - PredictorApp - INFO -   Limiar EV Carregado: 0.2000
+2025-04-20 01:57:50 - DataHandler - INFO - Iniciando carregamento e mapeamento de ligas de dados históricos...
+2025-04-20 01:57:50 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2006_2021).csv...
+2025-04-20 01:57:52 - DataHandler - INFO -   -> Lido 169433 linhas.
+2025-04-20 01:57:52 - DataHandler - INFO -   Aplicando mapeamento de liga específico para Base_de_Dados_FootyStats_(2006_2021).csv (Coluna original: 'League')...
+2025-04-20 01:57:52 - DataHandler - WARNING -     Ligas NÃO mapeadas (mapa específico) em Base_de_Dados_FootyStats_(2006_2021).csv: ['Argentina Primera DivisiÃ³n', 'Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera DivisiÃ³n', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Ã\x9arvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Serbia SuperLiga', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Spain Segunda DivisiÃ³n', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey SÃ¼per Lig', 'Uruguay Primera DivisiÃ³n', 'USA MLS', 'Wales Welsh Premier League']
+2025-04-20 01:57:52 - DataHandler - INFO -   Filtro de Liga (pós-map) em Base_de_Dados_FootyStats_(2006_2021).csv: 20112/169433 jogos restantes.
+2025-04-20 01:57:52 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...
+2025-04-20 01:57:52 - DataHandler - INFO -   DataFrame de Base_de_Dados_FootyStats_(2006_2021).csv processado e adicionado.
+2025-04-20 01:57:52 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2022_2025).csv...
+2025-04-20 01:57:52 - DataHandler - INFO -   -> Lido 49477 linhas.
+2025-04-20 01:57:52 - DataHandler - INFO -   Aplicando mapeamento de liga específico para Base_de_Dados_FootyStats_(2022_2025).csv (Coluna original: 'League')...
+2025-04-20 01:57:52 - DataHandler - WARNING -     Ligas NÃO mapeadas (mapa específico) em Base_de_Dados_FootyStats_(2022_2025).csv: ['PARAGUAY 1', 'CHILE 1', 'URUGUAY 1', 'JAPAN 1', 'IRELAND 1', 'JAPAN 2', 'SOUTH KOREA 2', 'SOUTH KOREA 1', 'USA 1', 'ESTONIA 1', 'FINLAND 1', 'SWEDEN 2', 'SWEDEN 1', 'NORWAY 1', 'NORWAY 2', 'ICELAND 1', 'CHINA 1', 'BULGARIA 1', 'SERBIA 1', 'POLAND 1', 'DENMARK 1', 'SWITZERLAND 2', 'CROATIA 1', 'SLOVENIA 1', 'SLOVAKIA 1', 'GERMANY 2', 'SWITZERLAND 1', 'AUSTRIA 2', 'AUSTRIA 1', 'BELGIUM 1', 'ENGLAND 2', 'SCOTLAND 1', 'FRANCE 2', 'ENGLAND 3', 'ENGLAND 4', 'CZECH 1', 'NETHERLANDS 2', 'NETHERLANDS 1', 'TURKEY 1', 'GERMANY 1', 'FRANCE 1', 'ENGLAND 1', 'PORTUGAL 1', 'PORTUGAL 2', 'WALES 1', 'SPAIN 1', 'GREECE 1', 'EGYPT 1']
+2025-04-20 01:57:52 - DataHandler - INFO -   Filtro de Liga (pós-map) em Base_de_Dados_FootyStats_(2022_2025).csv: 8497/49477 jogos restantes.
+2025-04-20 01:57:52 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...
+2025-04-20 01:57:52 - DataHandler - INFO -   DataFrame de Base_de_Dados_FootyStats_(2022_2025).csv processado e adicionado.
+2025-04-20 01:57:52 - DataHandler - INFO - Concatenando 2 DFs processados...
+2025-04-20 01:57:52 - DataHandler - INFO - DF histórico combinado e mapeado: (28609, 16)
+2025-04-20 01:57:52 - DataHandler - INFO - Iniciando processamento comum pós-concatenação (Tipos, NaNs, Dropna Essencial, Ordenação)...
+2025-04-20 01:57:52 - DataHandler - INFO - Verificando NaNs nas colunas essenciais finais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-04-20 01:57:52 - DataHandler - INFO - Removidas 5002 linhas com NaNs essenciais finais.
+2025-04-20 01:57:52 - DataHandler - INFO - DF histórico final ordenado por Data.
+2025-04-20 01:57:52 - DataHandler - INFO - Carregamento e mapeamento históricos OK. Shape Final: (23607, 16)
+2025-04-20 01:57:52 - DataHandler - INFO - Contagem de NaNs finais em colunas opcionais:
+Odd_Over25_FT     7305
+Odd_Under25_FT    7603
+Odd_BTTS_Yes      7170
+Odd_BTTS_No       7169
+XG_H              8173
+XG_A              8173
+XG_Total          8101
+dtype: int64
+2025-04-20 01:57:52 - MainApp - INFO - FootballPredictorDashboard instanciada com sucesso.
+2025-04-20 01:57:52 - MainApp - INFO - FeatureAnalyzerApp instanciada com sucesso.
+2025-04-20 01:57:55 - ScraperUploadTab - INFO - Thread de scraping iniciada.
+2025-04-20 02:13:46 - ScraperUploadTab - INFO - 9 jogos coletados.
+2025-04-20 02:13:46 - ScraperUploadTab - INFO - Thread de scraping finalizada.
+2025-04-20 02:20:38 - MainApp - INFO - Fechando aplicação.
