@@ -60,8 +60,8 @@ SCRAPER_TO_INTERNAL_LEAGUE_MAP = {
      # Nome no Scraper : Nome Interno/Histórico
     'ARGENTINA: Torneo Betano - Apertura': 'ARGENTINA 1',
     'SPAIN: LaLiga2': 'SPAIN 2',
-    'ITÁLY: Serie A': 'ITALY 1',
-    'ITÁLY: Serie B': 'ITALY 2',
+    'ITALY: Serie A': 'ITALY 1',
+    'ITALY: Serie B': 'ITALY 2',
     'BRAZIL: Serie A Betano': 'BRAZIL 1',
     'BRAZIL: Serie B': 'BRAZIL 2',
     'ROMANIA: Superliga - Relegation Group': 'ROMANIA 1'
@@ -263,7 +263,8 @@ NEW_FEATURE_COLUMNS = [
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
 
 # --- Métrica para Selecionar o Melhor Modelo ---
-BEST_MODEL_METRIC = 'f1_score' #antes:'f1_score'
+BEST_MODEL_METRIC = 'f1_score_draw' #antes:'f1_score'
+BEST_MODEL_METRIC_ROI = 'roi' # ROI (Expected Value) - Para o modelo de ROI
 
 # --- Configuração dos Modelos a Testar ---
 
@@ -287,22 +288,22 @@ lr_search_spaces = {
     'max_iter': sp.Integer(2000, 5000), # Aumentar se saga não convergir
 }
 
-# LightGBM (Se for usar)
-# lgbm_search_spaces = {
-#     'n_estimators': sp.Integer(50, 300),
-#     'learning_rate': sp.Real(0.01, 0.2, prior='log-uniform'),
-#     'num_leaves': sp.Integer(10, 50),
-#     'max_depth': sp.Integer(3, 15),
-#     'reg_alpha': sp.Real(0.0, 0.5), # L1 reg
-#     'reg_lambda': sp.Real(0.0, 0.5), # L2 reg
-#     'colsample_bytree': sp.Real(0.6, 1.0),
-# }
+#LightGBM (Se for usar)
+lgbm_search_spaces = {
+    'n_estimators': sp.Integer(50, 300),
+    'learning_rate': sp.Real(0.01, 0.2, prior='log-uniform'),
+    'num_leaves': sp.Integer(10, 50),
+    'max_depth': sp.Integer(3, 15),
+    'reg_alpha': sp.Real(0.0, 0.5), # L1 reg
+    'reg_lambda': sp.Real(0.0, 0.5), # L2 reg
+    'colsample_bytree': sp.Real(0.6, 1.0),
+ }
 
 # SVC
 svc_search_spaces = {
-    'C': sp.Real(0.1, 30, prior='log-uniform'),
-    'kernel': sp.Categorical(['poly', 'rbf']),
-    'degree': sp.Integer(2, 4), # Só para poly
+    'C': sp.Real(0.5, 30.0, prior='log-uniform'),
+    'kernel': sp.Categorical(['rbf']),
+    #'degree': sp.Integer(2, 3), # Só para poly
     'gamma': sp.Real(1e-3, 1.0, prior='log-uniform'), # Mais relevante para RBF
     'class_weight': sp.Categorical(['balanced', None]),
 }
@@ -316,42 +317,49 @@ knn_search_spaces = {
 }
 
 # GaussianNB (Não tem muitos hiperparâmetros para otimizar com Bayes, GridSearchCV é ok)
-gnb_param_grid = { 'var_smoothing': np.logspace(-9, -2, num=15) }
+gnb_search_spaces = { 'var_smoothing': np.logspace(-9, -2, num=15) }
 
 MODEL_CONFIG = {
     'RandomForestClassifier': {
         'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH},
-        'search_spaces': rf_search_spaces, # <--- MUDOU
+        'search_spaces': rf_search_spaces, 
         'needs_scaling': False
     },
     'LogisticRegression': {
         'model_kwargs': {'random_state': RANDOM_STATE}, # max_iter está no space
-        'search_spaces': lr_search_spaces, # <--- MUDOU
+        'search_spaces': lr_search_spaces, 
         'needs_scaling': True
     },
-    # 'LGBMClassifier': { ... use lgbm_search_spaces ... },
+     'LGBMClassifier': { 'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
+                        'objective': 'binary', 'metric': 'logloss',
+                        'is_unbalance': True},
+       'search_spaces': lgbm_search_spaces, 
+       'needs_scaling': False
+    },
      'SVC': {
         'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True},
-        'search_spaces': svc_search_spaces, # <--- MUDOU
+        'search_spaces': svc_search_spaces, 
         'needs_scaling': True
     },
     'GaussianNB': { # Mantém GridSearchCV para GNB
         'model_kwargs': {},
-        'param_grid': gnb_param_grid,
+        'param_grid': gnb_search_spaces,
         'needs_scaling': False
     },
     'KNeighborsClassifier': {
         'model_kwargs': {'n_jobs': N_JOBS_GRIDSEARCH},
-        'search_spaces': knn_search_spaces, # <--- MUDOU
+        'search_spaces': knn_search_spaces, 
         'needs_scaling': True
     },
 }
 
 # Número de iterações para Otimização Bayesiana
-BAYESIAN_OPT_N_ITER = 50 # Ajuste conforme necessário (mais iterações = melhor, porém mais lento)
+BAYESIAN_OPT_N_ITER = 25 # Ajuste conforme necessário (mais iterações = melhor, porém mais lento)
 
 # Número de iterações para GridSearchCV (se não usar Bayes)
 DEFAULT_EV_THRESHOLD = 0.05 # Threshold padrão para EV (Expected Value) - Ajuste conforme necessário
+
+DEFAULT_F1_THRESHOLD = 0.7
 
 # --- Configuração GitHub ---
 

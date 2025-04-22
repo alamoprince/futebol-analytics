@@ -6,6 +6,11 @@ from tkinter.scrolledtext import ScrolledText
 import sys, os, threading, datetime, math, numpy as np # Removido io
 from queue import Queue, Empty
 import pandas as pd
+try:
+    from lightgbm import LGBMClassifier
+    LGBM_AVAILABLE = True
+except ImportError:
+    LGBM_AVAILABLE = False
 from typing import Optional, Dict, List, Any
 from logger_config import setup_logger
 
@@ -22,10 +27,10 @@ except NameError: # Avoid error in environments where __file__ is not defined
 try:
     # Imports necessários para Treino/Previsão
     from config import (
-        CLASS_NAMES, FIXTURE_FETCH_DAY,
+        CLASS_NAMES, FIXTURE_FETCH_DAY,MODEL_CONFIG,
         MODEL_TYPE_NAME, ODDS_COLS as CONFIG_ODDS_COLS,
         BEST_F1_MODEL_SAVE_PATH, BEST_ROI_MODEL_SAVE_PATH, MODEL_ID_F1, MODEL_ID_ROI,
-        FEATURE_COLUMNS, DEFAULT_EV_THRESHOLD # FEATURE_COLUMNS é usado no prepare_fixture_data e pipeline de treino
+        DEFAULT_F1_THRESHOLD, DEFAULT_EV_THRESHOLD # FEATURE_COLUMNS é usado no prepare_fixture_data e pipeline de treino
         # Removido MODEL_CONFIG se optimize_single_model for removido ou não usado aqui
         # Removido ROLLING_WINDOW se não for usado diretamente aqui (é usado em data_handler)
     )
@@ -68,14 +73,15 @@ class FootballPredictorDashboard:
         self.trained_model: Optional[Any] = None
         self.trained_scaler: Optional[Any] = None
         self.trained_calibrator: Optional[Any] = None # NOVO
-        self.optimal_threshold: float = 0.5 # NOVO (default)
+        self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; # NOVO (default)
         # --- Fim Novos Atributos ---
         self.feature_columns: Optional[List[str]] = None
         self.model_best_params: Optional[Dict] = None
         self.model_eval_metrics: Optional[Dict] = None
         self.model_file_timestamp: Optional[str] = None
+        self.optimal_f1_threshold: float = DEFAULT_F1_THRESHOLD # Usa padrão do config
         self.optimal_ev_threshold: float = DEFAULT_EV_THRESHOLD
-
+        
         self.create_train_predict_widgets()
         self.main_tk_root.after(100, self.process_gui_queue)
         self.log(f"Aba Treino/Previsão Inicializada ({MODEL_TYPE_NAME})")
@@ -212,6 +218,7 @@ class FootballPredictorDashboard:
                 path = model_data.get('path')
                 model_class_name = self.trained_model.__class__.__name__ if self.trained_model else "N/A"
                 optimal_ev_th = model_data.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD) # Pega limiar EV
+                optimal_f1_thr = self.optimal_f1_threshold
                 calibrator_loaded = model_data.get('calibrator') is not None
 
                 was_optimized = abs(optimal_ev_th - DEFAULT_EV_THRESHOLD) > 1e-6 if isinstance(optimal_ev_th, (int,float)) else False
@@ -221,6 +228,7 @@ class FootballPredictorDashboard:
                 stats_content += f"  Tipo: {model_class_name}\n"
                 stats_content += f"  Calibrado (Isotonic): {'Sim' if calibrator_loaded else 'Não'}\n"
                 stats_content += f"  Limiar EV Otimizado: {optimal_ev_th:.4f}\n" if isinstance(optimal_ev_th, (int, float)) else f"  Limiar EV: {optimal_ev_th}\n"
+                stats_content += f"  Limiar F1 Otimizado: {optimal_f1_thr:.4f}\n" # Mostra F1 Thr
                 stats_content += f"  Arquivo: {os.path.basename(path or 'N/A')}\n"
                 stats_content += f"  Modificado: {timestamp or 'N/A'}\n"
                 if params: stats_content += f"  Params: {params}\n"
@@ -420,19 +428,19 @@ class FootballPredictorDashboard:
             self.trained_scaler = model_data.get('scaler')
             # --- Carrega Calibrador e Limiar ---
             self.trained_calibrator = model_data.get('calibrator')
-            self.optimal_threshold = model_data.get('optimal_threshold', 0.5) # Usa default se não encontrar
             self.feature_columns = model_data.get('features')
             self.model_best_params = model_data.get('params')
             self.model_eval_metrics = model_data.get('metrics')
             self.model_file_timestamp = model_data.get('timestamp')
             self.optimal_ev_threshold = model_data.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD)
+            self.optimal_f1_threshold = model_data.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD)
 
             self._update_model_stats_display_gui() # Mostra stats (incluindo limiar/calib)
 
             # Habilita prever se tudo OK
             if self.trained_model and self.feature_columns and self.historical_data is not None:
                 self.set_button_state(self.predict_button, tk.NORMAL)
-                self.log(f"Modelo '{selected_id}' pronto para previsão (Limiar={self.optimal_threshold:.3f}).")
+                self.log(f"Modelo '{selected_id}' pronto para previsão (Limiar={self.optimal_f1_threshold:.3f}).")
             else:
                 # Loga o motivo de desabilitar
                 reasons = []
@@ -445,10 +453,15 @@ class FootballPredictorDashboard:
             # Limpa estado se seleção for inválida
             self.log(f"Seleção inválida/limpa: '{selected_id}'. Resetando.")
             self.selected_model_id = None
-            self.trained_model = None; self.trained_scaler = None; self.trained_calibrator = None;
+            self.trained_model = None; 
+            self.trained_scaler = None; 
+            self.trained_calibrator = None;
             self.optimal_ev_threshold=DEFAULT_EV_THRESHOLD; 
-            self.optimal_threshold = 0.5; self.feature_columns = None; self.model_best_params = None;
-            self.model_eval_metrics = None; self.model_file_timestamp = None;
+            self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; 
+            self.feature_columns = None; 
+            self.model_best_params = None;
+            self.model_eval_metrics = None; 
+            self.model_file_timestamp = None;
             self.set_button_state(self.predict_button, tk.DISABLED)
             self._update_model_stats_display_gui() # Mostra 'nenhum modelo'
 
@@ -468,7 +481,7 @@ class FootballPredictorDashboard:
         self.trained_model = None
         self.trained_scaler = None
         self.trained_calibrator = None
-        self.optimal_threshold = 0.5
+        self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; 
         self.feature_columns = None
         self.model_best_params = None
         self.model_eval_metrics = None
@@ -514,7 +527,7 @@ class FootballPredictorDashboard:
         # Adicional: Avisar se não houver calibrador/limiar? Ou deixar predictor lidar?
         if self.trained_calibrator is None:
             self.log("Aviso: Modelo selecionado não possui calibrador. Usando probs brutas.")
-        self.log(f"Iniciando previsão com '{self.selected_model_id}' (Limiar={self.optimal_threshold:.3f})...")
+        self.log(f"Iniciando previsão com '{self.selected_model_id}' (Limiar={self.optimal_f1_threshold:.3f})...")
         self.set_button_state(self.load_train_button, tk.DISABLED)
         self.set_button_state(self.predict_button, tk.DISABLED)
         try:
@@ -530,60 +543,88 @@ class FootballPredictorDashboard:
         predict_thread.start()
 
 
-    def _run_training_pipeline(self, df_hist_raw: pd.DataFrame, optimize_ev: bool = True):
+    def _run_training_pipeline(self, df_hist_raw: pd.DataFrame, optimize_ev: bool = True, optimize_f1: bool = True): # Adicionado optimize_f1
         """Pipeline de treinamento, incluindo pré-processamento, treinamento e salvamento."""
         training_successful = False
+        total_progress_units = 1000 # Valor inicial, será ajustado
         try:
-            self.gui_queue.put(("progress_update", (30, "Pré-processando...")))
+            # Calcula num_models ANTES de qualquer coisa que precise dele
+            available_models = {name: config for name, config in MODEL_CONFIG.items() if not (name=='LGBMClassifier' and not LGBM_AVAILABLE)}
+            num_models = len(available_models)
+            if num_models == 0: raise ValueError("Nenhum modelo configurado.")
+            total_progress_units = num_models * 100 # Define o total correto
+
+            # Inicia a barra de progresso com o MÁXIMO correto
+            self.gui_queue.put(("progress_start", (total_progress_units,)))
+            self.gui_queue.put(("progress_update", (int(total_progress_units*0.05 / num_models), "Pré-processando..."))) # Progresso inicial pequeno
+
             processed_data = preprocess_and_feature_engineer(df_hist_raw)
-            if processed_data is None:
-                raise ValueError("Falha pré-processamento.")
+            if processed_data is None: raise ValueError("Falha pré-processamento.")
             X_processed, y_processed, features_used = processed_data
-            self.log(f"Pré-processamento OK. Features: {features_used}")
+            self.log(f"Pré-proc OK. Feats: {features_used}. Shape X: {X_processed.shape}")
+            self.gui_queue.put(("progress_update", (int(total_progress_units*0.15 / num_models), "Alinhando odds..."))) # Progresso relativo
 
-            self.gui_queue.put(("progress_update", (50, "Alinhando dados com odds...")))
-            df_full_data_aligned_for_split = None  # Reset
+            df_full_data_aligned_for_split = None
             try:
-                df_hist_intermediate_for_odds = calculate_historical_intermediate(df_hist_raw)
-                common_index = X_processed.index.union(y_processed.index)
-                df_full_data_aligned_for_split = df_hist_intermediate_for_odds.loc[common_index].copy()
-                logger.info(f"DEBUG Main: df_full_data_aligned_for_split criado com shape {df_full_data_aligned_for_split.shape}")
+                df_hist_intermediate = calculate_historical_intermediate(df_hist_raw)
+                common_index = X_processed.index.intersection(df_hist_intermediate.index)
+                if len(common_index) < len(X_processed): logger.warning(f"Alinhamento Odds: Perdendo {len(X_processed)-len(common_index)} linhas.")
+                X_processed=X_processed.loc[common_index]; y_processed=y_processed.loc[common_index]
+                df_full_data_aligned_for_split = df_hist_intermediate.loc[common_index].copy()
+                logger.info(f"DEBUG Main: df_full_data_aligned_for_split {df_full_data_aligned_for_split.shape}")
                 odd_draw_col_name = CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT')
-                if odd_draw_col_name not in df_full_data_aligned_for_split.columns:
-                    raise ValueError(f"Coluna '{odd_draw_col_name}' não encontrada p/ ROI.")
-            except Exception as e_align_main:
-                raise ValueError("Falha alinhar odds.") from e_align_main
+                if odd_draw_col_name not in df_full_data_aligned_for_split.columns: raise ValueError(f"Coluna Odd Empate '{odd_draw_col_name}' não encontrada.")
+            except Exception as e_align: raise ValueError("Falha alinhar odds.") from e_align
 
-            def training_progress_callback(cs, ms, st):
-                prog = 60 + int((cs / ms) * 35) if ms > 0 else 95
-                self.gui_queue.put(("progress_update", (prog, st)))
+
+            # --- Define o NOVO callback ---
+            def training_progress_callback_stages(model_index, status_text):
+                base_progress = model_index * 100
+                stage_progress = 0; status_lower = status_text.lower()
+                if "scaling" in status_lower: stage_progress = 5
+                elif "ajustando" in status_lower or "fitting" in status_lower: stage_progress = 10
+                elif "calibrando" in status_lower: stage_progress = 60
+                elif "otimizando f1" in status_lower: stage_progress = 70
+                elif "otimizando ev" in status_lower: stage_progress = 80
+                elif "avaliando" in status_lower: stage_progress = 90
+                elif "adicionado" in status_lower: stage_progress = 99
+                current_total_progress = min(base_progress + stage_progress, total_progress_units)
+                self.gui_queue.put(("progress_update", (current_total_progress, f"Mod {model_index+1}/{num_models}: {status_text}")))
+
             self.log("Iniciando treinamento...")
-            self.gui_queue.put(("progress_update", (60, "Treinando Modelos...")))
+            # Atualização de progresso inicial para o treinamento
+            self.gui_queue.put(("progress_update", (int(total_progress_units*0.20 / num_models), "Iniciando Treinamento..."))) # ~20% do primeiro
+
             success = run_training_process(
                 X=X_processed, y=y_processed,
-                X_test_with_odds=df_full_data_aligned_for_split,  # Passa o DF completo alinhado
-                odd_draw_col_name=CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT'),
-                progress_callback=training_progress_callback,
-                calibration_method='isotonic',  # Pode vir do config ou ser fixo
+                X_test_with_odds=df_full_data_aligned_for_split,
+                odd_draw_col_name=odd_draw_col_name, # Usa a variável verificada
+                progress_callback_stages=training_progress_callback_stages, # <<< PASSA O CALLBACK CORRETO
+                num_total_models=num_models,                               # <<< PASSA O NÚMERO TOTAL
+                calibration_method='isotonic',
                 optimize_ev_threshold=optimize_ev,
-                default_ev_threshold=DEFAULT_EV_THRESHOLD
+                optimize_f1_threshold=optimize_f1, # Passa o flag F1
             )
-            self.gui_queue.put(("progress_update", (95, "Finalizando...")))
+
+            final_status_msg = "Treino Concluído!" if success else "Treino Falhou."
+            self.gui_queue.put(("progress_update", (total_progress_units, final_status_msg))) # Atualiza para 100%
+
             if success:
-                self.log("Treino OK.")
-                self.gui_queue.put(("training_succeeded", None))
-                training_successful = True
+                self.log("Treino OK."); self.gui_queue.put(("training_succeeded", None)); training_successful = True
             else:
-                raise RuntimeError("Falha treino/salvamento.")
+                self.log("ERRO: Falha treino/salvamento."); self.gui_queue.put(("error", ("Falha Treinamento", "Erro. Ver logs."))); self.gui_queue.put(("training_failed", None))
+
         except Exception as e:
-            error_msg = f"Erro Treino: {e}"
+            error_msg = f"Erro Treino (Preparação/Execução): {e}"
             self.log(f"ERRO: {error_msg}")
-            traceback.logger.error_exc()
+            logger.error(f"Erro no pipeline de treino: {e}", exc_info=True) # Logger correto
             self.gui_queue.put(("error", ("Erro Treino", error_msg)))
             self.gui_queue.put(("training_failed", None))
         finally:
             self.gui_queue.put(("progress_end", None))
             self.set_button_state(self.load_train_button, tk.NORMAL)
+            if not training_successful:
+                self.set_button_state(self.predict_button, tk.DISABLED)
 
     # _run_prediction_pipeline ( para passar calibrador e usar limiar)
     def _run_prediction_pipeline(self, odd_draw_col: str):
@@ -659,7 +700,7 @@ class FootballPredictorDashboard:
 
             # --- Filtro AGORA USA o optimal_threshold da classe ---
             df_to_filter = df_preds_with_calib.copy()
-            self.log(f"Aplicando filtro de Limiar ({self.optimal_threshold:.3f})...")
+            self.log(f"Aplicando filtro de Limiar ({self.optimal_f1_threshold:.3f})...")
 
             # Usa a coluna de probabilidade CALIBRADA se existir, senão a bruta
             prob_draw_col_calib = f'Prob_{CLASS_NAMES[1]}'  # Nome da coluna calibrada (sem Raw_)
@@ -683,10 +724,10 @@ class FootballPredictorDashboard:
                 df_to_filter.dropna(subset=[prob_col_to_use], inplace=True)
 
                 initial_rows_f = len(df_to_filter)
-                # FILTRA usando o limiar da instância (self.optimal_threshold)
-                df_filtered_f = df_to_filter[df_to_filter[prob_col_to_use] > self.optimal_threshold].copy()
+                # FILTRA usando o limiar da instância (self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD;)
+                df_filtered_f = df_to_filter[df_to_filter[prob_col_to_use] > self.optimal_f1_threshold].copy()
                 rows_kept_f = len(df_filtered_f)
-                self.log(f"Filtro Limiar: {rows_kept_f} de {initial_rows_f} jogos restantes passaram (P > {self.optimal_threshold:.3f}).")
+                self.log(f"Filtro Limiar: {rows_kept_f} de {initial_rows_f} jogos restantes passaram (P > {self.optimal_f1_threshold:.3f}).")
                 df_predictions_final_filtered = df_filtered_f
             else:
                 self.log("Filtro de probabilidade não aplicado (coluna não encontrada).")
@@ -744,7 +785,7 @@ class FootballPredictorDashboard:
 
             if load_result:
                 # --- DESEMPACOTA ITENS ---
-                model, scaler, calibrator, ev_threshold, features, params, metrics, timestamp = load_result
+                model, scaler, calibrator, ev_threshold, f1_thr, features, params, metrics, timestamp = load_result
                 if model and features:
                     self.log(f" -> Sucesso: Modelo '{model_id}' carregado (Limiar EV={ev_threshold:.3f}).")
                     # --- ARMAZENA CALIBRADOR E LIMIAR ---
@@ -753,6 +794,7 @@ class FootballPredictorDashboard:
                         'scaler': scaler, 
                         'calibrator': calibrator, # Armazena calibrador
                         'optimal_ev_threshold': ev_threshold, # Armazena limiar
+                        'optimal_f1_threshold': f1_thr, # Armazena limiar F1
                         'features': features, 
                         'params': params, 
                         'metrics': metrics,
@@ -846,7 +888,7 @@ class FootballPredictorDashboard:
                         self.trained_model = None
                         self.trained_scaler = None
                         self.trained_calibrator = None
-                        self.optimal_threshold = 0.5
+                        self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD;  # Resetando para default
                         self.feature_columns = None
                         self.model_best_params = None
                         self.model_eval_metrics = None

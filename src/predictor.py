@@ -7,49 +7,37 @@ import os
 import datetime
 import numpy as np  # Necessário para isnan
 import traceback
-from config import CLASS_NAMES, ODDS_COLS, DEFAULT_EV_THRESHOLD
+from config import CLASS_NAMES, ODDS_COLS, DEFAULT_EV_THRESHOLD, DEFAULT_F1_THRESHOLD
 from typing import Optional, Any, List, Dict, Tuple
 from logger_config import setup_logger
 
 logger = setup_logger("PredictorApp")
 
 # --- Função de Carregamento (MODIFICADA) ---
-def load_model_scaler_features(model_path: str) -> Optional[Tuple[Any, Optional[Any], Optional[Any], float, Optional[List[str]], Optional[Dict], Optional[Dict], Optional[str]]]:
-    """ Carrega modelo, scaler, CALIBRADOR, LIMIAR EV, features, params, métricas, timestamp. """
+def load_model_scaler_features(model_path: str) -> Optional[Tuple[Any, Optional[Any], Optional[Any], float, float, Optional[List[str]], Optional[Dict], Optional[Dict], Optional[str]]]:
+    """ Carrega modelo, scaler, calibrador, limiar EV, limiar F1, features, params, métricas, timestamp. """
     try:
         load_obj = joblib.load(model_path)
         if isinstance(load_obj, dict) and 'model' in load_obj:
             model = load_obj['model']
-            scaler = load_obj.get('scaler')
-            calibrator = load_obj.get('calibrator')
+            scaler = load_obj.get('scaler'); calibrator = load_obj.get('calibrator')
             optimal_ev_threshold = load_obj.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD)
+            optimal_f1_threshold = load_obj.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD) # <<< USA DEFAULT DO CONFIG
             feature_names = load_obj.get('feature_names')
-            best_params = load_obj.get('params')
+            best_params = load_obj.get('best_params') # Assume que foi salvo com esta chave
             eval_metrics = load_obj.get('eval_metrics')
-            saved_timestamp = load_obj.get('save_timestamp')
-            model_class_name = load_obj.get('model_class_name', 'N/A')
-            fts = "N/A"
-            try:
-                mtime = os.path.getmtime(model_path)
-                fts = datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
-            except Exception:
-                pass
+            saved_timestamp = load_obj.get('save_timestamp'); model_class_name = load_obj.get('model_class_name', 'N/A'); fts = "N/A"
+            try: mtime = os.path.getmtime(model_path); fts = datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+            except Exception: pass
             logger.info(f"Modelo carregado: {os.path.basename(model_path)} (Modif.: {fts})")
-            logger.info(f"  Tipo Modelo: {model_class_name}")
-            logger.info(f"  Calibrador: {'Sim' if calibrator else 'Não'}")
-            logger.info(f"  Limiar EV Carregado: {optimal_ev_threshold:.4f}")
-            return model, scaler, calibrator, optimal_ev_threshold, feature_names, best_params, eval_metrics, fts
-        else:
-            logger.warning(f"  Aviso: Formato antigo.")
-            fts = "N/A"
-            return load_obj, None, None, DEFAULT_EV_THRESHOLD, None, None, None, fts
-    except FileNotFoundError:
-        logger.error(f"Erro: Modelo não encontrado: '{model_path}'")
-        return None
-    except Exception as e:
-        logger.error(f"Erro carregar modelo: {e}")
-        logger.debug(traceback.format_exc())
-        return None
+            logger.info(f"  Tipo: {model_class_name} | Calib: {'Sim' if calibrator else 'Não'} | F1 Thr: {optimal_f1_threshold:.4f} | EV Thr: {optimal_ev_threshold:.4f}")
+            # Retorna 9 itens
+            return model, scaler, calibrator, optimal_ev_threshold, optimal_f1_threshold, feature_names, best_params, eval_metrics, fts
+        else: # Fallback formato antigo
+            logger.warning(f"  Aviso: Formato antigo/inválido em {model_path}.")
+            return load_obj, None, None, DEFAULT_EV_THRESHOLD, DEFAULT_F1_THRESHOLD, None, None, None, "N/A"
+    except FileNotFoundError: logger.error(f"Erro: Modelo não encontrado: '{model_path}'"); return None
+    except Exception as e: logger.error(f"Erro carregar modelo: {e}", exc_info=True); return None
 
 # --- Função make_predictions (MODIFICADA) ---
 def make_predictions(
