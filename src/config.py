@@ -269,55 +269,57 @@ BEST_MODEL_METRIC_ROI = 'roi' # ROI (Expected Value) - Para o modelo de ROI
 # --- Configuração dos Modelos a Testar ---
 
 rf_search_spaces = {
-    'n_estimators': sp.Integer(100, 300), # Inteiro entre 100 e 300
-    'criterion': sp.Categorical(['gini', 'entropy']), # Categórico
-    'max_depth': sp.Integer(5, 20, prior='uniform'), # Inteiro entre 5 e 20
-    'min_samples_split': sp.Integer(5, 30), # Inteiro
-    'min_samples_leaf': sp.Integer(3, 20), # Inteiro
-    'max_features': sp.Categorical(['sqrt', 'log2']), # Categórico
-    'class_weight': sp.Categorical(['balanced', None]),
-    'bootstrap': sp.Categorical([True, False]), # Manteve False como opção
+    'classifier__n_estimators': sp.Integer(100, 300), # Prefixo!
+    'classifier__criterion': sp.Categorical(['gini', 'entropy']), # Prefixo!
+    'classifier__max_depth': sp.Integer(5, 20, prior='uniform'), # Prefixo!
+    'classifier__min_samples_split': sp.Integer(5, 30), # Prefixo!
+    'classifier__min_samples_leaf': sp.Integer(3, 20), # Prefixo!
+    'classifier__max_features': sp.Categorical(['sqrt', 'log2']), # Prefixo!
+    'classifier__class_weight': sp.Categorical(['balanced', None]), # Prefixo! - 'balanced' pode ser útil aqui
+    'classifier__bootstrap': sp.Categorical([True, False]), # Prefixo!
+    # Adicione outros parâmetros do SMOTE se quiser otimizá-los, ex:
+    # 'sampler__k_neighbors': sp.Integer(3, 11) # Otimizar k do SMOTE
 }
 
 # Regressão Logística
 lr_search_spaces = {
-    'C': sp.Real(0.01, 100.0, prior='log-uniform'), # Real em escala logarítmica
-    'penalty': sp.Categorical(['l1', 'l2']),
-    'solver': sp.Categorical(['liblinear', 'saga']),
-    'class_weight': sp.Categorical(['balanced', None]),
-    'max_iter': sp.Integer(2000, 5000), # Aumentar se saga não convergir
+    'classifier__C': sp.Real(0.01, 100.0, prior='log-uniform'), # Real em escala logarítmica
+    'classifier__penalty': sp.Categorical(['l1', 'l2']),
+    'classifier__solver': sp.Categorical(['liblinear', 'saga']),
+    'classifier__class_weight': sp.Categorical(['balanced', None]),
+    'classifier__max_iter': sp.Integer(2000, 5000), # Aumentar se saga não convergir
 }
 
 #LightGBM (Se for usar)
 lgbm_search_spaces = {
-    'n_estimators': sp.Integer(50, 300),
-    'learning_rate': sp.Real(0.01, 0.2, prior='log-uniform'),
-    'num_leaves': sp.Integer(10, 50),
-    'max_depth': sp.Integer(3, 15),
-    'reg_alpha': sp.Real(0.0, 0.5), # L1 reg
-    'reg_lambda': sp.Real(0.0, 0.5), # L2 reg
-    'colsample_bytree': sp.Real(0.6, 1.0),
+    'classifier__n_estimators': sp.Integer(50, 300),
+    'classifier__learning_rate': sp.Real(0.01, 0.2, prior='log-uniform'),
+    'classifier__num_leaves': sp.Integer(10, 50),
+    'classifier__max_depth': sp.Integer(3, 15),
+    'classifier__reg_alpha': sp.Real(0.0, 0.5), # L1 reg
+    'classifier__reg_lambda': sp.Real(0.0, 0.5), # L2 reg
+    'classifier__colsample_bytree': sp.Real(0.6, 1.0),
  }
 
 # SVC
 svc_search_spaces = {
-    'C': sp.Real(0.5, 30.0, prior='log-uniform'),
-    'kernel': sp.Categorical(['rbf']),
+    'classifier__C': sp.Real(0.5, 30.0, prior='log-uniform'),
+    'classifier__kernel': sp.Categorical(['rbf']),
     #'degree': sp.Integer(2, 3), # Só para poly
-    'gamma': sp.Real(1e-3, 1.0, prior='log-uniform'), # Mais relevante para RBF
-    'class_weight': sp.Categorical(['balanced', None]),
+    'classifier__gamma': sp.Real(1e-3, 1.0, prior='log-uniform'), # Mais relevante para RBF
+    'classifier__class_weight': sp.Categorical(['balanced', None]),
 }
 
 # KNN
 knn_search_spaces = {
-    'n_neighbors': sp.Integer(3, 41, prior='uniform'), # Ímpares numa faixa maior
-    'weights': sp.Categorical(['uniform', 'distance']),
-    'metric': sp.Categorical(['minkowski', 'manhattan']),
-    'p': sp.Integer(1, 2), # 1 para manhattan, 2 para minkowski(euclidean)
+    'classifier__n_neighbors': sp.Integer(3, 41, prior='uniform'), # Ímpares numa faixa maior
+    'classifier__weights': sp.Categorical(['uniform', 'distance']),
+    'classifier__metric': sp.Categorical(['minkowski', 'manhattan']),
+    'classifier__p': sp.Integer(1, 2), # 1 para manhattan, 2 para minkowski(euclidean)
 }
 
 # GaussianNB (Não tem muitos hiperparâmetros para otimizar com Bayes, GridSearchCV é ok)
-gnb_search_spaces = { 'var_smoothing': np.logspace(-9, -2, num=15) }
+gnb_search_spaces = { 'classifier__var_smoothing': np.logspace(-9, -2, num=15) }
 
 MODEL_CONFIG = {
     'RandomForestClassifier': {
