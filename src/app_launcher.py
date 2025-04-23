@@ -4,7 +4,8 @@ from tkinter import ttk, messagebox
 import sys
 import os
 from logger_config import setup_logger
-import datetime # Import datetime
+import time 
+import datetime
 
 logger = setup_logger("MainApp")
 
@@ -92,7 +93,7 @@ class MainApplication:
         # --- Instancia a Classe de Análise na Terceira Aba ---
         try:
             # Passa apenas o frame da aba como pai
-            self.feature_analyzer = FeatureAnalyzerApp(self.tab3_frame)
+            self.feature_analyzer = FeatureAnalyzerApp(self.tab3_frame, self.root)
             logger.info("FeatureAnalyzerApp instanciada com sucesso.")
         except Exception as e:
             logger.error(f"Erro ao instanciar FeatureAnalyzerApp: {e}", exc_info=True)
@@ -104,20 +105,36 @@ class MainApplication:
 
     def on_closing(self):
         if messagebox.askokcancel("Sair", "Deseja realmente sair?"):
-            # Adicionar lógica para parar threads se necessário (mais complexo)
-            # Por enquanto, apenas fecha
             logger.info("Fechando aplicação.")
+
+            # --- CANCELAR O AFTER DA ABA DE ANÁLISE ---
+            try:
+                if hasattr(self, 'feature_analyzer') and hasattr(self.feature_analyzer, 'main_tk_root'):
+                    if hasattr(self.feature_analyzer, 'stop_processing_queue'):
+                        logger.debug("Sinalizando para FeatureAnalyzerApp parar a fila da GUI...")
+                        self.feature_analyzer.stop_processing_queue = True
+                    else:
+                        logger.warning("FeatureAnalyzerApp não possui o flag 'stop_processing_queue'.")
+                    # Damos um pequeno tempo para a última execução da fila talvez ocorrer
+                    self.root.update_idletasks() # Processa eventos pendentes
+                    time.sleep(0.15) # Espera um pouco mais que o intervalo do after (100ms)
+
+            except Exception as e_cancel:
+                logger.warning(f"Aviso: Erro ao tentar sinalizar parada da fila da GUI da Aba Análise: {e_cancel}")
+
             # Tentar fechar o driver do scraper se ele existir e estiver ativo
-            # O driver agora é gerenciado dentro da classe ScraperUploadTab
-            # O ideal seria ter um método 'shutdown' na ScraperUploadTab
-            # Mas por simplicidade, vamos tentar acessá-lo (menos ideal)
             try:
                  if hasattr(self, 'scraper_tab') and hasattr(self.scraper_tab, 'driver_instance') and self.scraper_tab.driver_instance:
                       logger.info("Tentando fechar WebDriver do scraper (se ativo)...")
-                      self.scraper_tab.driver_instance.quit()
+                      # Adiciona uma checagem se o método quit existe antes de chamar
+                      if hasattr(self.scraper_tab.driver_instance, 'quit') and callable(self.scraper_tab.driver_instance.quit):
+                           self.scraper_tab.driver_instance.quit()
+                      else:
+                           logger.warning("Driver do scraper não possui método quit ou não é chamável.")
             except Exception as e_quit:
                  logger.warning(f"Aviso: Erro ao tentar fechar driver do scraper ao sair: {e_quit}")
 
+            # Destrói a janela principal
             self.root.destroy()
 
 # --- Execução Principal ---

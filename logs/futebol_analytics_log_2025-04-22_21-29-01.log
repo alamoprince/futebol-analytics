@@ -1,0 +1,133 @@
+2025-04-22 21:29:01 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-22 21:29:01 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-04-22 21:29:01 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-22 21:29:01 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-04-22 21:29:05 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-04-22 21:29:06 - MainApp - INFO - DPI Awareness set (Windows).
+2025-04-22 21:29:07 - MainApp - INFO - ScraperUploadTab instanciada com sucesso.
+2025-04-22 21:29:07 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-04-22 20:13:18)
+2025-04-22 21:29:07 - PredictorApp - INFO -   Tipo: LGBMClassifier | Calib: Sim | F1 Thr: 0.2500 | EV Thr: 0.0100
+2025-04-22 21:29:07 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-04-22 20:13:18)
+2025-04-22 21:29:07 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2484 | EV Thr: 0.1900
+2025-04-22 21:29:07 - DataHandler - INFO - Iniciando carregamento e mapeamento de ligas de dados históricos...
+2025-04-22 21:29:07 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2006_2021).csv...
+2025-04-22 21:29:08 - DataHandler - INFO -   -> Lido 169433 linhas.
+2025-04-22 21:29:08 - DataHandler - INFO -   Aplicando mapeamento de liga específico para Base_de_Dados_FootyStats_(2006_2021).csv (Coluna original: 'League')...
+2025-04-22 21:29:08 - DataHandler - WARNING -     Ligas NÃO mapeadas (mapa específico) em Base_de_Dados_FootyStats_(2006_2021).csv: ['Argentina Primera DivisiÃ³n', 'Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera DivisiÃ³n', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Ã\x9arvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Serbia SuperLiga', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Spain Segunda DivisiÃ³n', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey SÃ¼per Lig', 'Uruguay Primera DivisiÃ³n', 'USA MLS', 'Wales Welsh Premier League']
+2025-04-22 21:29:08 - DataHandler - INFO -   Filtro de Liga (pós-map) em Base_de_Dados_FootyStats_(2006_2021).csv: 20112/169433 jogos restantes.
+2025-04-22 21:29:08 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...
+2025-04-22 21:29:08 - DataHandler - INFO -   DataFrame de Base_de_Dados_FootyStats_(2006_2021).csv processado e adicionado.
+2025-04-22 21:29:08 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2022_2025).csv...
+2025-04-22 21:29:08 - DataHandler - INFO -   -> Lido 49477 linhas.
+2025-04-22 21:29:08 - DataHandler - INFO -   Aplicando mapeamento de liga específico para Base_de_Dados_FootyStats_(2022_2025).csv (Coluna original: 'League')...
+2025-04-22 21:29:08 - DataHandler - WARNING -     Ligas NÃO mapeadas (mapa específico) em Base_de_Dados_FootyStats_(2022_2025).csv: ['PARAGUAY 1', 'CHILE 1', 'URUGUAY 1', 'JAPAN 1', 'IRELAND 1', 'JAPAN 2', 'SOUTH KOREA 2', 'SOUTH KOREA 1', 'USA 1', 'ESTONIA 1', 'FINLAND 1', 'SWEDEN 2', 'SWEDEN 1', 'NORWAY 1', 'NORWAY 2', 'ICELAND 1', 'CHINA 1', 'BULGARIA 1', 'SERBIA 1', 'POLAND 1', 'DENMARK 1', 'SWITZERLAND 2', 'CROATIA 1', 'SLOVENIA 1', 'SLOVAKIA 1', 'GERMANY 2', 'SWITZERLAND 1', 'AUSTRIA 2', 'AUSTRIA 1', 'BELGIUM 1', 'ENGLAND 2', 'SCOTLAND 1', 'FRANCE 2', 'ENGLAND 3', 'ENGLAND 4', 'CZECH 1', 'NETHERLANDS 2', 'NETHERLANDS 1', 'TURKEY 1', 'GERMANY 1', 'FRANCE 1', 'ENGLAND 1', 'PORTUGAL 1', 'PORTUGAL 2', 'WALES 1', 'SPAIN 1', 'GREECE 1', 'EGYPT 1']
+2025-04-22 21:29:08 - DataHandler - INFO -   Filtro de Liga (pós-map) em Base_de_Dados_FootyStats_(2022_2025).csv: 8497/49477 jogos restantes.
+2025-04-22 21:29:09 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...
+2025-04-22 21:29:09 - DataHandler - INFO -   DataFrame de Base_de_Dados_FootyStats_(2022_2025).csv processado e adicionado.
+2025-04-22 21:29:09 - DataHandler - INFO - Concatenando 2 DFs processados...
+2025-04-22 21:29:09 - DataHandler - INFO - DF histórico combinado e mapeado: (28609, 16)
+2025-04-22 21:29:09 - DataHandler - INFO - Iniciando processamento comum pós-concatenação (Tipos, NaNs, Dropna Essencial, Ordenação)...
+2025-04-22 21:29:09 - DataHandler - INFO - Verificando NaNs nas colunas essenciais finais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-04-22 21:29:09 - DataHandler - INFO - Removidas 5002 linhas com NaNs essenciais finais.
+2025-04-22 21:29:09 - DataHandler - INFO - DF histórico ordenado por Data.
+2025-04-22 21:29:09 - DataHandler - INFO - Calculando Pi-Ratings...
+2025-04-22 21:29:10 - DataHandler - INFO - Pi-Ratings calculados e adicionados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H']
+2025-04-22 21:29:10 - DataHandler - INFO - Carregamento e mapeamento históricos OK. Shape Final: (23607, 20)
+2025-04-22 21:29:10 - DataHandler - INFO - Contagem de NaNs finais em colunas opcionais:
+Odd_Over25_FT     7305
+Odd_Under25_FT    7603
+Odd_BTTS_Yes      7170
+Odd_BTTS_No       7169
+XG_H              8173
+XG_A              8173
+XG_Total          8101
+dtype: int64
+2025-04-22 21:29:10 - MainApp - INFO - FootballPredictorDashboard instanciada com sucesso.
+2025-04-22 21:29:10 - MainApp - INFO - FeatureAnalyzerApp instanciada com sucesso.
+2025-04-22 21:30:35 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Iniciando: Carregando & Processando dados históricos...
+2025-04-22 21:30:35 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Etapa 1: Carregando dados brutos...
+2025-04-22 21:30:35 - DataHandler - INFO - Iniciando carregamento e mapeamento de ligas de dados históricos...
+2025-04-22 21:30:35 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2006_2021).csv...
+2025-04-22 21:30:36 - DataHandler - INFO -   -> Lido 169433 linhas.
+2025-04-22 21:30:36 - DataHandler - INFO -   Aplicando mapeamento de liga específico para Base_de_Dados_FootyStats_(2006_2021).csv (Coluna original: 'League')...
+2025-04-22 21:30:36 - DataHandler - WARNING -     Ligas NÃO mapeadas (mapa específico) em Base_de_Dados_FootyStats_(2006_2021).csv: ['Argentina Primera DivisiÃ³n', 'Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera DivisiÃ³n', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Ã\x9arvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Serbia SuperLiga', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Spain Segunda DivisiÃ³n', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey SÃ¼per Lig', 'Uruguay Primera DivisiÃ³n', 'USA MLS', 'Wales Welsh Premier League']
+2025-04-22 21:30:36 - DataHandler - INFO -   Filtro de Liga (pós-map) em Base_de_Dados_FootyStats_(2006_2021).csv: 20112/169433 jogos restantes.
+2025-04-22 21:30:36 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...
+2025-04-22 21:30:36 - DataHandler - INFO -   DataFrame de Base_de_Dados_FootyStats_(2006_2021).csv processado e adicionado.
+2025-04-22 21:30:36 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2022_2025).csv...
+2025-04-22 21:30:36 - DataHandler - INFO -   -> Lido 49477 linhas.
+2025-04-22 21:30:36 - DataHandler - INFO -   Aplicando mapeamento de liga específico para Base_de_Dados_FootyStats_(2022_2025).csv (Coluna original: 'League')...
+2025-04-22 21:30:36 - DataHandler - WARNING -     Ligas NÃO mapeadas (mapa específico) em Base_de_Dados_FootyStats_(2022_2025).csv: ['PARAGUAY 1', 'CHILE 1', 'URUGUAY 1', 'JAPAN 1', 'IRELAND 1', 'JAPAN 2', 'SOUTH KOREA 2', 'SOUTH KOREA 1', 'USA 1', 'ESTONIA 1', 'FINLAND 1', 'SWEDEN 2', 'SWEDEN 1', 'NORWAY 1', 'NORWAY 2', 'ICELAND 1', 'CHINA 1', 'BULGARIA 1', 'SERBIA 1', 'POLAND 1', 'DENMARK 1', 'SWITZERLAND 2', 'CROATIA 1', 'SLOVENIA 1', 'SLOVAKIA 1', 'GERMANY 2', 'SWITZERLAND 1', 'AUSTRIA 2', 'AUSTRIA 1', 'BELGIUM 1', 'ENGLAND 2', 'SCOTLAND 1', 'FRANCE 2', 'ENGLAND 3', 'ENGLAND 4', 'CZECH 1', 'NETHERLANDS 2', 'NETHERLANDS 1', 'TURKEY 1', 'GERMANY 1', 'FRANCE 1', 'ENGLAND 1', 'PORTUGAL 1', 'PORTUGAL 2', 'WALES 1', 'SPAIN 1', 'GREECE 1', 'EGYPT 1']
+2025-04-22 21:30:36 - DataHandler - INFO -   Filtro de Liga (pós-map) em Base_de_Dados_FootyStats_(2022_2025).csv: 8497/49477 jogos restantes.
+2025-04-22 21:30:36 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...
+2025-04-22 21:30:36 - DataHandler - INFO -   DataFrame de Base_de_Dados_FootyStats_(2022_2025).csv processado e adicionado.
+2025-04-22 21:30:36 - DataHandler - INFO - Concatenando 2 DFs processados...
+2025-04-22 21:30:36 - DataHandler - INFO - DF histórico combinado e mapeado: (28609, 16)
+2025-04-22 21:30:36 - DataHandler - INFO - Iniciando processamento comum pós-concatenação (Tipos, NaNs, Dropna Essencial, Ordenação)...
+2025-04-22 21:30:36 - DataHandler - INFO - Verificando NaNs nas colunas essenciais finais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-04-22 21:30:36 - DataHandler - INFO - Removidas 5002 linhas com NaNs essenciais finais.
+2025-04-22 21:30:36 - DataHandler - INFO - DF histórico ordenado por Data.
+2025-04-22 21:30:36 - DataHandler - INFO - Calculando Pi-Ratings...
+2025-04-22 21:30:38 - DataHandler - INFO - Pi-Ratings calculados e adicionados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H']
+2025-04-22 21:30:38 - DataHandler - INFO - Carregamento e mapeamento históricos OK. Shape Final: (23607, 20)
+2025-04-22 21:30:38 - DataHandler - INFO - Contagem de NaNs finais em colunas opcionais:
+Odd_Over25_FT     7305
+Odd_Under25_FT    7603
+Odd_BTTS_Yes      7170
+Odd_BTTS_No       7169
+XG_H              8173
+XG_A              8173
+XG_Total          8101
+dtype: int64
+2025-04-22 21:30:38 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Dados brutos carregados: (23607, 20)
+2025-04-22 21:30:38 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Etapa 2: Processando features (Pipeline Completo)...
+2025-04-22 21:30:38 - FeatureAnalyzerApp - INFO - === INÍCIO PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===
+2025-04-22 21:30:38 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Médias Liga: H=1.379, A=1.034
+2025-04-22 21:30:38 - DataHandler - INFO - Calculando stats intermediárias...
+2025-04-22 21:30:38 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-04-22 21:30:38 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-04-22 21:30:38 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-04-22 21:30:38 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-04-22 21:30:38 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-04-22 21:30:38 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-04-22 21:30:38 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-04-22 21:30:38 - DataHandler - INFO - Calculando Pi-Ratings...
+2025-04-22 21:30:39 - DataHandler - INFO - Pi-Ratings calculados e adicionados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H']
+2025-04-22 21:30:39 - DataHandler - INFO - Iniciando cálculo Médias Rolling (Janela=7)...
+2025-04-22 21:30:39 - DataHandler - INFO - Calculando Médias rolling para: ['VG_H', 'VG_A', 'CG_H', 'CG_A']
+2025-04-22 21:30:42 - DataHandler - INFO - Médias Rolling calculadas. Colunas adicionadas: ['Media_VG_H', 'Media_VG_A', 'Media_CG_H', 'Media_CG_A']
+2025-04-22 21:30:42 - DataHandler - INFO - Iniciando cálculo Desvio Padrão Rolling (Janela=7)...
+2025-04-22 21:30:42 - DataHandler - INFO - Calculando StDev rolling para: ['CG_H', 'CG_A']
+2025-04-22 21:30:44 - DataHandler - INFO - StDev Rolling calculado. Colunas adicionadas: ['Std_CG_H', 'Std_CG_A']
+2025-04-22 21:30:44 - DataHandler - INFO - Calculando Rolling Gols e Forças FA/FD (Janela=7)...
+2025-04-22 21:30:47 - DataHandler - INFO - Rolling Gols/FA/FD calculado. Colunas: ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'FA_H', 'FD_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'FA_A', 'FD_A']
+2025-04-22 21:30:47 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_gols=6)...
+2025-04-22 21:30:47 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-04-22 21:30:47 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-04-22 21:30:47 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG)...
+2025-04-22 21:30:47 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Processamento de features concluído.
+2025-04-22 21:30:47 - FeatureAnalyzerApp - INFO - === FIM PIPELINE DE CÁLCULO FEATURES (ANALYSIS TAB) ===
+2025-04-22 21:30:47 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Etapa 3: Preparando X, y para análise...
+2025-04-22 21:30:47 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Features numéricas selecionadas para análise: 45
+2025-04-22 21:30:47 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Dados para análise (shape final): (7359, 46) (16248 linhas removidas).
+2025-04-22 21:30:47 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Etapa 4: Atualizando Describe/Target...
+2025-04-22 21:30:47 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Etapa 5: Gerando gráficos básicos...
+2025-04-22 21:30:47 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Gerando gráficos univariados para: Odd_H_FT
+2025-04-22 21:30:48 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Gerando heatmap de correlação...
+2025-04-22 21:30:48 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Carregamento e análise básica concluídos. Use 'Carregar Modelos Treinados' para análise específica.
+2025-04-22 21:31:38 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Gerando gráficos univariados para: XG_Total
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Tentando carregar modelos treinados...
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer]  -> Carregando Melhor F1 (Empate) de best_model_backdraw_best_f1.joblib...
+2025-04-22 21:32:01 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-04-22 20:13:18)
+2025-04-22 21:32:01 - PredictorApp - INFO -   Tipo: LGBMClassifier | Calib: Sim | F1 Thr: 0.2500 | EV Thr: 0.0100
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer]    Calculando importância via feature_importances_ (LGBMClassifier)
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer]     -> Modelo Melhor F1 (Empate) carregado com sucesso.
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer]  -> Carregando Melhor ROI (Empate) de best_model_backdraw_best_roi.joblib...
+2025-04-22 21:32:01 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-04-22 20:13:18)
+2025-04-22 21:32:01 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2484 | EV Thr: 0.1900
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer]    Importância não disponível diretamente para GaussianNB.
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer]     -> Modelo Melhor ROI (Empate) carregado com sucesso.
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Modelos carregados: Melhor F1 (Empate), Melhor ROI (Empate)
+2025-04-22 21:32:01 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Atualizando análise para o modelo: Melhor F1 (Empate)
+2025-04-22 21:34:49 - FeatureAnalyzerApp - INFO - [GUI Analyzer] Gerando gráficos univariados para: XG_H
+2025-04-22 21:42:21 - MainApp - INFO - Fechando aplicação.

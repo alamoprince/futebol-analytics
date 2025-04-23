@@ -255,8 +255,6 @@ NEW_FEATURE_COLUMNS = [
     'Std_CG_A',             # Custo Gol Fora (Rolling Std)
     'Std_CG_H',             # Custo Gol Casa (Rolling Std)
     'Prob_Empate_Poisson',   # Empate de Poisson
-    'PiRating_Diff',    # Diferença (PiRating_H - PiRating_A)
-    'PiRating_Prob_H',  # Probabilidade de vitória da casa segundo Pi-Ratings
 
 ]
 
