@@ -139,6 +139,7 @@ REQUIRED_FIXTURE_COLS = ['League','Time', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT'
 
 # --- Configurações Gerais do Modelo ---
 RANDOM_STATE = 42; TEST_SIZE = 0.2; CROSS_VALIDATION_SPLITS = 5; N_JOBS_GRIDSEARCH = -1; ROLLING_WINDOW = 7 #mudei o rolling_window para 7 dias (1 semana) antes era 10 dias
+FEATURE_EPSILON = 1e-6
 RESULT_MAPPING = {'D': 0, 'H': 1, 'A': 2} # Usado para Ptos
 CLASS_NAMES = ['Nao_Empate', 'Empate'] # Alvo binário
 
@@ -155,6 +156,19 @@ CSV_PATTERN_COLS = [
     'Odd_Over25_FT', 'Odd_BTTS_Yes' # Outras odds diretas usadas como features
     'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total' # Odds de xG (Expected Goals)
 ]
+
+# Interações Odds/Prob x CV_HDA
+INTERACTION_P_D_NORM_X_CV_HDA = 'pDnorm_x_CVHDA'
+INTERACTION_P_D_NORM_DIV_CV_HDA = 'pDnorm_div_CVHDA'
+# Interações Odds/Prob x PiRating_Diff
+INTERACTION_P_D_NORM_X_PIR_DIFF = 'pDnorm_x_PiRDiffAbs'
+INTERACTION_P_D_NORM_DIV_PIR_DIFF = 'pDnorm_div_PiRDiffAbs'
+INTERACTION_ODD_D_X_PIR_DIFF = 'OddD_x_PiRDiffAbs'
+INTERACTION_ODD_D_DIV_PIR_DIFF = 'OddD_div_PiRDiffAbs'
+# Pi-Rating Momentum (Calculado sobre ROLLING_WINDOW jogos anteriores)
+PIRATING_MOMENTUM_H = f'PiR_Mom_{ROLLING_WINDOW}G_H'
+PIRATING_MOMENTUM_A = f'PiR_Mom_{ROLLING_WINDOW}G_A'
+PIRATING_MOMENTUM_DIFF = f'PiR_Mom_{ROLLING_WINDOW}G_Diff'
 
 ALL_CANDIDATE_FEATURES = [
     # Baseadas em Odds / Probabilidades Normalizadas
@@ -217,6 +231,16 @@ ALL_CANDIDATE_FEATURES = [
     'PiRating_A',       # Rating do time visitante ANTES do jogo
     'PiRating_Diff',    # Diferença (PiRating_H - PiRating_A)
     'PiRating_Prob_H',  # Probabilidade de vitória da casa segundo Pi-Ratings
+
+    # Novas Interações (Exemplos - escolha quais testar)
+    INTERACTION_P_D_NORM_DIV_CV_HDA,
+    INTERACTION_P_D_NORM_X_PIR_DIFF,
+    INTERACTION_ODD_D_DIV_PIR_DIFF,
+    # Novos Momentums (Exemplos)
+    PIRATING_MOMENTUM_H,
+    PIRATING_MOMENTUM_A,
+    PIRATING_MOMENTUM_DIFF,
+
 ]
 
 # --- Lista das Features FINAIS para o Modelo BackDraw ---
@@ -247,14 +271,12 @@ FEATURE_COLUMNS = [
 
 NEW_FEATURE_COLUMNS = [
     'p_D_norm',             # Probabilidade Empate Normalizada
-    'Media_CG_A',           # Custo Gol Fora (Rolling Mean)
-    'Media_CG_H',           # Custo Gol Casa (Rolling Mean)
-    'Media_VG_H',           # Valor Gol Fora (Rolling Mean)
-    'Media_VG_A',           # Valor Gol Casa (Rolling Mean)
+    'PiRating_Prob_H',      # Probabilidade de vitória da casa segundo Pi-Ratings
     'CV_HDA',               # Coeficiente de Variação (HDA)
     'Std_CG_A',             # Custo Gol Fora (Rolling Std)
     'Std_CG_H',             # Custo Gol Casa (Rolling Std)
-    'Prob_Empate_Poisson',   # Empate de Poisson
+    'Prob_Empate_Poisson',  # Empate de Poisson
+    'Odd_D_Cat',            # Binning das Odds de Empate
 
 ]
 

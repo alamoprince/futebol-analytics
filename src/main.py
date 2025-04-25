@@ -6,6 +6,9 @@ from tkinter.scrolledtext import ScrolledText
 import sys, os, threading, datetime, math, numpy as np # Removido io
 from queue import Queue, Empty
 import pandas as pd
+from typing import Optional, Dict, List, Any # Garante typing
+
+
 try:
     from lightgbm import LGBMClassifier
     LGBM_AVAILABLE = True
@@ -57,14 +60,13 @@ except Exception as e_i:
     logger.error(f"Erro geral import main.py (Treino/Previsão): {e_i}")
     raise # Re-levanta erro
 
-from typing import Optional, Dict, List, Any # Garante typing
-
 class FootballPredictorDashboard:
     def __init__(self, parent_frame, main_root):
         self.parent = parent_frame
         self.main_tk_root = main_root
 
         self.gui_queue = Queue()
+        self.stop_processing_queue = False
         self.historical_data: Optional[pd.DataFrame] = None
         self.loaded_models_data: Dict[str, Dict] = {}
         self.available_model_ids: List[str] = []
@@ -835,18 +837,23 @@ class FootballPredictorDashboard:
 
     # --- Processamento da Fila GUI  ---
     def process_gui_queue(self):
+        # <<< PASSO 1: VERIFICA FLAG NO INÍCIO >>>
+        if self.stop_processing_queue:
+            logger.debug("PredictorDashboard: Parando fila GUI.")
+            return # Não processa e não reagenda
+
         try:
             while True:
                 try:
                     message = self.gui_queue.get_nowait()
                     msg_type, msg_payload = message
                 except Empty:
-                    break
+                    break # Sai do loop while se a fila estiver vazia
                 except (ValueError, TypeError):
-                    logger.error(f"AVISO GUI: Erro unpack msg: {message}")
+                    logger.error(f"AVISO GUI (Predictor): Erro unpack msg: {message}")
                     continue
                 except Exception as e_get:
-                    logger.error(f"Erro get fila GUI: {e_get}")
+                    logger.error(f"Erro get fila GUI (Predictor): {e_get}")
                     continue
 
                 # --- Trata tipos de mensagem ---
@@ -858,12 +865,16 @@ class FootballPredictorDashboard:
                     elif msg_type == "update_stats_gui":
                         self._update_model_stats_display_gui()
                     elif msg_type == "error":
-                        messagebox.showerror(msg_payload[0], msg_payload[1], parent=self.parent)
+                        # Garante que messagebox tem um pai válido
+                        parent_widget = self.parent if hasattr(self, 'parent') and self.parent.winfo_exists() else self.main_tk_root
+                        messagebox.showerror(msg_payload[0], msg_payload[1], parent=parent_widget)
                     elif msg_type == "info":
-                        messagebox.showinfo(msg_payload[0], msg_payload[1], parent=self.parent)
+                        parent_widget = self.parent if hasattr(self, 'parent') and self.parent.winfo_exists() else self.main_tk_root
+                        messagebox.showinfo(msg_payload[0], msg_payload[1], parent=parent_widget)
                     elif msg_type == "progress_start":
                         if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists():
-                            self.progress_bar.config(maximum=msg_payload[0] if msg_payload else 100, value=0)
+                            max_val = msg_payload[0] if isinstance(msg_payload, (tuple, list)) and msg_payload else 100
+                            self.progress_bar.config(maximum=max_val, value=0)
                         if hasattr(self, 'progress_label') and self.progress_label.winfo_exists():
                             self.progress_label.config(text="Iniciando...")
                     elif msg_type == "progress_update":
@@ -880,45 +891,45 @@ class FootballPredictorDashboard:
                             self.progress_label.config(text="Pronto.")
                     elif msg_type == "training_succeeded":
                         self.log("Treino OK. Recarregando modelos...")
-                        self.load_existing_model_assets()  # Recarrega para pegar os novos modelos salvos
+                        self.load_existing_model_assets()
                     elif msg_type == "training_failed":
                         self.log("ERRO: Treino falhou.")
-                        # Limpa estado (código como antes)
-                        self.selected_model_id = None
-                        self.trained_model = None
-                        self.trained_scaler = None
-                        self.trained_calibrator = None
-                        self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD;  # Resetando para default
-                        self.feature_columns = None
-                        self.model_best_params = None
-                        self.model_eval_metrics = None
-                        self.model_file_timestamp = None
-                        self.selected_model_var.set("")
+                        self.selected_model_id = None; self.trained_model = None; self.trained_scaler = None
+                        self.trained_calibrator = None; self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD;
+                        self.feature_columns = None; self.model_best_params = None; self.model_eval_metrics = None
+                        self.model_file_timestamp = None; self.selected_model_var.set("")
                         try:
-                            self.model_selector_combo.config(values=[])
-                        except tk.TclError:
-                            pass
+                            if hasattr(self, 'model_selector_combo') and self.model_selector_combo.winfo_exists():
+                                self.model_selector_combo.config(values=[])
+                        except tk.TclError: pass
                         self._update_model_stats_display_gui()
-                        self.set_button_state(self.predict_button, tk.DISABLED)
+                        self.set_button_state(self.predict_button, tk.DISABLED) # Garante que está desabilitado
+                        self.set_button_state(self.load_train_button, tk.NORMAL) # Reabilita botão de treino
                     elif msg_type == "prediction_complete":
-                        df_preds = msg_payload  # Pode ser DataFrame ou None
-                        self.log("Recebidas previsões completas.")
-                        self._update_prediction_display(df_preds)  # Atualiza Treeview
+                        df_preds = msg_payload
+                        self.log("Recebidas previsões completas para exibição.")
+                        self._update_prediction_display(df_preds)
+                        self.set_button_state(self.load_train_button, tk.NORMAL) # Reabilita botões pós-previsão
+                        if self.selected_model_id: self.set_button_state(self.predict_button, tk.NORMAL)
                     else:
-                        self.log(f"AVISO GUI: Msg desconhecida: {msg_type}")
+                        self.log(f"AVISO GUI (Predictor): Msg desconhecida: {msg_type}")
                 except tk.TclError:
-                    pass  # Ignora erro se widget destruído
+                    pass # Ignora erro se widget destruído
                 except Exception as e_proc:
-                    logger.error(f"Erro processar msg '{msg_type}': {e_proc}")
-                    traceback.logger.error_exc()
+                    # Usa logger importado
+                    logger.error(f"Erro processar msg (Predictor) '{msg_type}': {e_proc}", exc_info=True)
+                    # Não usa traceback.logger.error_exc() a menos que logger seja o objeto traceback
 
         except Exception as e_loop:
-            logger.error(f"Erro CRÍTICO loop fila GUI: {e_loop}")
-            traceback.logger.error_exc()
+            logger.error(f"Erro CRÍTICO loop fila GUI (Predictor): {e_loop}", exc_info=True)
         finally:
-            # Reagenda
-            try:
-                if self.main_tk_root and self.main_tk_root.winfo_exists():
-                    self.main_tk_root.after(100, self.process_gui_queue)
-            except Exception as e_resched:
-                logger.error(f"Erro reagendar fila: {e_resched}")
+            # <<< PASSO 2: REAGENDA SÓ SE NÃO FOR PARAR >>>
+            if not self.stop_processing_queue:
+                try:
+                     # Verifica se a janela principal ainda existe
+                    if hasattr(self.main_tk_root, 'winfo_exists') and self.main_tk_root.winfo_exists():
+                        self.main_tk_root.after(100, self.process_gui_queue)
+                except Exception as e_resched:
+                      # Evita logar erro se já está parando
+                    if not self.stop_processing_queue:
+                        logger.error(f"Erro reagendar fila GUI (Predictor): {e_resched}")

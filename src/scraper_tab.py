@@ -73,6 +73,7 @@ class ScraperUploadTab:
         self.parent = parent_frame
         self.main_tk_root = main_root # Necessário para o .after()
         self.gui_queue = queue.Queue()
+        self.stop_processing_queue = False
         self.scraper_thread : Optional[threading.Thread] = None
         self.upload_thread : Optional[threading.Thread] = None
         self.scraped_data: Optional[pd.DataFrame] = None # Para armazenar os dados raspados
@@ -337,31 +338,44 @@ class ScraperUploadTab:
 
     def process_gui_queue(self):
         """Processa mensagens da fila para atualizar a GUI."""
+        if self.stop_processing_queue:
+            logger.debug("ScraperUploadTab: Parando fila GUI.")
+            return # Sai e não reagenda
+
         try:
             while True: # Processa todas as mensagens pendentes
                 try:
                     message_type, payload = self.gui_queue.get_nowait()
 
+                    # <<< Seu código de processamento de mensagens para esta aba >>>
                     if message_type == "log":
                         self._update_log_widget(payload)
                     elif message_type == "status":
                         self._update_status_label(payload)
                     elif message_type == "button_state":
                         self._update_button_state(payload)
+                    # Adicione outros tipos específicos desta aba, se houver
                     else:
-                        logger.warning(f"Tipo de mensagem desconhecido na fila da GUI: {message_type}")
+                        logger.warning(f"Tipo de mensagem desconhecido na fila GUI (Scraper): {message_type}")
+                    # <<< Fim do processamento >>>
 
                 except queue.Empty: # Fila vazia, sai do loop while
                     break
                 except Exception as e:
-                    logger.error(f"Erro ao processar fila da GUI: {e}", exc_info=True)
+                    logger.error(f"Erro ao processar fila da GUI (Scraper): {e}", exc_info=True)
                     break # Sai do loop em caso de erro inesperado no processamento
 
         finally:
-            # Reagenda a si mesmo para verificar a fila novamente
-            # Garante que main_tk_root ainda existe
-             if hasattr(self.main_tk_root, 'winfo_exists') and self.main_tk_root.winfo_exists():
-                  self.main_tk_root.after(100, self.process_gui_queue)
+            # <<< PASSO 2: REAGENDA SÓ SE NÃO FOR PARAR >>>
+            if not self.stop_processing_queue:
+                try:
+                    # Verifica se a janela principal ainda existe
+                    if hasattr(self.main_tk_root, 'winfo_exists') and self.main_tk_root.winfo_exists():
+                        self.main_tk_root.after(100, self.process_gui_queue)
+                except Exception as e_resched:
+                    # Evita logar erro se já está parando
+                    if not self.stop_processing_queue:
+                        logger.error(f"Erro reagendar fila GUI (Scraper): {e_resched}")
 
 # --- Bloco para teste independente (opcional) ---
 if __name__ == "__main__":

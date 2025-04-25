@@ -1,15 +1,25 @@
 # --- requirements.txt ---
 
-pandas>=1.5 # Para manipulação de dados e leitura de Excel/CSV
-numpy>=1.21 # Dependência numérica para pandas e sklearn
-scikit-learn>=1.1 # Biblioteca principal de Machine Learning (RF, LR, SVM, GNB, KNN, metrics, etc.)
-joblib>=1.1 # Para salvar/carregar modelos sklearn
-requests>=2.25 # Para buscar o CSV de jogos futuros do GitHub
-rich>=10.0 # Para a interface de linha de comando (dashboard.py)
-tqdm>=4.60 # Para barras de progresso em loops
-openpyxl>=3.0 # Necessário para pandas ler arquivos .xlsx (histórico)
-PyGithub>=1.55 # Para interagir com a API do GitHub (github_manager.py)
-python-dotenv>=0.19 # Para carregar variáveis de ambiente do arquivo .env (opcional, mas bom para tokens)
+pandas>=1.5             # Para manipulação de dados e leitura de Excel/CSV
+numpy>=1.21             # Dependência numérica para pandas e sklearn
+scikit-learn>=1.1       # Biblioteca principal de Machine Learning (RF, LR, SVM, GNB, KNN, metrics, etc.)
+imbalanced-learn>=0.13  # Para balanceamento de classes (SMOTE, ADASYN, etc.)
+scikit-optimize>=0.10.2 # Para otimização de hiperparâmetros
+scipy>=1.8              # Usado por sklearn, stats (ex: poisson)
+joblib>=1.1             # Para salvar/carregar modelos sklearn
+requests>=2.25          # Para buscar o CSV de jogos futuros do GitHub
+rich>=10.0              # Para a interface de linha de comando (dashboard.py)
+tqdm>=4.60              # Para barras de progresso em loops
+openpyxl>=3.0           # Necessário para pandas ler arquivos .xlsx (histórico)
+PyGithub>=1.55          # Para interagir com a API do GitHub (github_manager.py)
+python-dotenv>=0.19     # Para carregar variáveis de ambiente do arquivo .env (opcional, mas bom para tokens)
+shap>=0.41              # Para interpretabilidade de modelos (SHAP plots)
+matplotlib>=3.5         # Biblioteca base para plotagem
+seaborn>=0.12           # Para gráficos estatísticos mais bonitos 
+selenium>=4.8           # Automação de navegador para o scraper Flashscore
+requests>=2.28          # Para baixar CSVs de fixtures do GitHub
+lightgbm>=3.3           # Modelo LightGBM (se LGBM_AVAILABLE for True)
+
 
 # Opcional: Instale se quiser testar o modelo LightGBM
 # lightgbm>=3.3
