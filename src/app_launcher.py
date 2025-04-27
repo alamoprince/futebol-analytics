@@ -120,11 +120,11 @@ class MainApplication:
                 # Verifica se a instância existe e se tem o método/flag esperado
                 if tab_instance and hasattr(tab_instance, 'stop_processing_queue'):
                     try:
-                        logger.debug(f"Sinalizando parada para {tab_name}...")
+                        logger.debug(f"ANTES: Flag parada para {tab_name}: {getattr(tab_instance, 'stop_processing_queue', 'N/A')}")
                         tab_instance.stop_processing_queue = True
+                        logger.debug(f"DEPOIS: Flag parada para {tab_name}: {getattr(tab_instance, 'stop_processing_queue', 'N/A')}") # Confirma mudança
                     except Exception as e_signal:
-                         logger.warning(f"Erro ao sinalizar parada para {tab_name}: {e_signal}")
-                # Não loga warning se não tiver o flag (como FeatureAnalyzerApp agora)
+                        logger.warning(f"Erro ao sinalizar parada para {tab_name}: {e_signal}")
 
             self.root.update_idletasks()
             try:

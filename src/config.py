@@ -138,7 +138,7 @@ REQUIRED_FIXTURE_COLS = ['League','Time', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT'
 
 
 # --- Configurações Gerais do Modelo ---
-RANDOM_STATE = 42; TEST_SIZE = 0.2; CROSS_VALIDATION_SPLITS = 5; N_JOBS_GRIDSEARCH = -1; ROLLING_WINDOW = 7 #mudei o rolling_window para 7 dias (1 semana) antes era 10 dias
+RANDOM_STATE = 42; TEST_SIZE = 0.2; CROSS_VALIDATION_SPLITS = 5; N_JOBS_GRIDSEARCH = -1; ROLLING_WINDOW = 5 #mudei o rolling_window para 5 dias 
 FEATURE_EPSILON = 1e-6
 RESULT_MAPPING = {'D': 0, 'H': 1, 'A': 2} # Usado para Ptos
 CLASS_NAMES = ['Nao_Empate', 'Empate'] # Alvo binário
@@ -245,39 +245,18 @@ ALL_CANDIDATE_FEATURES = [
 
 # --- Lista das Features FINAIS para o Modelo BackDraw ---
 FEATURE_COLUMNS = [
-    # Derivada das Odds 1x2
-    'CV_HDA',
-
-    # Odds Diretas (do CSV ou Histórico)
-    'Odd_H_FT',
-    'Odd_A_FT',
-    'Odd_D_FT',
-
-    # Médias Rolling (Calculadas do Histórico)
-    'Media_VG_H',
-    'Media_VG_A',
-    'Media_CG_H',
-    'Media_CG_A',
-
-    # Diferença Rolling (Calculada)
-    'Diff_Media_CG',
-
-    # Consistência Custo Gol Casa (Rolling Std)
-    'Std_CG_H',   
-    'Std_CG_A',    
-                   
     
 ]
 
 NEW_FEATURE_COLUMNS = [
-    'p_D_norm',             # Probabilidade Empate Normalizada
-    'PiRating_Prob_H',      # Probabilidade de vitória da casa segundo Pi-Ratings
-    'CV_HDA',               # Coeficiente de Variação (HDA)
-    'Std_CG_A',             # Custo Gol Fora (Rolling Std)
-    'Std_CG_H',             # Custo Gol Casa (Rolling Std)
-    'Prob_Empate_Poisson',  # Empate de Poisson
-    'Odd_D_Cat',            # Binning das Odds de Empate
-
+    'p_D_norm',
+    'CV_HDA',
+    PIRATING_MOMENTUM_DIFF,
+    'Std_CG_H',
+    'Std_CG_A',   
+    'Prob_Empate_Poisson',
+    'Odd_Over25_FT',
+    'pDnorm_x_CVHDA',
 ]
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
@@ -341,6 +320,16 @@ knn_search_spaces = {
 # GaussianNB (Não tem muitos hiperparâmetros para otimizar com Bayes, GridSearchCV é ok)
 gnb_search_spaces = { 'classifier__var_smoothing': np.logspace(-9, -2, num=15) }
 
+# CatBoost
+catboost_search_spaces = {
+    'classifier__iterations': sp.Integer(100, 1000), # Similar a n_estimators
+    'classifier__learning_rate': sp.Real(0.01, 0.3, prior='log-uniform'),
+    'classifier__depth': sp.Integer(4, 10), # Profundidade da árvore
+    'classifier__l2_leaf_reg': sp.Real(1, 10, prior='uniform'), # Regularização L2
+    'classifier__border_count': sp.Integer(32, 255), # Número de splits para features numéricas
+    'classifier__loss_function': sp.Categorical(['Logloss']), # Para classificação binária
+}
+
 MODEL_CONFIG = {
     'RandomForestClassifier': {
         'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH},
@@ -373,6 +362,17 @@ MODEL_CONFIG = {
         'search_spaces': knn_search_spaces, 
         'needs_scaling': True
     },
+    'CatBoostClassifier': {
+        'model_kwargs': {
+            'random_state': RANDOM_STATE,
+            'verbose': 0, # Para não poluir o log durante CV/BayesOpt
+            'eval_metric': 'f1_score_draw', # Pode definir a métrica de avaliação interna
+            'early_stopping_rounds': 50}, # Útil para evitar overfitting
+            'search_spaces': catboost_search_spaces,
+            'needs_scaling': False # Geralmente não precisa de scaling
+    }
+        
+    
 }
 
 # Número de iterações para Otimização Bayesiana
@@ -383,6 +383,7 @@ DEFAULT_EV_THRESHOLD = 0.05 # Threshold padrão para EV (Expected Value) - Ajust
 
 DEFAULT_F1_THRESHOLD = 0.7
 
+MIN_RECALL_FOR_PRECISION_OPT = 0.25
 # --- Configuração GitHub ---
 
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')

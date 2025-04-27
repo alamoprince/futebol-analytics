@@ -1,0 +1,14 @@
+2025-04-27 01:46:45 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-27 01:46:45 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-04-27 01:46:45 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-27 01:46:45 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-04-27 01:46:49 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-04-27 01:46:49 - Main2 - ERROR - Erro import main.py (Treino/Previsão): cannot import name 'train_evaluate_and_save_best_models' from 'model_trainer' (c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py)
+2025-04-27 01:46:49 - MainApp - ERROR - Erro ao importar classes da GUI: cannot import name 'train_evaluate_and_save_best_models' from 'model_trainer' (c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py)
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\app_launcher.py", line 27, in <module>
+    from main import FootballPredictorDashboard
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\main.py", line 50, in <module>
+    from model_trainer import train_evaluate_and_save_best_models as run_training_process
+ImportError: cannot import name 'train_evaluate_and_save_best_models' from 'model_trainer' (c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py)
+2025-04-27 01:46:49 - MainApp - ERROR - Verifique os nomes dos arquivos/classes e se os arquivos estão em 'src'.

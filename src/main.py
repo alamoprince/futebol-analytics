@@ -203,79 +203,125 @@ class FootballPredictorDashboard:
 
     # --- : Atualiza Display de Stats do Modelo ---
     def _update_model_stats_display_gui(self):
-        """ Atualiza display de stats focando na estratégia EV final. """
+        """Atualiza display de stats focando nos diferentes limiares e métricas."""
         try:
-            if not hasattr(self, 'model_stats_text') or not self.model_stats_text.winfo_exists(): return
+            if not hasattr(self, 'model_stats_text') or not self.model_stats_text.winfo_exists():
+                return
             self.model_stats_text.config(state='normal')
             self.model_stats_text.delete('1.0', tk.END)
 
             if self.trained_model is None or self.selected_model_id is None:
-                stats_content = "Nenhum modelo selecionado."
+                stats_content = "Nenhum modelo selecionado ou carregado."
             else:
                 model_data = self.loaded_models_data.get(self.selected_model_id, {})
-                metrics = model_data.get('metrics', {}) # Métricas salvas do teste
+                metrics = model_data.get('metrics', {}) # Métricas salvas do teste/avaliação
                 params = model_data.get('params')
                 features = model_data.get('features', [])
-                timestamp = self.model_file_timestamp
+                timestamp = model_data.get('timestamp') # Timestamp do arquivo .joblib
                 path = model_data.get('path')
-                model_class_name = self.trained_model.__class__.__name__ if self.trained_model else "N/A"
-                optimal_ev_th = model_data.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD) # Pega limiar EV
-                optimal_f1_thr = self.optimal_f1_threshold
-                calibrator_loaded = model_data.get('calibrator') is not None
+                # Obtém o nome da classe do modelo salvo
+                model_obj = model_data.get('model') # Pega o objeto do modelo
+                model_class_name = model_obj.__class__.__name__ if model_obj else metrics.get('model_name', 'N/A') # Usa o nome salvo se objeto não carregou
 
-                was_optimized = abs(optimal_ev_th - DEFAULT_EV_THRESHOLD) > 1e-6 if isinstance(optimal_ev_th, (int,float)) else False
+                # Pega os limiares ótimos (com defaults)
+                optimal_f1_thr = metrics.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD)
+                optimal_ev_thr = metrics.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD)
+                # Usa get() para o limiar de precision, pois pode não existir em modelos antigos
+                optimal_prec_thr = metrics.get('optimal_precision_threshold', 0.5) # Default 0.5 se não encontrado
+
+                calibrator_loaded = model_data.get('calibrator') is not None
 
                 # --- Seção 1: Informações Gerais ---
                 stats_content = f"Modelo Selecionado: {self.selected_model_id}\n"
                 stats_content += f"  Tipo: {model_class_name}\n"
+                # Se for ensemble, mostra estimadores base
+                if model_class_name == 'VotingClassifier' and params and 'estimators' in params:
+                     estimator_names = [e_name.split('_')[0] for e_name in params['estimators']] # Tenta pegar nome base
+                     stats_content += f"  Estimadores Base: {', '.join(estimator_names)}\n"
+                elif params and model_class_name != 'VotingEnsemble': # Evita mostrar params complexos do voting
+                    stats_content += f"  Params Otimizados: {params}\n"
+
                 stats_content += f"  Calibrado (Isotonic): {'Sim' if calibrator_loaded else 'Não'}\n"
-                stats_content += f"  Limiar EV Otimizado: {optimal_ev_th:.4f}\n" if isinstance(optimal_ev_th, (int, float)) else f"  Limiar EV: {optimal_ev_th}\n"
-                stats_content += f"  Limiar F1 Otimizado: {optimal_f1_thr:.4f}\n" # Mostra F1 Thr
                 stats_content += f"  Arquivo: {os.path.basename(path or 'N/A')}\n"
                 stats_content += f"  Modificado: {timestamp or 'N/A'}\n"
-                if params: stats_content += f"  Params: {params}\n"
                 if features: stats_content += f"  Features ({len(features)}): {', '.join(features)}\n"
                 stats_content += "---\n"
 
-                # --- Seção 2: Métricas de Qualidade da Previsão (Teste) ---
-                acc = metrics.get('accuracy')
-                f1_d = metrics.get('f1_score_draw')  # F1 @ 0.5 (ainda útil como ref)
-                auc = metrics.get('roc_auc')         # AUC das probs calibradas
-                brier = metrics.get('brier_score')   # Brier das probs calibradas
-                test_n = metrics.get('test_set_size', 'N/A')
-                prec = metrics.get('precision_draw')      # Precision das probs calibradas
-
-                stats_content += "Métricas de Qualidade (Conjunto Teste):\n"
-                stats_content += f"- Acurácia: {acc:.4f}\n" if acc is not None else "- Acc: N/A\n"
-                stats_content += f"- F1 Empate (@ Thr 0.5): {f1_d:.4f}\n" if f1_d is not None else "- F1@0.5: N/A\n"
-                stats_content += f"- ROC AUC (Pós-Calib): {auc:.4f}\n" if auc is not None else "- AUC: N/A\n"
-                stats_content += f"- Brier Score (Pós-Calib): {brier:.4f}\n" if brier is not None else "- Brier: N/A\n"
-                stats_content += f"- Precision (Pós-Calib): {prec:.4f}\n" if prec is not None else "- Precision: N/A\n"
-                stats_content += f"- Tamanho Teste: {test_n}\n"
+                # --- Seção 2: Limiares Otimizados ---
+                stats_content += "Limiares Otimizados (Validação/Teste):\n"
+                stats_content += f"- Limiar F1:      {optimal_f1_thr:.4f}\n"
+                stats_content += f"- Limiar Precision: {optimal_prec_thr:.4f}\n"
+                stats_content += f"- Limiar EV:        {optimal_ev_thr:.4f}\n"
                 stats_content += "---\n"
 
-                # --- Seção 3: Resultado da Estratégia EV (Teste) ---
-                profit_ev = metrics.get('profit')   # Profit com Limiar EV
-                roi_ev = metrics.get('roi')         # ROI com Limiar EV
-                n_bets_ev = metrics.get('num_bets') # Bets com Limiar EV
+                # --- Seção 3: Métricas de Qualidade (Teste) ---
+                stats_content += "Métricas de Qualidade (Conjunto Teste):\n"
+                test_n = metrics.get('test_set_size', 'N/A')
+                stats_content += f"- Tamanho Teste: {test_n}\n"
 
-                stats_content += f"Estratégia de Aposta (EV > {optimal_ev_th:.3f} no Teste):\n" if isinstance(optimal_ev_th,(int,float)) else "Estratégia de Aposta (Teste):\n"
-                stats_content += f"- Nº de Apostas Sugeridas: {n_bets_ev if n_bets_ev is not None else 'N/A'}\n"
-                profit_ev_str = f"{profit_ev:.2f} u" if profit_ev is not None else "N/A"
+                # Métricas @ Limiar F1 Otimizado
+                f1_f1 = metrics.get('f1_score_draw') # Chave principal F1
+                p_f1 = metrics.get('precision_draw_thrF1') # Precision no limiar F1
+                r_f1 = metrics.get('recall_draw_thrF1')    # Recall no limiar F1
+                acc_f1 = metrics.get('accuracy_thrF1')
+                stats_content += f"- @ Limiar F1 ({optimal_f1_thr:.3f}):\n"
+                stats_content += f"    F1={f1_f1:.4f}" if f1_f1 is not None else "    F1=N/A"
+                stats_content += f" | P={p_f1:.4f}" if p_f1 is not None else " | P=N/A"
+                stats_content += f" | R={r_f1:.4f}" if r_f1 is not None else " | R=N/A"
+                stats_content += f" | Acc={acc_f1:.4f}\n" if acc_f1 is not None else " | Acc=N/A\n"
+
+                # Métricas @ Limiar Precision Otimizado
+                f1_p = metrics.get('f1_score_draw_thrPrec')
+                p_p = metrics.get('precision_draw_thrPrec')
+                r_p = metrics.get('recall_draw_thrPrec')
+                acc_p = metrics.get('accuracy_thrPrec')
+                stats_content += f"- @ Limiar Prec ({optimal_prec_thr:.3f}):\n"
+                stats_content += f"    F1={f1_p:.4f}" if f1_p is not None else "    F1=N/A"
+                stats_content += f" | P={p_p:.4f}" if p_p is not None else " | P=N/A"
+                stats_content += f" | R={r_p:.4f}" if r_p is not None else " | R=N/A"
+                stats_content += f" | Acc={acc_p:.4f}\n" if acc_p is not None else " | Acc=N/A\n"
+
+                # Métricas Probabilísticas (Pós-Calibração)
+                auc = metrics.get('roc_auc')
+                brier = metrics.get('brier_score')
+                logloss = metrics.get('log_loss') # Geralmente calculado com probs brutas
+                stats_content += "- Métricas Probabilísticas:\n"
+                stats_content += f"    ROC AUC (Pós-Calib): {auc:.4f}\n" if auc is not None else "    ROC AUC=N/A\n"
+                stats_content += f"    Brier Score (Pós-Calib): {brier:.4f}\n" if brier is not None else "    Brier=N/A\n"
+                stats_content += f"    Log Loss (Bruto): {logloss:.4f}\n" if logloss is not None else "    Log Loss=N/A\n"
+
+                stats_content += "---\n"
+
+                # --- Seção 4: Estratégia de Aposta EV (Teste) ---
+                profit_ev = metrics.get('profit')
+                roi_ev = metrics.get('roi')
+                n_bets_ev = metrics.get('num_bets') # Número de apostas sugeridas pelo limiar EV
+
+                stats_content += f"Estratégia EV (EV > {optimal_ev_thr:.3f} no Teste):\n"
+                stats_content += f"- Nº Apostas Sugeridas: {n_bets_ev if n_bets_ev is not None else 'N/A'}\n"
+                profit_ev_str = f"{profit_ev:+.2f} u" if profit_ev is not None else "N/A" # Adiciona sinal +/-
                 roi_ev_str = "N/A"
-                if roi_ev is not None:
-                    try:
-                         if isinstance(roi_ev, (float, np.number)) and not np.isnan(roi_ev): roi_ev_str = f"{roi_ev:.2f} %"
-                         elif isinstance(roi_ev, (int, float)): roi_ev_str = f"{roi_ev:.2f} %"
-                    except TypeError: pass
+                # Trata NaN/Inf/None para ROI de forma segura
+                if isinstance(roi_ev, (int, float, np.number)) and pd.notna(roi_ev) and np.isfinite(roi_ev):
+                    roi_ev_str = f"{roi_ev:+.2f} %" # Adiciona sinal +/-
+
                 stats_content += f"- Lucro/Prejuízo: {profit_ev_str}\n"
                 stats_content += f"- ROI Calculado: {roi_ev_str}\n"
-            
+
             # Atualiza o widget
             self.model_stats_text.insert('1.0', stats_content)
             self.model_stats_text.config(state='disabled')
-        except tk.TclError: pass
-        except Exception as e: logger.error(f"Erro _update_model_stats_display_gui: {e}"); traceback.logger.error_exc()
+        except tk.TclError:
+            pass # Ignora erro se widget for destruído enquanto atualiza
+        except Exception as e:
+            logger.error(f"Erro _update_model_stats_display_gui: {e}", exc_info=True)
+            try: # Tenta exibir erro no widget
+                 if hasattr(self, 'model_stats_text') and self.model_stats_text.winfo_exists():
+                      self.model_stats_text.config(state='normal')
+                      self.model_stats_text.delete('1.0', tk.END)
+                      self.model_stats_text.insert('1.0', f"Erro ao exibir stats:\n{e}")
+                      self.model_stats_text.config(state='disabled')
+            except: pass
 
     # --- : Setup Colunas Treeview ---
     def _setup_prediction_columns(self, columns: List[str]):

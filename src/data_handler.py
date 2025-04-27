@@ -1,6 +1,8 @@
 # --- src/data_handler.py ---
 import pandas as pd
 import numpy as np
+from collections import defaultdict, deque
+
 from config import (
     FEATURE_COLUMNS,
     ODDS_COLS, GOALS_COLS, ROLLING_WINDOW,
@@ -9,7 +11,13 @@ from config import (
     TARGET_LEAGUES_INTERNAL_IDS, TARGET_LEAGUES_1,TARGET_LEAGUES_2, INTERNAL_LEAGUE_NAMES,
     CSV_HIST_COL_MAP,HISTORICAL_DATA_PATH_1, HISTORICAL_DATA_PATH_2,
     OTHER_ODDS_NAMES, XG_COLS,
-    PI_RATING_INITIAL, PI_RATING_K_FACTOR, PI_RATING_HOME_ADVANTAGE
+    PI_RATING_INITIAL, PI_RATING_K_FACTOR, PI_RATING_HOME_ADVANTAGE,
+    FEATURE_EPSILON, 
+    # <<< Importar nomes das novas features >>>
+    INTERACTION_P_D_NORM_X_CV_HDA, INTERACTION_P_D_NORM_DIV_CV_HDA,
+    INTERACTION_P_D_NORM_X_PIR_DIFF, INTERACTION_P_D_NORM_DIV_PIR_DIFF,
+    INTERACTION_ODD_D_X_PIR_DIFF, INTERACTION_ODD_D_DIV_PIR_DIFF,
+    PIRATING_MOMENTUM_H, PIRATING_MOMENTUM_A, PIRATING_MOMENTUM_DIFF
     
 )
 from typing import Tuple, Optional, List, Dict, Any
@@ -519,24 +527,56 @@ def calculate_binned_features(df: pd.DataFrame) -> pd.DataFrame:
     return df_calc
 
 def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Calcula CV_HDA e Diff_Media_CG no DataFrame fornecido."""
+    """Calcula CV_HDA, Diff_Media_CG e NOVAS features de interação."""
     df_calc = df.copy()
-    logger.info("Calculando features derivadas (CV_HDA, Diff_Media_CG)...")
-    epsilon = 1e-6
+    logger.info("Calculando features derivadas (CV_HDA, Diff_Media_CG, Interações)...")
+
+    # CV_HDA (como antes)
     if all(c in df_calc.columns for c in ODDS_COLS.values()):
-        odds_matrix = df_calc[list(ODDS_COLS.values())]
+        odds_matrix = df_calc[list(ODDS_COLS.values())].apply(pd.to_numeric, errors='coerce')
         mean_odds = odds_matrix.mean(axis=1)
         std_odds = odds_matrix.std(axis=1)
-        df_calc['CV_HDA'] = std_odds.div(mean_odds).fillna(0)
-        df_calc.loc[mean_odds <= epsilon, 'CV_HDA'] = 0
-    else:
-        logger.warning("Odds 1x2 ausentes p/ CV_HDA.")
-        df_calc['CV_HDA'] = np.nan
+        # Usa FEATURE_EPSILON importado do config
+        df_calc['CV_HDA'] = std_odds.div(mean_odds.replace(0, FEATURE_EPSILON)).fillna(0)
+    else: logger.warning("Odds 1x2 ausentes p/ CV_HDA."); df_calc['CV_HDA'] = np.nan
+
+    # Diff_Media_CG (como antes)
     if 'Media_CG_H' in df_calc.columns and 'Media_CG_A' in df_calc.columns:
         df_calc['Diff_Media_CG'] = df_calc['Media_CG_H'] - df_calc['Media_CG_A']
-    else:
-        logger.warning("Médias CG ausentes p/ Diff_Media_CG.")
-        df_calc['Diff_Media_CG'] = np.nan
+    else: logger.warning("Médias CG ausentes p/ Diff_Media_CG."); df_calc['Diff_Media_CG'] = np.nan
+
+    # --- NOVAS INTERAÇÕES ---
+    # Garante que colunas necessárias existem e são numéricas
+    cols_needed = ['CV_HDA', 'p_D_norm', 'PiRating_Diff', ODDS_COLS['draw']]
+    for col in cols_needed:
+        if col not in df_calc.columns:
+             logger.warning(f"Coluna '{col}' ausente para cálculo de interações.")
+             # Define colunas de interação como NaN se input faltar
+             df_calc[[INTERACTION_P_D_NORM_X_CV_HDA, INTERACTION_P_D_NORM_DIV_CV_HDA,
+                      INTERACTION_P_D_NORM_X_PIR_DIFF, INTERACTION_P_D_NORM_DIV_PIR_DIFF,
+                      INTERACTION_ODD_D_X_PIR_DIFF, INTERACTION_ODD_D_DIV_PIR_DIFF]] = np.nan
+             return df_calc # Retorna cedo se coluna essencial faltar
+        # Tenta converter para numérico (embora devam ser do pré-processamento)
+        if not pd.api.types.is_numeric_dtype(df_calc[col]):
+            df_calc[col] = pd.to_numeric(df_calc[col], errors='coerce')
+
+    # Interação 1: p_D_norm vs CV_HDA
+    df_calc[INTERACTION_P_D_NORM_X_CV_HDA] = df_calc['p_D_norm'] * df_calc['CV_HDA']
+    # Divisão segura: Adiciona epsilon ao denominador onde CV_HDA pode ser zero ou próximo a zero
+    df_calc[INTERACTION_P_D_NORM_DIV_CV_HDA] = df_calc['p_D_norm'] / (df_calc['CV_HDA'] + FEATURE_EPSILON)
+
+    # Interação 2: Prob/Odds Empate vs |PiRating_Diff|
+    # Calcula valor absoluto da diferença de rating
+    abs_pi_rating_diff = df_calc['PiRating_Diff'].abs()
+    df_calc[INTERACTION_P_D_NORM_X_PIR_DIFF] = df_calc['p_D_norm'] * abs_pi_rating_diff
+    # Divisão segura
+    df_calc[INTERACTION_P_D_NORM_DIV_PIR_DIFF] = df_calc['p_D_norm'] / (abs_pi_rating_diff + FEATURE_EPSILON)
+    # Com Odd_D_FT
+    odd_d_col = ODDS_COLS['draw']
+    df_calc[INTERACTION_ODD_D_X_PIR_DIFF] = df_calc[odd_d_col] * abs_pi_rating_diff
+    df_calc[INTERACTION_ODD_D_DIV_PIR_DIFF] = df_calc[odd_d_col] / (abs_pi_rating_diff + FEATURE_EPSILON)
+
+    logger.info("Features de interação calculadas.")
     return df_calc
 
 def calculate_poisson_draw_prob(
@@ -583,85 +623,109 @@ def calculate_poisson_draw_prob(
 
 def calculate_pi_ratings(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Calcula Pi-Ratings (Elo-like) iterando pelo histórico de jogos ordenado.
-
-    Args:
-        df: DataFrame com histórico de jogos, ORDENADO POR DATA,
-            contendo colunas 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT'.
-
-    Returns:
-        DataFrame original com colunas adicionais:
-        'PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H'.
-        Os ratings são os valores ANTES da partida ser jogada.
+    Calcula Pi-Ratings e Pi-Rating Momentum. Requer df ORDENADO por data.
     """
-    logger.info("Calculando Pi-Ratings...")
+    logger.info(f"Calculando Pi-Ratings e Momentum (Janela={ROLLING_WINDOW})...")
     if not df.index.is_monotonic_increasing:
-         logger.warning("DataFrame não está ordenado por índice (presumivelmente Data). Ordenando...")
-         # Garante ordenação por índice se não estiver (importante para cálculo correto)
-         # Idealmente, a ordenação por Data já foi feita em load_historical_data
-         df = df.sort_index()
+         logger.warning("DataFrame não ordenado por índice (Data?). Ordenando...")
+         df = df.sort_index() # Garante ordenação pelo índice (que deve refletir a data)
 
-    ratings = {} # Dicionário para armazenar rating atual dos times
-    results_pi = [] # Lista para guardar os ratings ANTES de cada jogo
+    # Estruturas para armazenar ratings atuais e históricos recentes
+    ratings = {} # Rating atual: {team: rating}
+    rating_history = defaultdict(lambda: deque(maxlen=ROLLING_WINDOW + 1))
 
-    # Garantir que gols são numéricos
-    df['Goals_H_FT'] = pd.to_numeric(df['Goals_H_FT'], errors='coerce')
-    df['Goals_A_FT'] = pd.to_numeric(df['Goals_A_FT'], errors='coerce')
+    results_pi = [] # Guarda ratings e momentum ANTES de cada jogo
 
-    for index, row in tqdm(df.iterrows(), total=len(df), desc="Calculando Pi-Ratings"):
+    # Garante que gols são numéricos
+    goals_h_col = GOALS_COLS.get('home', 'Goals_H_FT')
+    goals_a_col = GOALS_COLS.get('away', 'Goals_A_FT')
+    df[goals_h_col] = pd.to_numeric(df[goals_h_col], errors='coerce')
+    df[goals_a_col] = pd.to_numeric(df[goals_a_col], errors='coerce')
+
+    # Itera pelas linhas do DataFrame
+    for index, row in tqdm(df.iterrows(), total=len(df), desc="Calculando Pi-Ratings/Momentum"):
         home_team = row['Home']
         away_team = row['Away']
 
-        # Pega ratings atuais ou inicializa
+        # --- Ratings Atuais (Antes do Jogo) ---
         rating_h = ratings.get(home_team, PI_RATING_INITIAL)
         rating_a = ratings.get(away_team, PI_RATING_INITIAL)
 
-        # Calcula expectativa com vantagem de casa
+        # --- Momentum (Rating Atual vs Rating N jogos atrás) ---
+        # Pega histórico recente do time da casa
+        hist_h = rating_history[home_team]
+        rating_h_n_ago = None
+        if len(hist_h) >= ROLLING_WINDOW: # Precisa de pelo menos N+1 entradas para pegar N jogos atrás
+             # O deque guarda (idx, rating). Pega o rating da entrada mais antiga (N jogos atrás)
+             # O mais antigo está no índice 0 do deque quando ele está cheio.
+             rating_h_n_ago = hist_h[0][1] # Pega o rating do elemento 0
+        pi_rating_mom_h = (rating_h - rating_h_n_ago) if rating_h_n_ago is not None else np.nan
+
+        # Pega histórico recente do time visitante
+        hist_a = rating_history[away_team]
+        rating_a_n_ago = None
+        if len(hist_a) >= ROLLING_WINDOW:
+             rating_a_n_ago = hist_a[0][1]
+        pi_rating_mom_a = (rating_a - rating_a_n_ago) if rating_a_n_ago is not None else np.nan
+
+        pi_rating_mom_diff = pi_rating_mom_h - pi_rating_mom_a if pd.notna(pi_rating_mom_h) and pd.notna(pi_rating_mom_a) else np.nan
+        # -------------------------------------------------------
+
+        # --- Cálculo da Expectativa (como antes) ---
         rating_h_adj = rating_h + PI_RATING_HOME_ADVANTAGE
         rating_diff = rating_h_adj - rating_a
         expected_h = 1 / (1 + 10**(-rating_diff / 400))
-        # expected_a = 1 - expected_h # Não usado diretamente no update, mas útil para feature
 
-        # Guarda os ratings ANTES do jogo como features
+        # --- Guarda os resultados ANTES do jogo ---
         match_pi_data = {
             'Index': index, # Para join posterior
             'PiRating_H': rating_h,
             'PiRating_A': rating_a,
             'PiRating_Diff': rating_h - rating_a, # Diferença sem home advantage
-            'PiRating_Prob_H': expected_h         # Probabilidade H com home advantage
+            'PiRating_Prob_H': expected_h,        # Prob H com home advantage
+            # Novas Features Momentum
+            PIRATING_MOMENTUM_H: pi_rating_mom_h,
+            PIRATING_MOMENTUM_A: pi_rating_mom_a,
+            PIRATING_MOMENTUM_DIFF: pi_rating_mom_diff
         }
         results_pi.append(match_pi_data)
+        # -------------------------------------------
 
-        # Determina resultado real (Score: 1=H Win, 0.5=Draw, 0=A Win)
-        score_h = np.nan
-        if pd.notna(row['Goals_H_FT']) and pd.notna(row['Goals_A_FT']):
-            if row['Goals_H_FT'] > row['Goals_A_FT']: score_h = 1.0
-            elif row['Goals_H_FT'] == row['Goals_A_FT']: score_h = 0.5
+        # --- Atualização dos Ratings (Após o Jogo) ---
+        score_h = np.nan # Resultado real (1=H, 0.5=D, 0=A)
+        if pd.notna(row[goals_h_col]) and pd.notna(row[goals_a_col]):
+            if row[goals_h_col] > row[goals_a_col]: score_h = 1.0
+            elif row[goals_h_col] == row[goals_a_col]: score_h = 0.5
             else: score_h = 0.0
 
-        # Atualiza ratings SE o resultado for válido
+        new_rating_h, new_rating_a = rating_h, rating_a # Default se resultado for NaN
         if pd.notna(score_h):
             new_rating_h = rating_h + PI_RATING_K_FACTOR * (score_h - expected_h)
-            # A mudança do visitante é simétrica à da casa
-            new_rating_a = rating_a + PI_RATING_K_FACTOR * ((1 - score_h) - (1 - expected_h)) # (score_a - expected_a)
+            new_rating_a = rating_a + PI_RATING_K_FACTOR * ((1 - score_h) - (1 - expected_h))
 
-            ratings[home_team] = new_rating_h
-            ratings[away_team] = new_rating_a
-        # else: Mantém os ratings antigos se o resultado for inválido
+        # Atualiza ratings atuais e histórico
+        ratings[home_team] = new_rating_h
+        ratings[away_team] = new_rating_a
+        # Adiciona o rating PÓS jogo ao histórico (ou o rating antigo se o resultado era NaN)
+        rating_history[home_team].append((index, new_rating_h))
+        rating_history[away_team].append((index, new_rating_a))
+        # ---------------------------------------------
 
     # Cria DataFrame com os resultados e junta com o original
     df_pi_ratings = pd.DataFrame(results_pi).set_index('Index')
-
-    # Junta as novas colunas ao DF original
-    # Usa update para sobrescrever colunas se já existirem (caso rode mais de uma vez)
     df_out = df.copy()
+    # Junta as novas colunas (update é mais seguro se rodar mais de uma vez)
     df_out.update(df_pi_ratings)
-    # Adiciona colunas se não existirem
+    # Adiciona colunas se não existirem (primeira vez)
     for col in df_pi_ratings.columns:
         if col not in df_out.columns:
             df_out[col] = df_pi_ratings[col]
 
-    logger.info(f"Pi-Ratings calculados e adicionados. Colunas: {list(df_pi_ratings.columns)}")
+    new_cols_added = list(df_pi_ratings.columns)
+    logger.info(f"Pi-Ratings e Momentum calculados. Colunas adicionadas: {new_cols_added}")
+    # Log NaNs nas novas colunas
+    nan_counts_new = df_out[new_cols_added].isnull().sum()
+    logger.debug(f"NaNs nas novas colunas PiRating/Momentum:\n{nan_counts_new[nan_counts_new > 0]}")
     return df_out
 
 def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
@@ -844,127 +908,98 @@ def calculate_rolling_goal_stats(
     return df_final
 
 def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.Series, List[str]]]:
-    """Pipeline BackDraw: Calcula/Verifica TODAS as features NOVAS no histórico."""
-    if df_loaded is None or df_loaded.empty: # Added empty check
-        logger.error("Pré-proc: DataFrame histórico não carregado ou vazio.")
-        return None
+    """Pipeline BackDraw: Calcula/Verifica TODAS as features no histórico."""
+    if df_loaded is None or df_loaded.empty: logger.error("Pré-proc: DF histórico inválido."); return None
     logger.info("--- Iniciando Pré-processamento e Engenharia de Features (Histórico) ---")
 
-    # Calculate league averages (handle potential NaNs)
-    goals_h_col = GOALS_COLS.get('home', 'Goals_H_FT')
-    goals_a_col = GOALS_COLS.get('away', 'Goals_A_FT')
-    # Use np.nanmean to ignore NaNs when calculating average
+    # Calcula médias da liga (como antes)
+    goals_h_col = GOALS_COLS.get('home'); goals_a_col = GOALS_COLS.get('away')
     avg_h_league = np.nanmean(df_loaded[goals_h_col]) if goals_h_col in df_loaded else 1.0
     avg_a_league = np.nanmean(df_loaded[goals_a_col]) if goals_a_col in df_loaded else 1.0
-    # Handle case where mean is NaN (e.g., all goals are NaN)
-    if pd.isna(avg_h_league): avg_h_league = 1.0
-    if pd.isna(avg_a_league): avg_a_league = 1.0
-    logger.info(f"Médias Globais Liga (Histórico, NaN-ignored): Casa={avg_h_league:.3f}, Fora={avg_a_league:.3f}")
+    avg_h_league = 1.0 if pd.isna(avg_h_league) else avg_h_league; avg_a_league = 1.0 if pd.isna(avg_a_league) else avg_a_league
+    avg_h_league_safe = max(avg_h_league, FEATURE_EPSILON); avg_a_league_safe = max(avg_a_league, FEATURE_EPSILON)
+    logger.info(f"Médias Globais Liga (Histórico): Casa={avg_h_league_safe:.3f}, Fora={avg_a_league_safe:.3f}")
 
     # --- Feature Calculation Pipeline ---
-    # Start with a copy
     df_processed = df_loaded.copy()
+    logger.info("=== INÍCIO PIPELINE FEAT ENG (HISTÓRICO) ===")
 
-    # 1. Intermediate Stats (Result, Pts, IsDraw, VG/CG Raw, p_H/D/A)
+    # 1. Intermediárias (Result, Pts, IsDraw, VG/CG Raw, p_H/D/A)
     df_processed = calculate_historical_intermediate(df_processed)
-    if 'IsDraw' not in df_processed.columns or df_processed['IsDraw'].isnull().all():
-         logger.error("Coluna alvo 'IsDraw' não foi criada ou está toda NaN após intermediate.")
-         return None
-    # Ensure probabilities were calculated if needed
-    if not all(p in df_processed.columns for p in ['p_H', 'p_D', 'p_A']):
-        logger.warning("Probabilidades p_H/D/A ausentes. Tentando calcular novamente...")
-        df_processed = calculate_probabilities(df_processed)
-        if not all(p in df_processed.columns for p in ['p_H', 'p_D', 'p_A']):
-             logger.error("Falha ao calcular probabilidades p_H/D/A.")
-             # Decide whether to fail or continue without them
-             # return None # Fail approach
+    if 'IsDraw' not in df_processed.columns or df_processed['IsDraw'].isnull().all(): logger.error("Alvo 'IsDraw' ausente/NaN."); return None
+    if not all(p in df_processed.columns for p in ['p_H', 'p_D', 'p_A']): df_processed = calculate_probabilities(df_processed); # Garante probs
 
-    # 2. Normalized Probabilities
+    # 2. Normalizadas
     df_processed = calculate_normalized_probabilities(df_processed)
 
-    # 3. Rolling Means (VG, CG)
-    stats_to_roll_mean = ['VG', 'CG'] # Requires VG_H_raw, VG_A_raw, CG_H_raw, CG_A_raw
+    # 3. Pi-Ratings e MOMENTUM (Calcula ANTES de features que dependem deles)
+    df_processed = calculate_pi_ratings(df_processed) # Agora calcula momentum também
+
+    # 4. Rolling Means (VG, CG) - Adicionar Ptos se usar
+    stats_to_roll_mean = ['VG', 'CG']
     df_processed = calculate_rolling_stats(df_processed, stats_to_roll_mean, window=ROLLING_WINDOW)
 
-    # 4. Rolling Stds (CG)
-    stats_to_roll_std = ['CG'] # Requires CG_H_raw, CG_A_raw
+    # 5. Rolling Stds (CG) - Adicionar VG, Ptos se usar
+    stats_to_roll_std = ['CG']
     df_processed = calculate_rolling_std(df_processed, stats_to_roll_std, window=ROLLING_WINDOW)
 
-    # 5. Rolling Goals & Forces (Avg Goals, FA/FD)
-    df_processed = calculate_rolling_goal_stats(
-        df_processed,
-        window=ROLLING_WINDOW,
-        avg_goals_home_league=avg_h_league, # Pass calculated averages
-        avg_goals_away_league=avg_a_league
-    )
+    # 6. Rolling Goals & Forces (Avg Goals, FA/FD)
+    df_processed = calculate_rolling_goal_stats(df_processed, window=ROLLING_WINDOW, avg_goals_home_league=avg_h_league_safe, avg_goals_away_league=avg_a_league_safe)
 
-    # 6. Poisson Draw Probability (Requires FA/FD)
-    df_processed = calculate_poisson_draw_prob(df_processed,
-                                            avg_goals_home_league=avg_h_league,
-                                            avg_goals_away_league=avg_a_league,
-                                            max_goals=5) # Configurable max goals
+    # 7. Poisson Draw Probability
+    df_processed = calculate_poisson_draw_prob(df_processed, avg_goals_home_league=avg_h_league_safe, avg_goals_away_league=avg_a_league_safe, max_goals=6) # max_goals do seu log
 
-    # 7. Binned Features (Odd_D_Cat)
-    df_processed = calculate_binned_features(df_processed) # Requires Odd_D_FT
+    # 8. Binned Features
+    df_processed = calculate_binned_features(df_processed)
 
-    # 8. Derived Features (CV_HDA, Diff_Media_CG)
-    df_processed = calculate_derived_features(df_processed) # Requires Odds 1x2, Media_CG_H/A
+    # 9. Derivadas (CV_HDA, Diff_Media_CG) E NOVAS INTERAÇÕES
+    #    Certifique-se que PiRating_Diff, p_D_norm, Odd_D_FT existem antes daqui
+    df_processed = calculate_derived_features(df_processed)
 
+    logger.info("=== FIM PIPELINE FEAT ENG (HISTÓRICO) ===")
     # --- Final Selection and Dropna ---
-    df_final_all = df_processed; target_col='IsDraw';
-    logger.info(f"Selecionando features FINAIS da config: {FEATURE_COLUMNS}") # Use FEATURE_COLUMNS from config
+    df_final_all = df_processed; target_col = 'IsDraw'
 
-    # Check which features are actually available after all calculations
-    available_features = [f for f in FEATURE_COLUMNS if f in df_final_all.columns]
-    missing_features = [f for f in FEATURE_COLUMNS if f not in df_final_all.columns]
+    # USA A LISTA DO CONFIG.PY!
+    final_feature_cols = FEATURE_COLUMNS
+    logger.info(f"Selecionando features FINAIS da config: {final_feature_cols}")
 
-    if not available_features:
-        logger.error(f"Erro FINAIS: Nenhuma das features da lista FEATURE_COLUMNS foi calculada! Disponíveis:{list(df_final_all.columns)}");
-        return None;
-    if missing_features:
-        logger.warning(f"Aviso FINAIS: Features da lista FEATURE_COLUMNS não calculadas/encontradas: {missing_features}. Elas não serão usadas.")
+    available_features = [f for f in final_feature_cols if f in df_final_all.columns]
+    missing_features = [f for f in final_feature_cols if f not in df_final_all.columns]
 
-    required_cols_for_output = available_features + [target_col] # Use only available features + target
+    if not available_features: logger.error(f"Erro FINAIS: Nenhuma feature de FEATURE_COLUMNS encontrada!"); return None
+    if missing_features: logger.warning(f"Aviso FINAIS: Features de FEATURE_COLUMNS não encontradas: {missing_features}.")
 
-    # Ensure target exists
-    if target_col not in df_final_all.columns:
-         logger.error(f"Erro FINAIS: Coluna alvo '{target_col}' não encontrada.")
-         return None
+    required_cols_for_output = available_features + [target_col]
+    if target_col not in df_final_all.columns: logger.error(f"Erro FINAIS: Alvo '{target_col}' não encontrado."); return None
 
-    # Select only available features and target
     df_select = df_final_all[required_cols_for_output].copy()
-
-    logger.info(f"DF selecionado para dropna final: {df_select.shape}. Verificando NaNs nas features selecionadas...")
+    logger.info(f"DF selecionado p/ dropna: {df_select.shape}. Verificando NaNs...")
     initial_rows = len(df_select)
 
-    # Check NaNs specifically in the selected feature columns before dropping
+    # Log NaNs ANTES do dropna final (ajudou antes)
     nan_check_before = df_select[available_features].isnull().sum()
     cols_nan = nan_check_before[nan_check_before > 0]
-    if not cols_nan.empty:
-        logger.warning(f"NaNs encontrados ANTES do dropna final (nas features a serem usadas):\n{cols_nan}")
-    else:
-        logger.info("Nenhum NaN encontrado nas features selecionadas antes do dropna final.")
+    if not cols_nan.empty: logger.warning(f"NaNs ANTES do dropna final (features selecionadas):\n{cols_nan}")
+    else: logger.info("Nenhum NaN encontrado nas features selecionadas antes do dropna final.")
 
-    # Drop rows where ANY of the SELECTED features OR the target is NaN
+    # Drop Inf/NaN e linhas onde features ou alvo são NaN
+    df_select.replace([np.inf, -np.inf], np.nan, inplace=True)
     df_select.dropna(subset=required_cols_for_output, inplace=True)
     rows_dropped = initial_rows - len(df_select)
 
-    if rows_dropped > 0:
-        logger.info(f"Removidas {rows_dropped} linhas com NaNs (nas features selecionadas ou no alvo).")
-    if df_select.empty:
-        logger.error("Erro: Nenhuma linha restante após dropna final das features selecionadas.")
-        return None
+    if rows_dropped > 0: logger.info(f"Removidas {rows_dropped} linhas com NaNs/Infs (features ou alvo).")
+    if df_select.empty: logger.error("Erro: Nenhuma linha restante após dropna final."); return None
 
-    X = df_select[available_features] # Use only available features
-    y = df_select[target_col].astype(int) # Ensure target is integer
+    X = df_select[available_features] # Usa apenas features disponíveis
+    y = df_select[target_col].astype(int)
 
-    # Final check for NaNs in X and y
-    if X.isnull().values.any(): logger.error("ERRO CRÍTICO: NaNs encontrados em X APÓS dropna!"); return None
-    if y.isnull().values.any(): logger.error("ERRO CRÍTICO: NaNs encontrados em y APÓS dropna!"); return None
+    if X.isnull().values.any(): logger.error("ERRO CRÍTICO: NaNs em X APÓS dropna!"); return None
+    if y.isnull().values.any(): logger.error("ERRO CRÍTICO: NaNs em y APÓS dropna!"); return None
 
     logger.info(f"--- Pré-proc Histórico OK --- Shape X:{X.shape}, y:{y.shape}.")
     logger.debug(f"Features FINAIS usadas: {list(X.columns)}")
-    return X, y, available_features # Return the list of features actually used
+    return X, y, available_features
 
 def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
     # Importar o mapa correto para o CSV raspado
@@ -1126,112 +1161,72 @@ def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
         return None
 
 def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, feature_columns: List[str]) -> Optional[pd.DataFrame]:
-    # ... (checks iniciais) ...
+    """Prepara features para jogos futuros, incluindo interações, mas SEM momentum."""
     if fixture_df is None or historical_df is None or not feature_columns: logger.error("Prep Fixture: Args inválidos."); return None
     if historical_df.empty: logger.error("Prep Fixture: Histórico vazio."); return None
-    if fixture_df.empty: logger.info("Prep Fixture: Nenhum jogo futuro."); return pd.DataFrame(columns=feature_columns)
+    if fixture_df.empty: logger.info("Prep Fixture: Nenhum jogo futuro."); return pd.DataFrame(columns=feature_columns) # Retorna DF vazio com colunas esperadas
 
     logger.info("--- Preparando Features Finais para Jogos Futuros ---")
     logger.info(f"Jogos futuros brutos: {fixture_df.shape}")
     logger.info(f"Features finais esperadas p/ modelo: {feature_columns}")
-    epsilon = 1e-6
 
-    try: # Adiciona try/except geral
-       
+    try:
         # --- 1. Calcular Médias da Liga do Histórico ---
-        # ... (código como antes) ...
-        goals_h_col = GOALS_COLS.get('home','Goals_H_FT')
-        goals_a_col = GOALS_COLS.get('away','Goals_A_FT')
+        goals_h_col = GOALS_COLS.get('home'); goals_a_col = GOALS_COLS.get('away')
         avg_h_league = np.nanmean(historical_df[goals_h_col]) if goals_h_col in historical_df else 1.0
         avg_a_league = np.nanmean(historical_df[goals_a_col]) if goals_a_col in historical_df else 1.0
-        if pd.isna(avg_h_league): avg_h_league = 1.0
-        if pd.isna(avg_a_league): avg_a_league = 1.0
-        avg_h_league_safe = max(avg_h_league, epsilon)
-        avg_a_league_safe = max(avg_a_league, epsilon)
+        avg_h_league = 1.0 if pd.isna(avg_h_league) else avg_h_league; avg_a_league = 1.0 if pd.isna(avg_a_league) else avg_a_league
+        avg_h_league_safe = max(avg_h_league, FEATURE_EPSILON); avg_a_league_safe = max(avg_a_league, FEATURE_EPSILON)
         logger.info(f"Usando Médias Liga (Hist): Casa={avg_h_league_safe:.3f}, Fora={avg_a_league_safe:.3f}")
 
-
-        # --- 2. Processar Histórico para Rolling Stats ---
-        # ... (código como antes para selecionar colunas mínimas, calcular probs/intermediate se necessário) ...
+        # --- 2. Processar Histórico para Rolling Stats FINAIS (como antes) ---
         logger.info("Processando histórico APENAS para stats rolling necessárias...")
         start_time = time.time()
-        hist_cols_needed = ['Date', 'Home', 'Away'] + list(GOALS_COLS.values())
-        needs_probs = any(f.startswith(('Media_VG', 'Media_CG', 'Std_VG', 'Std_CG', 'Diff_Media_CG')) for f in feature_columns)
-        if needs_probs: hist_cols_needed.extend(list(ODDS_COLS.values()))
-        needs_rolling_xg = any(f.startswith('Avg_XG_') for f in feature_columns)
-        if needs_rolling_xg: hist_cols_needed.extend(list(XG_COLS.values()))
-
+        # Identifica quais colunas base são REALMENTE necessárias com base nas feature_columns FINAIS
+        hist_cols_needed = ['Date', 'Home', 'Away'] # Essenciais
+        if any(f.startswith(('Media_VG', 'Std_VG', 'Media_CG', 'Std_CG', 'Diff_Media_CG')) for f in feature_columns):
+             hist_cols_needed.extend(list(GOALS_COLS.values()))
+             hist_cols_needed.extend(list(ODDS_COLS.values())) # Para p_H/p_A -> VG/CG_raw
+        if any(f.startswith(('Avg_Gols_', 'FA_', 'FD_', 'Prob_Empate_Poisson')) for f in feature_columns):
+             hist_cols_needed.extend(list(GOALS_COLS.values()))
+        # ... adicionar outras dependências se necessário (ex: XG) ...
+        hist_cols_needed = list(set(hist_cols_needed)) # Remove duplicatas
         hist_cols_present = [c for c in hist_cols_needed if c in historical_df.columns]
-        logger.debug(f"Colunas presentes no historical_df para prepare_fixture_data: {hist_cols_present}")
-        if 'Home' not in hist_cols_present or 'Away' not in hist_cols_present:
-             logger.error(f"Erro Crítico em prepare_fixture_data: Colunas 'Home' ou 'Away' ausentes no historical_df! Disponíveis: {list(historical_df.columns)}")
-             return None
+        logger.debug(f"Colunas históricas necessárias/presentes p/ fixture prep: {hist_cols_present}")
+        if not all(c in hist_cols_present for c in ['Date', 'Home', 'Away']): logger.error("Erro fixture prep: Colunas Date/Home/Away ausentes no histórico."); return None
+
         historical_df_minimal = historical_df[hist_cols_present].copy()
-        if needs_probs:
-            if not all(p in historical_df_minimal.columns for p in ['p_H', 'p_A']):
-                 logger.info(" -> Calculando p_H/p_A para histórico (rolling)...")
-                 historical_df_minimal = calculate_probabilities(historical_df_minimal)
-                 needs_vg_cg_raw = any(f.startswith(('Media_VG', 'Media_CG', 'Std_VG', 'Std_CG', 'Diff_Media_CG')) for f in feature_columns)
-                 if needs_vg_cg_raw:
-                      logger.info(" -> Calculando VG/CG Raw para histórico (rolling)...")
-                      historical_df_minimal = calculate_historical_intermediate(historical_df_minimal)
-        if 'Date' not in historical_df_minimal: logger.error("Histórico sem 'Date'."); return None
+        # Calcula VG/CG raw APENAS SE necessário
+        if any(f.startswith(('Media_VG', 'Std_VG', 'Media_CG', 'Std_CG', 'Diff_Media_CG')) for f in feature_columns):
+             if not all(c in historical_df_minimal.columns for c in ['p_H', 'p_A']): historical_df_minimal = calculate_probabilities(historical_df_minimal)
+             if not all(c in historical_df_minimal.columns for c in ['VG_H_raw', 'VG_A_raw']): historical_df_minimal = calculate_historical_intermediate(historical_df_minimal)
+
         historical_df_minimal = historical_df_minimal.sort_values(by='Date', ascending=True)
         teams_in_hist = pd.concat([historical_df_minimal['Home'], historical_df_minimal['Away']]).unique()
-        logger.info(f"Histórico mínimo processado em {time.time()-start_time:.2f}s. {len(teams_in_hist)} times.")
+        logger.info(f"Histórico mínimo processado em {time.time()-start_time:.2f}s.")
 
-
-        # --- 3. Calcular Features Rolling para Jogos Futuros ---
-        # ... (código como antes para calcular rolling VG, CG, Gols, FA/FD, XG) ...
-        logger.info("Calculando features rolling para jogos futuros (incluindo xG se necessário)...")
+        # --- 3. Calcular Features Rolling para Jogos Futuros (como antes) ---
+        logger.info("Calculando features rolling para jogos futuros...")
+        # ... (lógica para determinar quais stats calcular e loop para calcular Médias/Stds/Gols/FA/FD) ...
+        # ... (código exato da versão anterior aqui, usando ROLLING_WINDOW) ...
         stats_mean_needed = [s for s in ['VG', 'CG'] if any(f.startswith(f'Media_{s}') for f in feature_columns)]
         stats_std_needed = [s for s in ['CG'] if any(f.startswith(f'Std_{s}') for f in feature_columns)]
         needs_rolling_goals = any(f.startswith('Avg_Gols_') for f in feature_columns)
         needs_fa_fd = any(f.startswith(('FA_', 'FD_', 'Prob_Empate_Poisson')) for f in feature_columns)
-        needs_rolling_xg = any(f.startswith('Avg_XG_') for f in feature_columns)
-
-        fixture_features_dict = {idx: {} for idx in fixture_df.index}
-        team_history_rolling = {team: {} for team in teams_in_hist}
-        # Initialize lists
-        for team in teams_in_hist:
-            if stats_mean_needed:
-                 for stat in stats_mean_needed: team_history_rolling[team][stat] = []
-            if stats_std_needed:
-                 for stat in stats_std_needed: # Ensure CG is added if needed for std
-                      if stat not in team_history_rolling[team]: team_history_rolling[team][stat] = []
-            if needs_rolling_goals or needs_fa_fd:
-                team_history_rolling[team]['scored_home'] = []; team_history_rolling[team]['conceded_home'] = []
-                team_history_rolling[team]['scored_away'] = []; team_history_rolling[team]['conceded_away'] = []
-            if needs_rolling_xg:
-                team_history_rolling[team]['xg_for_home'] = []; team_history_rolling[team]['xg_against_home'] = []
-                team_history_rolling[team]['xg_for_away'] = []; team_history_rolling[team]['xg_against_away'] = []
-                team_history_rolling[team]['xg_total_home'] = []; team_history_rolling[team]['xg_total_away'] = []
-
-        # Build history state
-        logger.info("Construindo estado final do histórico rolling...")
-        gh_hist = GOALS_COLS.get('home'); ga_hist = GOALS_COLS.get('away')
-        xg_h_col = XG_COLS.get('home'); xg_a_col = XG_COLS.get('away'); xg_tot_col = XG_COLS.get('total')
+        # ... (código para inicializar team_history_rolling e preenchê-lo com o histórico) ...
+        fixture_features_dict = {idx: {} for idx in fixture_df.index}; team_history_rolling = defaultdict(lambda: defaultdict(list)); # Defaultdict mais simples
+        # Build history state (otimizado)
+        logger.info("Construindo estado final do histórico rolling..."); gh_hist=GOALS_COLS.get('home'); ga_hist=GOALS_COLS.get('away')
         for index, row in historical_df_minimal.iterrows():
-             ht = row['Home']; at = row['Away']
-             # Append VG/CG Raw
-             for stat in stats_mean_needed + stats_std_needed: # Check all needed stats
-                 base_h, base_a = None, None
-                 if stat == 'VG': base_h, base_a = 'VG_H_raw', 'VG_A_raw'
-                 elif stat == 'CG': base_h, base_a = 'CG_H_raw', 'CG_A_raw'
+            ht=row['Home']; at=row['Away']
+            for stat in stats_mean_needed + stats_std_needed:
+                 base_h,base_a = (f'{stat}_H_raw',f'{stat}_A_raw') if stat in ['VG','CG'] else (None,None)
                  if base_h and base_h in row and pd.notna(row[base_h]): team_history_rolling[ht][stat].append(row[base_h])
                  if base_a and base_a in row and pd.notna(row[base_a]): team_history_rolling[at][stat].append(row[base_a])
-             # Append goals
-             if needs_rolling_goals or needs_fa_fd:
-                 h_goals = pd.to_numeric(row.get(gh_hist), errors='coerce'); a_goals = pd.to_numeric(row.get(ga_hist), errors='coerce')
-                 if pd.notna(h_goals): team_history_rolling[ht]['scored_home'].append(h_goals); team_history_rolling[at]['conceded_away'].append(h_goals)
-                 if pd.notna(a_goals): team_history_rolling[at]['scored_away'].append(a_goals); team_history_rolling[ht]['conceded_home'].append(a_goals)
-             # Append XG
-             if needs_rolling_xg:
-                 xg_h = pd.to_numeric(row.get(xg_h_col), errors='coerce'); xg_a = pd.to_numeric(row.get(xg_a_col), errors='coerce'); xg_tot = pd.to_numeric(row.get(xg_tot_col), errors='coerce')
-                 if pd.notna(xg_h): team_history_rolling[ht]['xg_for_home'].append(xg_h); team_history_rolling[at]['xg_against_away'].append(xg_h)
-                 if pd.notna(xg_a): team_history_rolling[ht]['xg_against_home'].append(xg_a); team_history_rolling[at]['xg_for_away'].append(xg_a)
-                 if pd.notna(xg_tot): team_history_rolling[ht]['xg_total_home'].append(xg_tot); team_history_rolling[at]['xg_total_away'].append(xg_tot)
-
+            if needs_rolling_goals or needs_fa_fd:
+                 h_g=pd.to_numeric(row.get(gh_hist),errors='coerce'); a_g=pd.to_numeric(row.get(ga_hist),errors='coerce')
+                 if pd.notna(h_g): team_history_rolling[ht]['scored_home'].append(h_g); team_history_rolling[at]['conceded_away'].append(h_g)
+                 if pd.notna(a_g): team_history_rolling[ht]['conceded_home'].append(a_g); team_history_rolling[at]['scored_away'].append(a_g)
         # Calculate features for future matches
         logger.info("Calculando features rolling para jogos futuros...")
         for index, future_match in tqdm(fixture_df.iterrows(), total=len(fixture_df), desc="Calc. Rolling Futuro"):
@@ -1239,131 +1234,98 @@ def prepare_fixture_data(fixture_df: pd.DataFrame, historical_df: pd.DataFrame, 
              for team_type, team_name in [('H', ht), ('A', at)]:
                   if team_name and team_name in team_history_rolling:
                        team_hist = team_history_rolling[team_name]
-                       # Calc Means
-                       for stat in stats_mean_needed: current_match_features[f'Media_{stat}_{team_type}'] = np.nanmean(team_hist.get(stat, [])[-ROLLING_WINDOW:]) if team_hist.get(stat, []) else np.nan
-                       # Calc Stds
-                       for stat in stats_std_needed: current_match_features[f'Std_{stat}_{team_type}'] = np.nanstd(team_hist.get(stat, [])[-ROLLING_WINDOW:]) if len(team_hist.get(stat, [])[-ROLLING_WINDOW:]) >= 2 else np.nan
-                       # Calc Goals/FA/FD
+                       for stat in stats_mean_needed: current_match_features[f'Media_{stat}_{team_type}'] = np.nanmean(team_hist[stat][-ROLLING_WINDOW:]) if team_hist[stat] else np.nan
+                       for stat in stats_std_needed: current_match_features[f'Std_{stat}_{team_type}'] = np.nanstd(team_hist[stat][-ROLLING_WINDOW:]) if len(team_hist[stat][-ROLLING_WINDOW:]) >= 2 else np.nan
                        if needs_rolling_goals or needs_fa_fd:
-                           all_s = team_hist.get('scored_home', []) + team_hist.get('scored_away', []); avg_gs = np.nanmean(all_s[-ROLLING_WINDOW:]) if all_s else np.nan
-                           all_c = team_hist.get('conceded_home', []) + team_hist.get('conceded_away', []); avg_gc = np.nanmean(all_c[-ROLLING_WINDOW:]) if all_c else np.nan
+                           all_s = team_hist['scored_home'] + team_hist['scored_away']; avg_gs = np.nanmean(all_s[-ROLLING_WINDOW:]) if all_s else np.nan
+                           all_c = team_hist['conceded_home'] + team_hist['conceded_away']; avg_gc = np.nanmean(all_c[-ROLLING_WINDOW:]) if all_c else np.nan
                            if needs_rolling_goals: current_match_features[f'Avg_Gols_Marcados_{team_type}'] = avg_gs; current_match_features[f'Avg_Gols_Sofridos_{team_type}'] = avg_gc
                            if needs_fa_fd:
                                if team_type == 'H': current_match_features['FA_H'] = avg_gs / avg_h_league_safe if pd.notna(avg_gs) else np.nan; current_match_features['FD_H'] = avg_gc / avg_a_league_safe if pd.notna(avg_gc) else np.nan
                                else: current_match_features['FA_A'] = avg_gs / avg_a_league_safe if pd.notna(avg_gs) else np.nan; current_match_features['FD_A'] = avg_gc / avg_h_league_safe if pd.notna(avg_gc) else np.nan
-                       # Calc XG Averages
-                       if needs_rolling_xg:
-                            if team_type == 'H':
-                                 current_match_features['Avg_XG_H_H'] = np.nanmean(team_hist.get('xg_for_home', [])[-ROLLING_WINDOW:]) if team_hist.get('xg_for_home') else np.nan
-                                 current_match_features['Avg_XG_A_H'] = np.nanmean(team_hist.get('xg_against_home', [])[-ROLLING_WINDOW:]) if team_hist.get('xg_against_home') else np.nan
-                                 current_match_features['Avg_XG_Total_H'] = np.nanmean(team_hist.get('xg_total_home', [])[-ROLLING_WINDOW:]) if team_hist.get('xg_total_home') else np.nan
-                            else:
-                                 current_match_features['Avg_XG_H_A'] = np.nanmean(team_hist.get('xg_for_away', [])[-ROLLING_WINDOW:]) if team_hist.get('xg_for_away') else np.nan
-                                 current_match_features['Avg_XG_A_A'] = np.nanmean(team_hist.get('xg_against_away', [])[-ROLLING_WINDOW:]) if team_hist.get('xg_against_away') else np.nan
-                                 current_match_features['Avg_XG_Total_A'] = np.nanmean(team_hist.get('xg_total_away', [])[-ROLLING_WINDOW:]) if team_hist.get('xg_total_away') else np.nan
-                  else: # Team not in history
-                       logger.debug(f"Time '{team_name}' ({team_type}) sem histórico. Features rolling serão NaN.")
-                       for stat in stats_mean_needed: current_match_features[f'Media_{stat}_{team_type}'] = np.nan
-                       for stat in stats_std_needed: current_match_features[f'Std_{stat}_{team_type}'] = np.nan
-                       if needs_rolling_goals: current_match_features[f'Avg_Gols_Marcados_{team_type}'] = np.nan; current_match_features[f'Avg_Gols_Sofridos_{team_type}'] = np.nan
-                       if needs_fa_fd: current_match_features[f'FA_{team_type}'] = np.nan; current_match_features[f'FD_{team_type}'] = np.nan
-                       if needs_rolling_xg:
-                           if team_type == 'H': current_match_features['Avg_XG_H_H'], current_match_features['Avg_XG_A_H'], current_match_features['Avg_XG_Total_H'] = np.nan, np.nan, np.nan
-                           else: current_match_features['Avg_XG_H_A'], current_match_features['Avg_XG_A_A'], current_match_features['Avg_XG_Total_A'] = np.nan, np.nan, np.nan
+                  else: # Team not in history - Fill with NaNs
+                        for stat in stats_mean_needed: current_match_features[f'Media_{stat}_{team_type}'] = np.nan
+                        for stat in stats_std_needed: current_match_features[f'Std_{stat}_{team_type}'] = np.nan
+                        if needs_rolling_goals: current_match_features[f'Avg_Gols_Marcados_{team_type}'] = np.nan; current_match_features[f'Avg_Gols_Sofridos_{team_type}'] = np.nan
+                        if needs_fa_fd: current_match_features[f'FA_{team_type}'] = np.nan; current_match_features[f'FD_{team_type}'] = np.nan
              fixture_features_dict[index] = current_match_features
 
         df_rolling_features = pd.DataFrame.from_dict(fixture_features_dict, orient='index')
         logger.info(f"Rolling stats p/ futuro calculadas. Colunas adicionadas: {list(df_rolling_features.columns)}")
-        # Join preservando índice original do fixture_df
+        # Junta preservando índice original
         df_temp_fixtures = fixture_df.join(df_rolling_features)
-    finally:
-        fixture_df = df_temp_fixtures.copy() # Copia para evitar problemas de referência
-    try:
-        # --- Recalcular Pi-Ratings em TODO o histórico para obter os valores mais recentes ---
-        logger.info("Recalculando Pi-Ratings no histórico completo para obter valores atuais...")
-        # Garante que o histórico está ordenado por data antes de calcular
-        if 'Date' not in historical_df.columns: logger.error("Histórico sem 'Date'"); return None
-        historical_df_sorted = historical_df.sort_values(by='Date')
-        # Roda a função para obter o DF com ratings e o dict final de ratings
-        # Modificamos calculate_pi_ratings para retornar também o dict final
-        def calculate_pi_ratings_and_get_final(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, float]]:
-             # (Mesma lógica interna de calculate_pi_ratings)
-             ratings = {}; results_pi = []
-             df['Goals_H_FT'] = pd.to_numeric(df['Goals_H_FT'], errors='coerce')
-             df['Goals_A_FT'] = pd.to_numeric(df['Goals_A_FT'], errors='coerce')
-             for index, row in df.iterrows(): # Não precisa de tqdm aqui
-                  home_team = row['Home']; away_team = row['Away']
-                  rating_h = ratings.get(home_team, PI_RATING_INITIAL)
-                  rating_a = ratings.get(away_team, PI_RATING_INITIAL)
-                  rating_h_adj = rating_h + PI_RATING_HOME_ADVANTAGE
-                  rating_diff = rating_h_adj - rating_a
-                  expected_h = 1 / (1 + 10**(-rating_diff / 400))
-                  match_pi_data = {'Index': index, 'PiRating_H': rating_h, 'PiRating_A': rating_a, 'PiRating_Diff': rating_h - rating_a, 'PiRating_Prob_H': expected_h}
-                  results_pi.append(match_pi_data)
-                  score_h = np.nan
-                  if pd.notna(row['Goals_H_FT']) and pd.notna(row['Goals_A_FT']):
-                       if row['Goals_H_FT'] > row['Goals_A_FT']: score_h = 1.0
-                       elif row['Goals_H_FT'] == row['Goals_A_FT']: score_h = 0.5
-                       else: score_h = 0.0
+
+        # --- 4. Calcular Pi-Ratings para Jogos Futuros (SEM MOMENTUM aqui) ---
+        logger.info("Calculando Pi-Ratings atuais no histórico...")
+        # Reutiliza função interna para obter apenas os ratings finais
+        def _get_final_pi_ratings(df_hist: pd.DataFrame) -> Dict[str, float]:
+             ratings = {}; goals_h_c=GOALS_COLS.get('home'); goals_a_c=GOALS_COLS.get('away')
+             df_hist[goals_h_c] = pd.to_numeric(df_hist[goals_h_c], errors='coerce'); df_hist[goals_a_c] = pd.to_numeric(df_hist[goals_a_c], errors='coerce')
+             for _, row in df_hist.iterrows():
+                  ht=row['Home']; at=row['Away']
+                  rh=ratings.get(ht, PI_RATING_INITIAL); ra=ratings.get(at, PI_RATING_INITIAL)
+                  rh_adj=rh+PI_RATING_HOME_ADVANTAGE; rd=rh_adj-ra; exh=1/(1+10**(-rd/400))
+                  gh=row[goals_h_c]; ga=row[goals_a_c]; score_h=np.nan
+                  if pd.notna(gh) and pd.notna(ga): score_h = 1.0 if gh>ga else (0.5 if gh==ga else 0.0)
                   if pd.notna(score_h):
-                       new_rating_h = rating_h + PI_RATING_K_FACTOR * (score_h - expected_h)
-                       new_rating_a = rating_a + PI_RATING_K_FACTOR * ((1 - score_h) - (1 - expected_h))
-                       ratings[home_team] = new_rating_h; ratings[away_team] = new_rating_a
-             df_pi_ratings = pd.DataFrame(results_pi).set_index('Index')
-             df_out = df.copy(); df_out.update(df_pi_ratings)
-             for col in df_pi_ratings.columns:
-                 if col not in df_out.columns: df_out[col] = df_pi_ratings[col]
-             return df_out, ratings # Retorna o DF e o dict final
-
-        _, final_ratings = calculate_pi_ratings_and_get_final(historical_df_sorted)
+                      nrh = rh + PI_RATING_K_FACTOR*(score_h-exh); nra = ra + PI_RATING_K_FACTOR*((1-score_h)-(1-exh))
+                      ratings[ht]=nrh; ratings[at]=nra
+             return ratings
+        # Usa o df histórico COMPLETO e ORDENADO para obter os ratings mais recentes
+        final_ratings = _get_final_pi_ratings(historical_df.sort_values(by='Date'))
         logger.info(f"Ratings finais calculados para {len(final_ratings)} times.")
+        # Atribui aos jogos futuros
+        df_temp_fixtures['PiRating_H'] = df_temp_fixtures['Home'].map(final_ratings).fillna(PI_RATING_INITIAL)
+        df_temp_fixtures['PiRating_A'] = df_temp_fixtures['Away'].map(final_ratings).fillna(PI_RATING_INITIAL)
+        df_temp_fixtures['PiRating_Diff'] = df_temp_fixtures['PiRating_H'] - df_temp_fixtures['PiRating_A']
+        rating_h_adj_fix = df_temp_fixtures['PiRating_H'] + PI_RATING_HOME_ADVANTAGE
+        rating_diff_fix = rating_h_adj_fix - df_temp_fixtures['PiRating_A']
+        df_temp_fixtures['PiRating_Prob_H'] = 1 / (1 + 10**(-rating_diff_fix / 400))
+        # *** NÃO CALCULA PiRating_Mom_H/A/Diff aqui ***
 
-        # --- Atribuir Ratings Finais aos Jogos Futuros ---
-        logger.info("Atribuindo Pi-Ratings aos jogos futuros...")
-        fixture_df['PiRating_H'] = fixture_df['Home'].map(final_ratings).fillna(PI_RATING_INITIAL)
-        fixture_df['PiRating_A'] = fixture_df['Away'].map(final_ratings).fillna(PI_RATING_INITIAL)
-        fixture_df['PiRating_Diff'] = fixture_df['PiRating_H'] - fixture_df['PiRating_A']
-        # Calcular Prob H para jogos futuros
-        rating_h_adj_fix = fixture_df['PiRating_H'] + PI_RATING_HOME_ADVANTAGE
-        rating_diff_fix = rating_h_adj_fix - fixture_df['PiRating_A']
-        fixture_df['PiRating_Prob_H'] = 1 / (1 + 10**(-rating_diff_fix / 400))
-
-        logger.debug(f"Amostra Fixture DF com PiRatings:\n{fixture_df[['Home', 'Away', 'PiRating_H', 'PiRating_A', 'PiRating_Diff']].head()}")
-        # --- 4. Calcular Features Não-Rolling ---
-        logger.info("Calculando probabilidades, binning, Poisson e derivadas para jogos futuros...")
+        # --- 5. Calcular Features Não-Rolling (Probs, Poisson, Binned, Derivadas + INTERAÇÕES) ---
+        logger.info("Calculando probabilidades, binning, Poisson e derivadas/interações para jogos futuros...")
         df_temp_fixtures = calculate_probabilities(df_temp_fixtures)
         df_temp_fixtures = calculate_normalized_probabilities(df_temp_fixtures)
         df_temp_fixtures = calculate_binned_features(df_temp_fixtures)
-        df_temp_fixtures = calculate_poisson_draw_prob(df_temp_fixtures, avg_h_league_safe, avg_a_league_safe, max_goals=5)
+        # Garante que FA/FD existem antes de Poisson
+        if 'FA_H' not in df_temp_fixtures.columns and any(f == 'Prob_Empate_Poisson' for f in feature_columns):
+             logger.warning("FA/FD ausentes p/ Poisson futuro. Recalculando Rolling Gols/Forças...")
+             # Recalcula rolling goals se necessário (poderia ser otimizado)
+             df_temp_fixtures = calculate_rolling_goal_stats(df_temp_fixtures, window=ROLLING_WINDOW, avg_goals_home_league=avg_h_league_safe, avg_goals_away_league=avg_a_league_safe)
+        df_temp_fixtures = calculate_poisson_draw_prob(df_temp_fixtures, avg_h_league_safe, avg_a_league_safe, max_goals=6)
+        # Calcula derivadas E INTERAÇÕES (usando a função modificada)
         df_temp_fixtures = calculate_derived_features(df_temp_fixtures)
 
-        # --- 5. Seleção Final e Tratamento NaN ---
+        # --- 6. Seleção Final e Tratamento NaN ---
         logger.info(f"Selecionando features FINAIS ({feature_columns}) para modelo...")
-        final_features_available = [f for f in feature_columns if f in df_temp_fixtures.columns]
-        missing_final = [f for f in feature_columns if f not in df_temp_fixtures.columns]
-        if not final_features_available: logger.error("Erro FINAIS (Futuro): Nenhuma feature esperada encontrada."); return None
-        if missing_final: logger.warning(f"Aviso FINAIS (Futuro): Features esperadas não encontradas: {missing_final}. Preenchendo com 0.");
-        for col in missing_final: df_temp_fixtures[col] = 0
-        X_fix_prep = df_temp_fixtures[feature_columns].copy() # Seleciona SÓ as features
+        # Usa a lista exata de feature_columns passada como argumento
+        final_features_expected = feature_columns
+        final_features_available = [f for f in final_features_expected if f in df_temp_fixtures.columns]
+        missing_final = [f for f in final_features_expected if f not in final_features_available]
+
+        if not final_features_available: logger.error("Erro FINAIS (Futuro): Nenhuma feature esperada encontrada!"); return None
+        if missing_final:
+            logger.warning(f"Aviso FINAIS (Futuro): Features esperadas não encontradas: {missing_final}. Preenchendo com 0.")
+            for col in missing_final: df_temp_fixtures[col] = 0 # Preenche com 0 como fallback
+
+        # Seleciona APENAS as colunas da lista final (disponíveis ou preenchidas)
+        X_fix_prep = df_temp_fixtures[final_features_expected].copy()
 
         logger.info(f"Shape X_fix_prep (apenas features): {X_fix_prep.shape}")
+        # Preenche NaNs restantes com 0 (estratégia simples, pode ser melhorada com mediana/média do treino)
         nan_counts = X_fix_prep.isnull().sum(); total_nans = nan_counts.sum();
         if total_nans > 0: logger.warning(f"{total_nans} NaNs restantes nas features. Preenchendo com 0."); logger.debug(f"NaNs por coluna:\n{nan_counts[nan_counts > 0]}"); X_fix_prep.fillna(0, inplace=True);
         else: logger.info("Nenhum NaN restante nas features finais.")
         if X_fix_prep.isnull().values.any(): logger.error("ERRO CRÍTICO (Futuro): NaNs ainda presentes!"); return None
 
-        # Adiciona verificação de índice no final
-        logger.debug(f"Prepare Fixture: Index do fixture_df ENTRADA: {fixture_df.index[:5]}...")
-        logger.debug(f"Prepare Fixture: Index do X_fix_prep SAÍDA: {X_fix_prep.index[:5]}...")
-        # Compara o índice do X_fix_prep com o índice do fixture_df ORIGINAL para as mesmas linhas
-        if not fixture_df.loc[X_fix_prep.index].index.equals(X_fix_prep.index):
-             logger.warning("Prepare Fixture: Índices de fixture_df (alinhado) e X_fix_prep (saída) NÃO SÃO IGUAIS!")
+        # Verifica índice (como antes)
+        if not fixture_df.loc[X_fix_prep.index].index.equals(X_fix_prep.index): logger.warning("Prepare Fixture: Índices não são iguais!")
 
         logger.info(f"--- Preparação Features Futuras OK. Shape Final (X_fix_prep): {X_fix_prep.shape} ---")
-        return X_fix_prep # Retorna SÓ as features com o índice correto
+        return X_fix_prep
 
     except Exception as e_prep:
          logger.error(f"Erro GERAL em prepare_fixture_data: {e_prep}", exc_info=True)
          return None
-    
     
