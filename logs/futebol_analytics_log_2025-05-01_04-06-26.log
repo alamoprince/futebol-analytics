@@ -1,0 +1,350 @@
+2025-05-01 04:06:26 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-01 04:06:26 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-01 04:06:26 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-01 04:06:26 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-01 04:06:28 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-01 04:06:29 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-01 04:06:29 - MainApp - INFO - DPI Awareness set.
+2025-05-01 04:06:30 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-01 04:06:30 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-01 01:22:25)
+2025-05-01 04:06:30 - PredictorApp - INFO -   Tipo: SVC | Calib: Sim | F1 Thr: 0.2385 | EV Thr: 0.1300
+2025-05-01 04:06:30 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-01 01:22:25)
+2025-05-01 04:06:30 - PredictorApp - INFO -   Tipo: LogisticRegression | Calib: Sim | F1 Thr: 0.2852 | EV Thr: 0.1700
+2025-05-01 04:06:30 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-01 04:06:30 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-01 04:07:07 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-01 04:07:07 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-01 04:07:07 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-01 04:07:07 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-01 04:07:07 - DataHandler - INFO -     -> Filtro: 20180/97670 jogos restantes.
+2025-05-01 04:07:07 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-01 04:07:07 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (20180, 19)).
+2025-05-01 04:07:07 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-01 04:07:07 - DataHandler - INFO - DF histórico combinado: (20180, 19)
+2025-05-01 04:07:07 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-01 04:07:08 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-01 04:07:08 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-01 04:07:08 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-01 04:07:08 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-01 04:07:08 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-01 04:07:08 - DataHandler - INFO - DF histórico ordenado.
+2025-05-01 04:07:08 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-01 04:07:09 - DataHandler - INFO - Pi-Ratings e Momentum calculados. Colunas adicionadas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-01 04:07:09 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (19941, 26)
+2025-05-01 04:07:09 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Over25_FT      157
+Odd_Under25_FT     157
+Odd_BTTS_No        155
+Odd_BTTS_Yes       155
+PiR_Mom_5G_H       656
+PiR_Mom_5G_A       686
+PiR_Mom_5G_Diff    876
+dtype: int64
+2025-05-01 04:07:09 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-05-01 04:07:09 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-01 04:07:09 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-01 04:09:04 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-01 04:09:04 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-01 04:09:44 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-01 04:09:44 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-01 04:09:44 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-01 04:09:44 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-01 04:09:44 - DataHandler - INFO -     -> Filtro: 20180/97670 jogos restantes.
+2025-05-01 04:09:44 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-01 04:09:44 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (20180, 19)).
+2025-05-01 04:09:44 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-01 04:09:44 - DataHandler - INFO - DF histórico combinado: (20180, 19)
+2025-05-01 04:09:44 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-01 04:09:44 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-01 04:09:44 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-01 04:09:44 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-01 04:09:44 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-01 04:09:44 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-01 04:09:44 - DataHandler - INFO - DF histórico ordenado.
+2025-05-01 04:09:44 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-01 04:09:45 - DataHandler - INFO - Pi-Ratings e Momentum calculados. Colunas adicionadas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-01 04:09:45 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (19941, 26)
+2025-05-01 04:09:45 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Over25_FT      157
+Odd_Under25_FT     157
+Odd_BTTS_No        155
+Odd_BTTS_Yes       155
+PiR_Mom_5G_H       656
+PiR_Mom_5G_A       686
+PiR_Mom_5G_Diff    876
+dtype: int64
+2025-05-01 04:09:45 - DataHandler - INFO - --- Iniciando Pré-proc e Feature Eng (Histórico) ---
+2025-05-01 04:09:45 - DataHandler - INFO - Médias Liga: Casa=1.367, Fora=1.067
+2025-05-01 04:09:45 - DataHandler - INFO - === INÍCIO PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-01 04:09:45 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-01 04:09:45 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-01 04:09:45 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-05-01 04:09:45 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-01 04:09:45 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-01 04:09:45 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-01 04:09:45 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-01 04:09:45 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-05-01 04:09:45 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-01 04:09:46 - DataHandler - INFO - Pi-Ratings e Momentum calculados. Colunas adicionadas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-01 04:09:46 - DataHandler - INFO - Calculando 9 métricas rolling (Janela Padrão=5)...
+2025-05-01 04:10:00 - DataHandler - INFO - Métricas rolling calculadas. Shape: (19941, 18).
+2025-05-01 04:10:00 - DataHandler - INFO - Calculando 4 métricas EWMA (Span Padrão=5)...
+2025-05-01 04:10:32 - DataHandler - INFO - Métricas EWMA calculadas. Shape: (19941, 8).
+2025-05-01 04:10:32 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_goals=6)...
+2025-05-01 04:10:32 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-05-01 04:10:32 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-05-01 04:10:32 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...
+2025-05-01 04:10:32 - DataHandler - INFO - Features de interação calculadas (incluindo novas).
+2025-05-01 04:10:32 - DataHandler - INFO - === FIM PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-01 04:10:32 - DataHandler - INFO - Selecionando features FINAIS para modelo: ['p_D_norm', 'CV_HDA', 'Std_CG_A', 'Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'EWMA_VG_H_s5', 'EWMA_GolsMarc_A_s10', 'Odd_Over25_FT', 'OddD_div_PiRDiffAbs', 'PiR_Mom_5G_Diff', 'AvgGolsMarc_Diff']
+2025-05-01 04:10:32 - DataHandler - WARNING - Aviso FINAIS: Features selecionadas ausentes do DataFrame: ['EWMA_VG_H_s5', 'EWMA_GolsMarc_A_s10']. Verifique os cálculos.
+2025-05-01 04:10:32 - DataHandler - WARNING - Continuando APENAS com as features disponíveis: ['p_D_norm', 'CV_HDA', 'Std_CG_A', 'Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'Odd_Over25_FT', 'OddD_div_PiRDiffAbs', 'PiR_Mom_5G_Diff', 'AvgGolsMarc_Diff']
+2025-05-01 04:10:32 - DataHandler - INFO - DF selecionado p/ dropna: (19941, 10). Verificando NaNs...
+2025-05-01 04:10:32 - DataHandler - WARNING - NaNs ANTES dropna final nas features selecionadas:
+Std_CG_A            205
+Odd_Over25_FT       157
+PiR_Mom_5G_Diff     876
+AvgGolsMarc_Diff    180
+dtype: int64
+2025-05-01 04:10:32 - DataHandler - INFO - Removidas 1022 linhas contendo NaNs/Infs nas features finais ou no alvo.
+2025-05-01 04:10:32 - DataHandler - INFO - --- Pré-proc Histórico OK --- Shape Final X:(18919, 9), y:(18919,).
+2025-05-01 04:10:32 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-01 04:10:32 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-01 04:10:32 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-05-01 04:10:32 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-01 04:10:32 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-01 04:10:32 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-01 04:10:32 - Main2 - INFO - DEBUG Main: df_full_data_aligned_for_split (18919, 37)
+2025-05-01 04:10:32 - ModelTrainerApp - INFO - --- Treinando 7 Modelos (Sampler: smote, CV Temporal: f1, Opt(F1:True, EV:True, Prec:True)) ---
+2025-05-01 04:10:32 - ModelTrainerApp - INFO - Dividindo dados temporalmente (Treino+CV / Teste Final)...
+2025-05-01 04:10:32 - ModelTrainerApp - INFO - Split Temporal: T+CV=15136 (80.0%), Teste=3783 (20.0%)
+2025-05-01 04:10:32 - ModelTrainerApp - INFO - Odds alinhadas (Temporal): Teste=True (3783 jogos)
+2025-05-01 04:10:32 - ModelTrainerApp - INFO - 
+--- Modelo 1/7: RandomForestClassifier ---
+2025-05-01 04:10:32 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: RandomForestClassifier)
+2025-05-01 04:10:32 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4029. Params: {'bootstrap': True, 'class_weight': 'balanced_subsample', 'max_depth': 5, 'max_features': 'sqrt', 'min_samples_leaf': 3, 'min_samples_split': 80, 'n_estimators': 50}
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   -> Re-ajuste final OK.
+2025-05-01 04:27:37 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs (isotonic) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   -> Calibrador treinado (no Teste).
+2025-05-01 04:27:37 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     Limiar F1 ótimo(Teste): 0.2308 (F1=0.4575)
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     Limiar EV ótimo(Teste): 0.190 (ROI=13.21%)
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Otimizando Precision (Teste Probs Calib(Teste), Recall Mín: 10.0%)...
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     Limiar Prec ótimo(Teste): 0.3429 (Prec=0.3481, Rec=0.1146)
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL no Teste...
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Calculando métricas teste final (probs: Calib(Teste))
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     -> Métricas @ Thr 0.5: F1=0.4116, P=0.3161, R=0.5896
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     -> Métricas @ Thr F1 (0.2308): F1=0.4575, P=0.3010, R=0.9536
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     -> Métricas @ Thr Prec (0.3429): F1=0.1725, P=0.3481, R=0.1146
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     -> AUC(Calib(Teste))=0.5595, Brier(Calib(Teste))=0.2037
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     -> ROI @ Thr EV (0.190) = 13.21% (123 bets)
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -     ==> Resultado FINAL RandomForestClassifier adicionado.
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Tempo p/ RandomForestClassifier: 1025.36 seg.
+2025-05-01 04:27:37 - ModelTrainerApp - INFO - 
+--- Modelo 2/7: LogisticRegression ---
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -  -> Scaling OK.
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: LogisticRegression)
+2025-05-01 04:27:37 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4350. Params: {'C': 0.005029694912978312, 'class_weight': 'balanced', 'max_iter': 7000, 'penalty': 'l1', 'solver': 'liblinear'}
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   -> Re-ajuste final OK.
+2025-05-01 04:30:18 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs (isotonic) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   -> Calibrador treinado (no Teste).
+2025-05-01 04:30:18 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     Limiar F1 ótimo(Teste): 0.2462 (F1=0.4609)
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     Limiar EV ótimo(Teste): 0.160 (ROI=228.87%)
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   Otimizando Precision (Teste Probs Calib(Teste), Recall Mín: 10.0%)...
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     Limiar Prec ótimo(Teste): 0.3563 (Prec=0.3676, Rec=0.1465)
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL no Teste...
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   Calculando métricas teste final (probs: Calib(Teste))
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     -> Métricas @ Thr 0.5: F1=0.4416, P=0.3287, R=0.6724
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     -> Métricas @ Thr F1 (0.2462): F1=0.4609, P=0.3135, R=0.8699
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     -> Métricas @ Thr Prec (0.3563): F1=0.2095, P=0.3676, R=0.1465
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     -> AUC(Calib(Teste))=0.5769, Brier(Calib(Teste))=0.2025
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     -> ROI @ Thr EV (0.160) = 228.87% (15 bets)
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -     ==> Resultado FINAL LogisticRegression adicionado.
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   Tempo p/ LogisticRegression: 160.48 seg.
+2025-05-01 04:30:18 - ModelTrainerApp - INFO - 
+--- Modelo 3/7: LGBMClassifier ---
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: LGBMClassifier)
+2025-05-01 04:30:18 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-01 04:30:19 - ModelTrainerApp - ERROR -     Erro BayesSearchCV.fit: Unknown type of parameter:fit_params, got:dict
+joblib.externals.loky.process_executor._RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\externals\loky\process_executor.py", line 463, in _process_worker
+    r = call_item()
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\externals\loky\process_executor.py", line 291, in __call__
+    return self.fn(*self.args, **self.kwargs)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\parallel.py", line 598, in __call__
+    return [func(*args, **kwargs)
+            ~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\utils\parallel.py", line 139, in __call__
+    return self.function(*args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\model_selection\_validation.py", line 866, in _fit_and_score
+    estimator.fit(X_train, y_train, **fit_params)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\base.py", line 1389, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\imblearn\pipeline.py", line 526, in fit
+    self._final_estimator.fit(Xt, yt, **last_step_params["fit"])
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\sklearn.py", line 1560, in fit
+    super().fit(
+    ~~~~~~~~~~~^
+        X,
+        ^^
+    ...<12 lines>...
+        init_model=init_model,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\sklearn.py", line 1049, in fit
+    self._Booster = train(
+                    ~~~~~^
+        params=params,
+        ^^^^^^^^^^^^^^
+    ...<6 lines>...
+        callbacks=callbacks,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\engine.py", line 297, in train
+    booster = Booster(params=params, train_set=train_set)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\basic.py", line 3656, in __init__
+    train_set.construct()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\basic.py", line 2590, in construct
+    self._lazy_init(
+    ~~~~~~~~~~~~~~~^
+        data=self.data,
+        ^^^^^^^^^^^^^^^
+    ...<9 lines>...
+        position=self.position,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\basic.py", line 2163, in _lazy_init
+    params_str = _param_dict_to_str(params)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\basic.py", line 554, in _param_dict_to_str
+    raise TypeError(f"Unknown type of parameter:{key}, got:{type(val).__name__}")
+TypeError: Unknown type of parameter:fit_params, got:dict
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py", line 453, in train_evaluate_and_save_best_models
+    search_cv.fit(X_train_cv_m, y_train_cv, **model_fit_params) # <<< Fit nos dados de treino+CV
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\skopt\searchcv.py", line 542, in fit
+    super().fit(X=X, y=y, groups=groups, **fit_params)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\base.py", line 1389, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\model_selection\_search.py", line 1024, in fit
+    self._run_search(evaluate_candidates)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\skopt\searchcv.py", line 599, in _run_search
+    optim_result, score_name = self._step(
+                               ~~~~~~~~~~^
+        search_space,
+        ^^^^^^^^^^^^^
+    ...<3 lines>...
+        n_points=n_points_adjusted,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\skopt\searchcv.py", line 453, in _step
+    all_results = evaluate_candidates(params_dict)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\model_selection\_search.py", line 970, in evaluate_candidates
+    out = parallel(
+        delayed(_fit_and_score)(
+    ...<13 lines>...
+        )
+    )
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\utils\parallel.py", line 77, in __call__
+    return super().__call__(iterable_with_config)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\parallel.py", line 2007, in __call__
+    return output if self.return_generator else list(output)
+                                                ~~~~^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\parallel.py", line 1650, in _get_outputs
+    yield from self._retrieve()
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\parallel.py", line 1754, in _retrieve
+    self._raise_error_fast()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\parallel.py", line 1789, in _raise_error_fast
+    error_job.get_result(self.timeout)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\parallel.py", line 745, in get_result
+    return self._return_or_raise()
+           ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\joblib\parallel.py", line 763, in _return_or_raise
+    raise self._result
+TypeError: Unknown type of parameter:fit_params, got:dict
+2025-05-01 04:30:19 - ModelTrainerApp - WARNING -     -> Tentando fallback treino padrão...
+2025-05-01 04:30:19 - ModelTrainerApp - INFO -   Treinando Pipeline com params padrão em TODO X_train_cv...
+2025-05-01 04:30:19 - ModelTrainerApp - ERROR -     Erro treino fallback: Unknown type of parameter:fit_params, got:dict
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py", line 466, in train_evaluate_and_save_best_models
+    pipeline.fit(X_train_cv_m, y_train_cv);
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\base.py", line 1389, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\imblearn\pipeline.py", line 526, in fit
+    self._final_estimator.fit(Xt, yt, **last_step_params["fit"])
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\sklearn.py", line 1560, in fit
+    super().fit(
+    ~~~~~~~~~~~^
+        X,
+        ^^
+    ...<12 lines>...
+        init_model=init_model,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\sklearn.py", line 1049, in fit
+    self._Booster = train(
+                    ~~~~~^
+        params=params,
+        ^^^^^^^^^^^^^^
+    ...<6 lines>...
+        callbacks=callbacks,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\engine.py", line 297, in train
+    booster = Booster(params=params, train_set=train_set)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\basic.py", line 3656, in __init__
+    train_set.construct()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\basic.py", line 2590, in construct
+    self._lazy_init(
+    ~~~~~~~~~~~~~~~^
+        data=self.data,
+        ^^^^^^^^^^^^^^^
+    ...<9 lines>...
+        position=self.position,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\basic.py", line 2163, in _lazy_init
+    params_str = _param_dict_to_str(params)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\lightgbm\basic.py", line 554, in _param_dict_to_str
+    raise TypeError(f"Unknown type of parameter:{key}, got:{type(val).__name__}")
+TypeError: Unknown type of parameter:fit_params, got:dict
+2025-05-01 04:30:19 - ModelTrainerApp - INFO - 
+--- Modelo 4/7: SVC ---
+2025-05-01 04:30:19 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-01 04:30:19 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-01 04:30:19 - ModelTrainerApp - INFO -  -> Scaling OK.
+2025-05-01 04:30:19 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: SVC)
+2025-05-01 04:30:19 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...

@@ -62,7 +62,7 @@ class MainApplication:
         self.notebook.add(self.tab1_frame, text=' Coleta & Upload ')
         self.notebook.add(self.tab2_frame, text=' Treino & Previsão ')
         self.notebook.add(self.tab3_frame, text=' Análise de Features ')
-        self.notebook.add(self.tab4_frame, text=' Interpretação Modelo ') # <<< NOVA ABA
+        self.notebook.add(self.tab4_frame, text=' Interpretação Modelo ') 
 
         self.notebook.pack(expand=True, fill='both', padx=10, pady=10)
 
@@ -113,7 +113,7 @@ class MainApplication:
                 "FeatureAnalyzerApp": getattr(self, 'feature_analyzer', None), # Agora não tem mais fila
                 "FootballPredictorDashboard": getattr(self, 'predictor_dashboard', None),
                 "ScraperUploadTab": getattr(self, 'scraper_tab', None),
-                "ModelInterpreterApp": getattr(self, 'model_interpreter', None) # <<< ADICIONADO
+                "ModelInterpreterApp": getattr(self, 'model_interpreter', None) 
             }
 
             for tab_name, tab_instance in tabs_to_stop.items():

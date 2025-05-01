@@ -309,3 +309,103 @@ RandomForestClassifier         0.4633                0.3112             0.9064  
 2025-04-27 03:02:00 - PredictorApp - INFO -   Tipo: VotingClassifier | Calib: Sim | F1 Thr: 0.2596 | EV Thr: 0.0500
 2025-04-27 03:02:00 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-04-27 03:02:00)
 2025-04-27 03:02:00 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2338 | EV Thr: 0.1700
+2025-04-27 03:15:48 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Iniciando: Carregando & Processando dados históricos...
+2025-04-27 03:15:48 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Etapa 1: Carregando dados brutos...
+2025-04-27 03:15:48 - DataHandler - INFO - Iniciando carregamento e mapeamento de ligas de dados históricos...
+2025-04-27 03:15:48 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2006_2021).csv...
+2025-04-27 03:15:49 - DataHandler - INFO -   -> Lido 169433 linhas.
+2025-04-27 03:15:49 - DataHandler - INFO -   Aplicando mapeamento de liga específico para Base_de_Dados_FootyStats_(2006_2021).csv (Coluna original: 'League')...
+2025-04-27 03:15:49 - DataHandler - WARNING -     Ligas NÃO mapeadas (mapa específico) em Base_de_Dados_FootyStats_(2006_2021).csv: ['Argentina Primera DivisiÃ³n', 'Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera DivisiÃ³n', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Ã\x9arvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Serbia SuperLiga', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Spain Segunda DivisiÃ³n', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey SÃ¼per Lig', 'Uruguay Primera DivisiÃ³n', 'USA MLS', 'Wales Welsh Premier League']
+2025-04-27 03:15:49 - DataHandler - INFO -   Filtro de Liga (pós-map) em Base_de_Dados_FootyStats_(2006_2021).csv: 20112/169433 jogos restantes.
+2025-04-27 03:15:49 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...
+2025-04-27 03:15:49 - DataHandler - INFO -   DataFrame de Base_de_Dados_FootyStats_(2006_2021).csv processado e adicionado.
+2025-04-27 03:15:49 - DataHandler - INFO - Lendo Base_de_Dados_FootyStats_(2022_2025).csv...
+2025-04-27 03:15:50 - DataHandler - INFO -   -> Lido 49477 linhas.
+2025-04-27 03:15:50 - DataHandler - INFO -   Aplicando mapeamento de liga específico para Base_de_Dados_FootyStats_(2022_2025).csv (Coluna original: 'League')...
+2025-04-27 03:15:50 - DataHandler - WARNING -     Ligas NÃO mapeadas (mapa específico) em Base_de_Dados_FootyStats_(2022_2025).csv: ['PARAGUAY 1', 'CHILE 1', 'URUGUAY 1', 'JAPAN 1', 'IRELAND 1', 'JAPAN 2', 'SOUTH KOREA 2', 'SOUTH KOREA 1', 'USA 1', 'ESTONIA 1', 'FINLAND 1', 'SWEDEN 2', 'SWEDEN 1', 'NORWAY 1', 'NORWAY 2', 'ICELAND 1', 'CHINA 1', 'BULGARIA 1', 'SERBIA 1', 'POLAND 1', 'DENMARK 1', 'SWITZERLAND 2', 'CROATIA 1', 'SLOVENIA 1', 'SLOVAKIA 1', 'GERMANY 2', 'SWITZERLAND 1', 'AUSTRIA 2', 'AUSTRIA 1', 'BELGIUM 1', 'ENGLAND 2', 'SCOTLAND 1', 'FRANCE 2', 'ENGLAND 3', 'ENGLAND 4', 'CZECH 1', 'NETHERLANDS 2', 'NETHERLANDS 1', 'TURKEY 1', 'GERMANY 1', 'FRANCE 1', 'ENGLAND 1', 'PORTUGAL 1', 'PORTUGAL 2', 'WALES 1', 'SPAIN 1', 'GREECE 1', 'EGYPT 1']
+2025-04-27 03:15:50 - DataHandler - INFO -   Filtro de Liga (pós-map) em Base_de_Dados_FootyStats_(2022_2025).csv: 8497/49477 jogos restantes.
+2025-04-27 03:15:50 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP) ao DF filtrado...
+2025-04-27 03:15:50 - DataHandler - INFO -   DataFrame de Base_de_Dados_FootyStats_(2022_2025).csv processado e adicionado.
+2025-04-27 03:15:50 - DataHandler - INFO - Concatenando 2 DFs processados...
+2025-04-27 03:15:50 - DataHandler - INFO - DF histórico combinado e mapeado: (28609, 16)
+2025-04-27 03:15:50 - DataHandler - INFO - Iniciando processamento comum pós-concatenação (Tipos, NaNs, Dropna Essencial, Ordenação)...
+2025-04-27 03:15:50 - DataHandler - INFO - Verificando NaNs nas colunas essenciais finais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-04-27 03:15:50 - DataHandler - INFO - Removidas 5002 linhas com NaNs essenciais finais.
+2025-04-27 03:15:50 - DataHandler - INFO - DF histórico ordenado por Data.
+2025-04-27 03:15:50 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-04-27 03:15:51 - DataHandler - INFO - Pi-Ratings e Momentum calculados. Colunas adicionadas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-04-27 03:15:51 - DataHandler - INFO - Carregamento e mapeamento históricos OK. Shape Final: (23607, 23)
+2025-04-27 03:15:51 - DataHandler - INFO - Contagem de NaNs finais em colunas opcionais:
+Odd_Over25_FT      7305
+Odd_Under25_FT     7603
+Odd_BTTS_Yes       7170
+Odd_BTTS_No        7169
+XG_H               8173
+XG_A               8173
+XG_Total           8101
+PiR_Mom_5G_H        576
+PiR_Mom_5G_A        580
+PiR_Mom_5G_Diff     785
+dtype: int64
+2025-04-27 03:15:51 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Dados brutos carregados: (23607, 23)
+2025-04-27 03:15:51 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Etapa 2: Processando features (Pipeline Completo)...
+2025-04-27 03:15:51 - FeatureAnalyzerAppSimple - INFO - === INÍCIO PIPELINE FEAT ENG (ANALYSIS TAB) ===
+2025-04-27 03:15:51 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Médias Liga: H=1.379, A=1.034
+2025-04-27 03:15:51 - DataHandler - INFO - Calculando stats intermediárias...
+2025-04-27 03:15:51 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-04-27 03:15:51 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-04-27 03:15:51 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-04-27 03:15:51 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-04-27 03:15:51 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-04-27 03:15:51 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-04-27 03:15:51 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-04-27 03:15:51 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-04-27 03:15:53 - DataHandler - INFO - Pi-Ratings e Momentum calculados. Colunas adicionadas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-04-27 03:15:53 - DataHandler - INFO - Iniciando cálculo Médias Rolling (Janela=5)...
+2025-04-27 03:15:53 - DataHandler - INFO - Calculando Médias rolling para: ['VG_H', 'VG_A', 'CG_H', 'CG_A']
+2025-04-27 03:15:55 - DataHandler - INFO - Médias Rolling calculadas. Colunas adicionadas: ['Media_VG_H', 'Media_VG_A', 'Media_CG_H', 'Media_CG_A']
+2025-04-27 03:15:55 - DataHandler - INFO - Iniciando cálculo Desvio Padrão Rolling (Janela=5)...
+2025-04-27 03:15:55 - DataHandler - INFO - Calculando StDev rolling para: ['CG_H', 'CG_A']
+2025-04-27 03:15:58 - DataHandler - INFO - StDev Rolling calculado. Colunas adicionadas: ['Std_CG_H', 'Std_CG_A']
+2025-04-27 03:15:58 - DataHandler - INFO - Calculando Rolling Gols e Forças FA/FD (Janela=5)...
+2025-04-27 03:16:01 - DataHandler - INFO - Rolling Gols/FA/FD calculado. Colunas: ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'FA_H', 'FD_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'FA_A', 'FD_A']
+2025-04-27 03:16:01 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_gols=6)...
+2025-04-27 03:16:01 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-04-27 03:16:01 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-04-27 03:16:01 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Interações)...
+2025-04-27 03:16:01 - DataHandler - INFO - Features de interação calculadas.
+2025-04-27 03:16:01 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Processamento features concluído.
+2025-04-27 03:16:01 - FeatureAnalyzerAppSimple - INFO - === FIM PIPELINE FEAT ENG ===
+2025-04-27 03:16:01 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Etapa 3: Preparando X, y para análise...
+2025-04-27 03:16:01 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Features numéricas para análise: 52
+2025-04-27 03:16:01 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Dados p/ análise (final): (7301, 53) (16306 linhas removidas).
+2025-04-27 03:16:01 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Identificador de dados atualizado: ((7301, 52), ('Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'XG_H', 'XG_A', 'XG_Total', 'PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff', 'p_H', 'p_D', 'p_A', 'VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw', 'p_H_norm', 'p_D_norm', 'p_A_norm', 'abs_ProbDiff_Norm', 'Media_VG_H', 'Media_VG_A', 'Media_CG_H', 'Media_CG_A', 'Std_CG_H', 'Std_CG_A', 'Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'FA_H', 'FD_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'FA_A', 'FD_A', 'Prob_Empate_Poisson', 'Odd_D_Cat', 'CV_HDA', 'Diff_Media_CG', 'pDnorm_x_CVHDA', 'pDnorm_div_CVHDA', 'pDnorm_x_PiRDiffAbs', 'pDnorm_div_PiRDiffAbs', 'OddD_x_PiRDiffAbs', 'OddD_div_PiRDiffAbs'))
+2025-04-27 03:16:01 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Etapa 4: Atualizando Describe/Target...
+2025-04-27 03:16:01 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Etapa 5: Gerando gráficos básicos...
+2025-04-27 03:16:02 - FeatureAnalyzerAppSimple - INFO - [GUI AnalyzerSimple] Carregamento e análise básica concluídos.
+2025-04-27 03:16:27 - ModelInterpreterApp - INFO - [GUI Interpreter] Carregando modelos e dados p/ análise...
+2025-04-27 03:16:27 - ModelInterpreterApp - INFO - [GUI Interpreter] Dados ((7301, 52)) obtidos. ID: ((7301, 52), ('Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No', 'XG_H', 'XG_A', 'XG_Total', 'PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff', 'p_H', 'p_D', 'p_A', 'VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw', 'p_H_norm', 'p_D_norm', 'p_A_norm', 'abs_ProbDiff_Norm', 'Media_VG_H', 'Media_VG_A', 'Media_CG_H', 'Media_CG_A', 'Std_CG_H', 'Std_CG_A', 'Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'FA_H', 'FD_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'FA_A', 'FD_A', 'Prob_Empate_Poisson', 'Odd_D_Cat', 'CV_HDA', 'Diff_Media_CG', 'pDnorm_x_CVHDA', 'pDnorm_div_CVHDA', 'pDnorm_x_PiRDiffAbs', 'pDnorm_div_PiRDiffAbs', 'OddD_x_PiRDiffAbs', 'OddD_div_PiRDiffAbs'))
+2025-04-27 03:16:27 - ModelInterpreterApp - INFO - [GUI Interpreter]  -> Carregando Melhor F1 (Empate)...
+2025-04-27 03:16:27 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-04-27 03:02:00)
+2025-04-27 03:16:27 - PredictorApp - INFO -   Tipo: VotingClassifier | Calib: Sim | F1 Thr: 0.2596 | EV Thr: 0.0500
+2025-04-27 03:16:27 - ModelInterpreterApp - WARNING - Tentando Permutation Importance VotingClassifier...
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO -  -> Permutation Importance OK.
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO - [GUI Interpreter]     -> Modelo Melhor F1 (Empate) e dados prep OK.
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO - [GUI Interpreter]     -> Cache SHAP inválido.
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO - [GUI Interpreter]  -> Carregando Melhor ROI (Empate)...
+2025-04-27 03:16:31 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-04-27 03:02:00)
+2025-04-27 03:16:31 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2338 | EV Thr: 0.1700
+2025-04-27 03:16:31 - ModelInterpreterApp - WARNING - Tentando Permutation Importance GaussianNB...
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO -  -> Permutation Importance OK.
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO - [GUI Interpreter]     -> Modelo Melhor ROI (Empate) e dados prep OK.
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO - [GUI Interpreter]     -> Cache SHAP não encontrado.
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO - [GUI Interpreter] Modelos carregados: Melhor F1 (Empate), Melhor ROI (Empate)
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO - [GUI Interpreter] Atualizando análise para: Melhor F1 (Empate)
+2025-04-27 03:16:31 - ModelInterpreterApp - INFO - [GUI Interpreter] Calculando SHAP VotingClassifier diretamente...
+2025-04-27 03:16:31 - ModelInterpreterApp - WARNING - Tipo VotingClassifier fallback Kernel.
+2025-04-27 03:16:35 - ModelInterpreterApp - INFO - [GUI Interpreter] Cache SHAP salvo disco Melhor F1 (Empate).
+2025-04-27 03:16:35 - ModelInterpreterApp - INFO - Cache SHAP memória Melhor F1 (Empate) OK.
+2025-04-27 03:16:35 - ModelInterpreterApp - INFO - [GUI Interpreter] Gerando gráfico SHAP para Melhor F1 (Empate) (salvando imagem, suprimindo tight)...
+2025-04-27 03:16:35 - ModelInterpreterApp - INFO - [GUI Interpreter] Gráfico SHAP exibido como imagem para Melhor F1 (Empate).
+2025-04-27 03:21:57 - MainApp - INFO - Fechando aplicação.
+2025-04-27 03:21:57 - MainApp - INFO - Destruindo janela principal.

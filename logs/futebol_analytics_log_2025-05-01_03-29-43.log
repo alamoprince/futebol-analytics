@@ -1,0 +1,21 @@
+2025-05-01 03:29:43 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-01 03:29:43 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-01 03:29:43 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-01 03:29:43 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-01 03:29:46 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-01 03:29:46 - Config - INFO - Features FINAIS selecionadas para modelo (11): ['AvgGolsMarc_Diff', 'CV_HDA', 'EWMA_GolsMarc_A_s10', 'EWMA_VG_H_s5', 'OddD_div_PiRDiffAbs', 'Odd_Over25_FT', 'PiR_Mom_5G_Diff', 'Prob_Empate_Poisson', 'Std_CG_A', 'abs_ProbDiff_Norm', 'p_D_norm']
+2025-05-01 03:29:46 - Main2 - ERROR - Erro import main.py (Treino/Previsão): cannot import name 'TARGET_LEAGUES_1' from 'config' (c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\config.py)
+2025-05-01 03:29:46 - MainApp - ERROR - Erro ao importar classes da GUI: cannot import name 'TARGET_LEAGUES_1' from 'config' (c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\config.py)
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\app_launcher.py", line 27, in <module>
+    from main import FootballPredictorDashboard
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\main.py", line 41, in <module>
+    from data_handler import (
+    ...<6 lines>...
+    )
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\data_handler.py", line 7, in <module>
+    from config import (
+    ...<17 lines>...
+    )
+ImportError: cannot import name 'TARGET_LEAGUES_1' from 'config' (c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\config.py)
+2025-05-01 03:29:46 - MainApp - ERROR - Verifique os nomes dos arquivos/classes e se os arquivos estão em 'src'.

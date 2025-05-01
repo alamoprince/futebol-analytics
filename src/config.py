@@ -3,7 +3,39 @@ import os
 import numpy as np
 from datetime import date, timedelta
 import random
-import skopt.space as sp
+
+from logger_config import setup_logger
+
+logger = setup_logger("Config")
+
+try:
+    from skopt.space import Real, Categorical, Integer
+    SKOPT_AVAILABLE_CONFIG = True
+except ImportError:
+    logger.warning("AVISO (config.py): skopt não instalado. Espaços Bayes não funcionarão.")
+    SKOPT_AVAILABLE_CONFIG = False
+    # Define classes dummy para evitar erros fatais, mas Bayes não funcionará
+    Real = lambda *args, **kwargs: None
+    Categorical = lambda *args, **kwargs: None
+    Integer = lambda *args, **kwargs: None
+
+try:
+    import lightgbm as lgb
+    LGBMClassifier = lgb.LGBMClassifier
+    LGBM_AVAILABLE = True
+except ImportError:
+    logger.warning("AVISO: LightGBM não instalado.")
+    lgb = None; LGBMClassifier = None; LGBM_AVAILABLE = False
+
+try:
+    from catboost import CatBoostClassifier
+    CATBOOST_AVAILABLE = True
+    logger.info("Biblioteca 'catboost' carregada.")
+except ImportError:
+    logger.warning("AVISO: CatBoost não instalado (pip install catboost).")
+    CatBoostClassifier = None
+    CATBOOST_AVAILABLE = False
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -24,6 +56,9 @@ HISTORICAL_DATA_PATH_1 = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME_1)
 HISTORICAL_DATA_FILENAME_2 = "Base_de_Dados_FootyStats_(2022_2025).csv"
 HISTORICAL_DATA_PATH_2 = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME_2)
 
+HISTORICAL_DATA_FILENAME_3 = "dados_combinados_2019_2025.xlsx"
+HISTORICAL_DATA_PATH_3 = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME_3)
+
 SCRAPER_BASE_URL = "https://flashscore.com"
 SCRAPER_TARGET_DAY =  "tomorrow" # "today" ou "tomorrow"
 SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d") 
@@ -38,23 +73,25 @@ PI_RATING_HOME_ADVANTAGE = 65 # Pontos de rating adicionados ao time da casa par
 
 # 1. NOMES INTERNOS PADRÃO (Seus identificadores únicos)
 INTERNAL_LEAGUE_NAMES = {
-    'ARGENTINA 1': 'Argentina - Primera División', # Nome descritivo opcional
-    'SPAIN 2': 'Espanha - Segunda División',
-    'ITALY 1': 'Itália - Serie A',
-    'ITALY 2': 'Itália - Serie B',
-    'BRAZIL 1': 'Brasil - Série A',
-    'BRAZIL 2': 'Brasil - Série B',
-    'ROMANIA 1': 'Romênia - Liga 1'
-    # Adicione mais se precisar
+     'ARGENTINA 1': 'Argentina - Primera División', # Nome descritivo opcional
+     'SPAIN 2': 'Espanha - Segunda División',
+     'ITALY 1': 'Itália - Serie A',
+     'ITALY 2': 'Itália - Serie B',
+     'BRAZIL 1': 'Brasil - Série A',
+     'BRAZIL 2': 'Brasil - Série B',
+     'ROMANIA 1': 'Romênia - Liga 1',
+     'SERBIA 1': 'Serbia - SuperLiga', 
+     'FRANCE 1': 'France - Ligue 1',
 }
 
 # Lista apenas dos identificadores curtos, se preferir usá-los internamente
 TARGET_LEAGUES_INTERNAL_IDS = list(INTERNAL_LEAGUE_NAMES.keys())
 
-#database 
+#database historica
 
-TARGET_LEAGUES_1 = {'Argentina Primera División':'ARGENTINA 1','Spain Segunda División':'SPAIN 2', 'Italy Serie A':'ITALY 1', 'Italy Serie B':'ITALY 2', 'Brazil Serie A':'BRAZIL 1','Brazil Serie B':'BRAZIL 2', 'Romania Liga I':'ROMANIA 1'}
-TARGET_LEAGUES_2 = {'ARGENTINA 1':'ARGENTINA 1','SPAIN 2':'SPAIN 2', 'ITALY 1':'ITALY 1', 'ITALY 2':'ITALY 2', 'BRAZIL 1':'BRAZIL 1','BRAZIL 2':'BRAZIL 2', 'ROMANIA 1':'ROMANIA 1'}
+TARGET_LEAGUES_1 = {'Argentina Primera División':'ARGENTINA 1','Spain Segunda División':'SPAIN 2', 'Serbia SuperLiga':'SERBIA 1', 'France Ligue 1':'FRANCE 1','Italy Serie A':'ITALY 1', 'Italy Serie B':'ITALY 2', 'Brazil Serie A':'BRAZIL 1','Brazil Serie B':'BRAZIL 2', 'Romania Liga I':'ROMANIA 1'}
+TARGET_LEAGUES_2 = {'ARGENTINA 1':'ARGENTINA 1','SPAIN 2':'SPAIN 2', 'SERBIA 1':'SERBIA 1', 'FRANCE 1':'FRANCE 1','ITALY 1':'ITALY 1', 'ITALY 2':'ITALY 2', 'BRAZIL 1':'BRAZIL 1','BRAZIL 2':'BRAZIL 2', 'ROMANIA 1':'ROMANIA 1'}
+
 #database futuro
 SCRAPER_TO_INTERNAL_LEAGUE_MAP = {
      # Nome no Scraper : Nome Interno/Histórico
@@ -63,11 +100,13 @@ SCRAPER_TO_INTERNAL_LEAGUE_MAP = {
     'ITALY: Serie A': 'ITALY 1',
     'ITALY: Serie B': 'ITALY 2',
     'BRAZIL: Serie A Betano': 'BRAZIL 1',
-    'BRAZIL: Serie B': 'BRAZIL 2',
+    'BRAZIL: Serie B Superbet': 'BRAZIL 2',
     'ROMANIA: Superliga - Relegation Group': 'ROMANIA 1'
 }
 
-SCRAPER_SLEEP_BETWEEN_GAMES = 20
+APPLY_LEAGUE_FILTER_ON_HISTORICAL = True
+
+SCRAPER_SLEEP_BETWEEN_GAMES = 10
 SCRAPER_SLEEP_AFTER_NAV = 10
 
 # --- Arquivos dos Modelos Salvos ---
@@ -79,169 +118,121 @@ BEST_ROI_MODEL_SAVE_PATH = os.path.join(DATA_DIR, BEST_ROI_MODEL_FILENAME)
 
 MODEL_SAVE_PATH = BEST_F1_MODEL_SAVE_PATH # Caminho padrão para salvar o modelo
 
-# Identificadores para exibir na GUI/CLI
+APPLY_LEAGUE_FILTER_ON_HISTORICAL = True
+
+# --- Arquivos dos Modelos Salvos ---
+BEST_F1_MODEL_FILENAME = f"best_model{MODEL_SUFFIX_F1}.joblib"
+BEST_F1_MODEL_SAVE_PATH = os.path.join(DATA_DIR, BEST_F1_MODEL_FILENAME)
+BEST_ROI_MODEL_FILENAME = f"best_model{MODEL_SUFFIX_ROI}.joblib"
+BEST_ROI_MODEL_SAVE_PATH = os.path.join(DATA_DIR, BEST_ROI_MODEL_FILENAME)
+MODEL_SAVE_PATH = BEST_F1_MODEL_SAVE_PATH # Padrão
 MODEL_ID_F1 = "Melhor F1 (Empate)"
 MODEL_ID_ROI = "Melhor ROI (Empate)"
 
 # --- Fonte de Dados Futuros (CSV GitHub) ---
-FIXTURE_FETCH_DAY = "today"
-FIXTURE_CSV_URL_TEMPLATE = "https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/refs/heads/main/data/raw_scraped/scraped_fixtures_{date_str}.csv"
+FIXTURE_FETCH_DAY = "tomorrow" # Ou "today"
+FIXTURE_CSV_URL_TEMPLATE = "https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/main/data/raw_scraped/scraped_fixtures_{date_str}.csv" # Atualizado branch
 
-XG_COLS = {'home': 'XG_H', 'away': 'XG_A'}
-XG_COLS['total'] = 'XG_Total' # Adiciona a coluna total (se necessário)
-# Colunas base ESPERADAS no CSV (nomes ORIGINAIS do CSV) - VERIFIQUE!
-CSV_EXPECTED_COLS_HIST = {
-    'Id': 'Id_Jogo',         # Mapeia 'Id' do CSV para 'Id_Jogo' interno (opcional)
-    'Date': 'Date',          # Mapeia 'Date' do CSV para 'Date' interno (PODE conter hora?)
-    'Time': 'Time_Str',          # Mapeia 'Time' do CSV para 'Time' interno
-    'Country': 'Country',    # Mapeia 'Country' para 'Country'
-    'League': 'League',      # Mapeia 'League' (que já tem ID interno) para 'League'
-    'Home': 'Home',      # Mapeia 'HomeTeam' do CSV para 'Home' interno <<-- IMPORTANTE
-    'Away': 'Away',      # Mapeia 'AwayTeam' do CSV para 'Away' interno <<-- IMPORTANTE
-    'Odd_H_FT': 'Odd_H_FT',  # Nomes já coincidem
-    'Odd_D_FT': 'Odd_D_FT',
-    'Odd_A_FT': 'Odd_A_FT',
+# --- Nomes Colunas Internas ---
+XG_COLS = {'home': 'XG_H', 'away': 'XG_A', 'total': 'XG_Total'}
+ODDS_COLS = {'home': 'Odd_H_FT', 'draw': 'Odd_D_FT', 'away': 'Odd_A_FT'}
+GOALS_COLS = {'home': 'Goals_H_FT', 'away': 'Goals_A_FT'}
+OTHER_ODDS_NAMES = [ 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No' ]
+
+# Mapeamento CSV/Excel -> Nomes Internos (AJUSTADO E SIMPLIFICADO)
+CSV_HIST_COL_MAP = {
+    # Coluna no Arquivo : Nome Interno Desejado
+    # Essenciais
+    'Date': 'Date',
+    'Time': 'Time', # Precisa da hora
+    'League': 'League',
+    'Home': 'Home', # Assumindo que a coluna é 'Home'
+    'Away': 'Away', # Assumindo que a coluna é 'Away'
+    'Goals_H_FT': GOALS_COLS['home'],
+    'Goals_A_FT': GOALS_COLS['away'],
+    'Odd_H_FT': ODDS_COLS['home'],
+    'Odd_D_FT': ODDS_COLS['draw'],
+    'Odd_A_FT': ODDS_COLS['away'],
+    # Outras Odds
     'Odd_Over25_FT': 'Odd_Over25_FT',
     'Odd_Under25_FT': 'Odd_Under25_FT',
     'Odd_BTTS_Yes': 'Odd_BTTS_Yes',
     'Odd_BTTS_No': 'Odd_BTTS_No',
-    # Adicione mapeamentos para XG se o scraper os salvar com nomes diferentes
-    # Ex: 'XG_Home': XG_COLS['home'],
-    # Ex: 'XG_Away': XG_COLS['away'],
-    # Ex: 'XG_T': XG_COLS['total'],
+     # xG (use os nomes EXATOS do seu arquivo Excel/CSV)
+    'XG_Home': XG_COLS['home'], # Exemplo: Mapeia 'XG_Home' do arquivo para 'XG_H' interno
+    'XG_Away': XG_COLS['away'], # Exemplo: Mapeia 'XG_Away' do arquivo para 'XG_A' interno
+    'XG_Total': XG_COLS['total'],# Exemplo: Mapeia 'XG_Total' para 'XG_Total'
+    # Stats (Adicione se existirem no arquivo e quiser usá-las para rolling stats)
+    'Shots_H': 'Shots_H',
+    'Shots_A': 'Shots_A',
+    'ShotsOnTarget_H': 'ShotsOnTarget_H',
+    'ShotsOnTarget_A': 'ShotsOnTarget_A',
+    'Corners_H_FT': 'Corners_H_FT',
+    'Corners_A_FT': 'Corners_A_FT',
+    # Adicione outras colunas se necessário
 }
-
-# Mapeamento CSV -> Nomes Internos
-CSV_HIST_COL_MAP = {k: k for k in CSV_EXPECTED_COLS_HIST} # Inicia mapeando para si mesmo
-CSV_HIST_COL_MAP.update({ # Sobrescreve os que precisam de renomeação
-    'Date': 'Date',
-    'HomeTeam': 'Home',             # <<< CHAVE é 'Home', VALOR é 'Home'
-    'AwayTeam': 'Away',             # <<< CHAVE é 'Away', VALOR é 'Away'
-    'Goals_H_FT': 'Goals_H_FT', # <<< Nomes já coincidem
-    'Goals_A_FT': 'Goals_A_FT', # <<< Nomes já coincidem
-    'Odd_H_FT': 'Odd_H_FT',      # <<< Nomes já coincidem
-    'Odd_D_FT': 'Odd_D_FT',      # <<< Nomes já coincidem
-    'Odd_A_FT': 'Odd_A_FT',      # <<< Nomes já coincidem
-    'League': 'League',          # <<< Nomes já coincidem (ou ajuste se for diferente)
-    # Adicione mapeamentos SE os nomes no CSV forem diferentes dos internos desejados
-    'Odd_Over25_FT': 'Odd_Over25_FT', # Ex: Nomes já coincidem
-    'Odd_Under25_FT': 'Odd_Under25_FT',
-    'Odd_BTTS_Yes': 'Odd_BTTS_Yes',
-    'Odd_BTTS_No': 'Odd_BTTS_No',
-    'XG_Home_Pre': XG_COLS['home'], # Mapeia para 'XG_H'
-    'XG_Away_Pre': XG_COLS['away'], # Mapeia para 'XG_A'
-    'XG_Total_Pre': 'XG_Total', # Exemplo de nome interno
-})
-# Colunas internas essenciais após ler e mapear o CSV
-REQUIRED_FIXTURE_COLS = ['League','Time', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', 
-                         'Odd_Over25_FT', 'Odd_BTTS_Yes']
-
+# Colunas internas essenciais APÓS mapeamento para buscar jogos futuros
+# Ajustado para incluir Time_Str, remover Time (que será usado para criar Time_Str)
+REQUIRED_FIXTURE_COLS = ['League','Time_Str', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT'] # Mínimo necessário
 
 # --- Configurações Gerais do Modelo ---
-RANDOM_STATE = 42; TEST_SIZE = 0.2; CROSS_VALIDATION_SPLITS = 5; N_JOBS_GRIDSEARCH = -1; ROLLING_WINDOW = 5 #mudei o rolling_window para 5 dias 
-FEATURE_EPSILON = 1e-6
-RESULT_MAPPING = {'D': 0, 'H': 1, 'A': 2} # Usado para Ptos
+RANDOM_STATE = 42
+TEST_SIZE = 0.20 # Fração para teste final
+CROSS_VALIDATION_SPLITS = 5 # Número de splits para TimeSeriesSplit na CV
+N_JOBS_GRIDSEARCH = -1 # Usar todos os processadores
+ROLLING_WINDOW = 5 # <<< AJUSTE AQUI a janela padrão para médias simples e momentum PiRating
+FEATURE_EPSILON = 1e-9 # Valor pequeno para evitar divisão por zero
+
+RESULT_MAPPING = {'D': 0, 'H': 1, 'A': 2} # Usado para Ptos (em calculate_historical_intermediate)
 CLASS_NAMES = ['Nao_Empate', 'Empate'] # Alvo binário
 
-# --- Nomes das Colunas Internas (Odds/Gols) (NOMES INTERNOS)---
-ODDS_COLS = {'home': 'Odd_H_FT', 'draw': 'Odd_D_FT', 'away': 'Odd_A_FT'}
-GOALS_COLS = {'home': 'Goals_H_FT', 'away': 'Goals_A_FT'} 
-OTHER_ODDS_NAMES = [ 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTTS_No' ]
-
-# Colunas base ESPERADAS no Excel (nomes ORIGINAIS do Excel)
-CSV_PATTERN_COLS = [
-    'Date', 'Home', 'Away',
-    'Goals_H_FT', 'Goals_A_FT', # Nomes que GOALS_COLS usa nas CHAVES
-    'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT', # Nomes que ODDS_COLS usa
-    'Odd_Over25_FT', 'Odd_BTTS_Yes' # Outras odds diretas usadas como features
-    'XG_Home_Pre', 'XG_Away_Pre', 'XG_Total' # Odds de xG (Expected Goals)
-]
-
-# Interações Odds/Prob x CV_HDA
+# --- Nomes das Features ---
+# Interações (Manter nomes)
 INTERACTION_P_D_NORM_X_CV_HDA = 'pDnorm_x_CVHDA'
 INTERACTION_P_D_NORM_DIV_CV_HDA = 'pDnorm_div_CVHDA'
-# Interações Odds/Prob x PiRating_Diff
 INTERACTION_P_D_NORM_X_PIR_DIFF = 'pDnorm_x_PiRDiffAbs'
 INTERACTION_P_D_NORM_DIV_PIR_DIFF = 'pDnorm_div_PiRDiffAbs'
 INTERACTION_ODD_D_X_PIR_DIFF = 'OddD_x_PiRDiffAbs'
 INTERACTION_ODD_D_DIV_PIR_DIFF = 'OddD_div_PiRDiffAbs'
-# Pi-Rating Momentum (Calculado sobre ROLLING_WINDOW jogos anteriores)
+INTERACTION_PIR_PROBH_X_ODD_H = 'PiRProbH_x_OddH'
+INTERACTION_AVG_GOLS_MARC_DIFF = 'AvgGolsMarc_Diff'
+INTERACTION_AVG_GOLS_SOFR_DIFF = 'AvgGolsSofr_Diff'
+
+# Momentum (Nome baseado em ROLLING_WINDOW)
 PIRATING_MOMENTUM_H = f'PiR_Mom_{ROLLING_WINDOW}G_H'
 PIRATING_MOMENTUM_A = f'PiR_Mom_{ROLLING_WINDOW}G_A'
 PIRATING_MOMENTUM_DIFF = f'PiR_Mom_{ROLLING_WINDOW}G_Diff'
 
+# Nomes EWMA
+EWMA_SPAN_SHORT = 5  # <<< AJUSTE AQUI o span curto
+EWMA_SPAN_LONG = 10 # <<< AJUSTE AQUI o span longo
+EWMA_VG_H_SHORT = f'EWMA_VG_H_s{EWMA_SPAN_SHORT}'
+EWMA_VG_A_SHORT = f'EWMA_VG_A_s{EWMA_SPAN_SHORT}'
+EWMA_CG_H_SHORT = f'EWMA_CG_H_s{EWMA_SPAN_SHORT}'
+EWMA_CG_A_SHORT = f'EWMA_CG_A_s{EWMA_SPAN_SHORT}'
+EWMA_GolsMarc_H_LONG = f'EWMA_GolsMarc_H_s{EWMA_SPAN_LONG}'
+EWMA_GolsMarc_A_LONG = f'EWMA_GolsMarc_A_s{EWMA_SPAN_LONG}'
+EWMA_GolsSofr_H_LONG = f'EWMA_GolsSofr_H_s{EWMA_SPAN_LONG}'
+EWMA_GolsSofr_A_LONG = f'EWMA_GolsSofr_A_s{EWMA_SPAN_LONG}'
+
 ALL_CANDIDATE_FEATURES = [
-    # Baseadas em Odds / Probabilidades Normalizadas
-    'p_D_norm',
-    'abs_ProbDiff_Norm',
-    'p_H_norm', # Pode adicionar se quiser analisar individualmente
-    'p_A_norm', # Pode adicionar se quiser analisar individualmente
-
-    # Médias Rolling (Valor e Custo do Gol)
-    'Media_VG_H',
-    'Media_VG_A',
-    'Media_CG_H',
-    'Media_CG_A',
-
-    # Médias Rolling (Pontos) - Adicionar se quiser testar
-    'Media_Ptos_H',
-    'Media_Ptos_A',
-
-    # Desvios Padrão Rolling (Custo do Gol)
-    'Std_CG_H',
-    'Std_CG_A',
-
-    # Desvios Padrão Rolling (Valor do Gol) - Adicionar se quiser testar
-    'Std_VG_H',
-    'Std_VG_A',
-
-    # Desvios Padrão Rolling (Pontos) - Adicionar se quiser testar
-    'Std_Ptos_H',
-    'Std_Ptos_A',
-
-    # Binning das Odds de Empate
-    'Odd_D_Cat',
-
-    # Features Derivadas Originais (Se quiser mantê-las para análise/teste)
-    'CV_HDA',
-    'Diff_Media_CG', # Redundante se usar Media_CG_H/A? Testar.
-
-    # Odds Diretas (Se quiser comparar diretamente na análise)
-    'Odd_H_FT',
-    'Odd_D_FT',
-    'Odd_A_FT',
-    'Odd_Over25_FT', # Se disponível e relevante
-    'Odd_BTTS_Yes',  # Se disponível e relevante
-
-    'Avg_Gols_Marcados_H',  # Média Gols Marcados H (Poisson Simples)
-    'Avg_Gols_Sofridos_H',  # Média Gols Sofridos H (Poisson Simples)
-    'Avg_Gols_Marcados_A',  # Média Gols Marcados A (Poisson Simples)
-    'Avg_Gols_Sofridos_A',  # Média Gols Sofridos A (Poisson Simples)
-
-    #Probabilidade Poisson de Empate
-    'Prob_Empate_Poisson'
-
-    #xG (Expected Goals) - Se disponível e relevante
-    'XG_Home_Pre', 
-    'XG_Away_Pre',
-    'XG_Total'
-
-    # Novas Features Pi-Rating (Exemplos)
-    'PiRating_H',       # Rating do time da casa ANTES do jogo
-    'PiRating_A',       # Rating do time visitante ANTES do jogo
-    'PiRating_Diff',    # Diferença (PiRating_H - PiRating_A)
-    'PiRating_Prob_H',  # Probabilidade de vitória da casa segundo Pi-Ratings
-
-    # Novas Interações (Exemplos - escolha quais testar)
-    INTERACTION_P_D_NORM_DIV_CV_HDA,
-    INTERACTION_P_D_NORM_X_PIR_DIFF,
-    INTERACTION_ODD_D_DIV_PIR_DIFF,
-    # Novos Momentums (Exemplos)
-    PIRATING_MOMENTUM_H,
-    PIRATING_MOMENTUM_A,
-    PIRATING_MOMENTUM_DIFF,
-
+    'p_D_norm', 'abs_ProbDiff_Norm', 'p_H_norm', 'p_A_norm', 'Media_VG_H',
+    'Media_VG_A', 'Media_CG_H', 'Media_CG_A', 'Media_Ptos_H', 'Media_Ptos_A',
+    'Std_CG_H', 'Std_CG_A', 'Std_VG_H', 'Std_VG_A', 'Std_Ptos_H', 'Std_Ptos_A',
+    'Odd_D_Cat', 'CV_HDA', 'Diff_Media_CG', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT',
+    'Odd_Over25_FT', 'Odd_BTTS_Yes', 'Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H',
+    'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'Prob_Empate_Poisson',
+    'XG_H', 'XG_A', 'XG_Total', 'PiRating_H', 'PiRating_A',
+    'PiRating_Diff', 'PiRating_Prob_H', PIRATING_MOMENTUM_H, PIRATING_MOMENTUM_A,
+    PIRATING_MOMENTUM_DIFF, INTERACTION_P_D_NORM_DIV_CV_HDA,
+    INTERACTION_P_D_NORM_X_PIR_DIFF, INTERACTION_ODD_D_DIV_PIR_DIFF,
+    INTERACTION_PIR_PROBH_X_ODD_H, INTERACTION_AVG_GOLS_MARC_DIFF,
+    INTERACTION_AVG_GOLS_SOFR_DIFF, EWMA_VG_H_SHORT, EWMA_VG_A_SHORT,
+    EWMA_CG_H_SHORT, EWMA_CG_A_SHORT, EWMA_GolsMarc_H_LONG, EWMA_GolsMarc_A_LONG,
+    EWMA_GolsSofr_H_LONG, EWMA_GolsSofr_A_LONG,
 ]
+ALL_CANDIDATE_FEATURES = sorted(list(set(ALL_CANDIDATE_FEATURES)))
+logger.debug(f"Total de features candidatas: {len(ALL_CANDIDATE_FEATURES)}")
 
 # --- Lista das Features FINAIS para o Modelo BackDraw ---
 FEATURE_COLUMNS = [
@@ -251,12 +242,15 @@ FEATURE_COLUMNS = [
 NEW_FEATURE_COLUMNS = [
     'p_D_norm',
     'CV_HDA',
-    PIRATING_MOMENTUM_DIFF,
-    'Std_CG_H',
-    'Std_CG_A',   
+    'Std_CG_A',
     'Prob_Empate_Poisson',
+    'abs_ProbDiff_Norm',
+    EWMA_VG_H_SHORT, # Feature EWMA adicionada
+    EWMA_GolsMarc_A_LONG, # Feature EWMA adicionada
     'Odd_Over25_FT',
-    'pDnorm_x_CVHDA',
+    INTERACTION_ODD_D_DIV_PIR_DIFF, # Interação mantida
+    PIRATING_MOMENTUM_DIFF, # Momentum adicionado
+    INTERACTION_AVG_GOLS_MARC_DIFF, # Interação adicionada
 ]
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
@@ -265,126 +259,139 @@ FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
 BEST_MODEL_METRIC = 'f1_score_draw' #antes:'f1_score'
 BEST_MODEL_METRIC_ROI = 'roi' # ROI (Expected Value) - Para o modelo de ROI
 
+# --- Métrica Principal e Limiares Default ---
+BEST_MODEL_METRIC = 'f1_score_draw'
+BEST_MODEL_METRIC_ROI = 'roi'
+DEFAULT_F1_THRESHOLD = 0.5
+DEFAULT_EV_THRESHOLD = 0.05
+MIN_RECALL_FOR_PRECISION_OPT = 0.10
+
+# --- Configuração Otimização Bayesiana/GridSearch ---
+BAYESIAN_OPT_N_ITER = 75 # Mantido
+
+categorical_feature_names = ['Odd_D_Cat']
+categorical_features_indices = [
+    i for i, col in enumerate(NEW_FEATURE_COLUMNS)
+    if col in [categorical_feature_names]
+    ]
+
 # --- Configuração dos Modelos a Testar ---
 
+
 rf_search_spaces = {
-    'classifier__n_estimators': sp.Integer(100, 300), # Prefixo!
-    'classifier__criterion': sp.Categorical(['gini', 'entropy']), # Prefixo!
-    'classifier__max_depth': sp.Integer(5, 20, prior='uniform'), # Prefixo!
-    'classifier__min_samples_split': sp.Integer(5, 30), # Prefixo!
-    'classifier__min_samples_leaf': sp.Integer(3, 20), # Prefixo!
-    'classifier__max_features': sp.Categorical(['sqrt', 'log2']), # Prefixo!
-    'classifier__class_weight': sp.Categorical(['balanced', None]), # Prefixo! - 'balanced' pode ser útil aqui
-    'classifier__bootstrap': sp.Categorical([True, False]), # Prefixo!
-    # Adicione outros parâmetros do SMOTE se quiser otimizá-los, ex:
-    # 'sampler__k_neighbors': sp.Integer(3, 11) # Otimizar k do SMOTE
+    'classifier__n_estimators': Integer(50, 500), # Aumentado limite superior
+    'classifier__max_depth': Integer(5, 35),       # Aumentado limite superior
+    'classifier__min_samples_split': Integer(5, 80),# Aumentado limite superior
+    'classifier__min_samples_leaf': Integer(3, 50), # Aumentado limite superior
+    'classifier__max_features': Categorical(['sqrt', 'log2', 0.6, 0.8]),
+    'classifier__class_weight': Categorical(['balanced', 'balanced_subsample', None]),
+    'classifier__bootstrap': Categorical([True, False]),
+    # 'sampler__k_neighbors': Integer(3, 11) # Exemplo otimização SMOTE
 }
 
-# Regressão Logística
 lr_search_spaces = {
-    'classifier__C': sp.Real(0.01, 100.0, prior='log-uniform'), # Real em escala logarítmica
-    'classifier__penalty': sp.Categorical(['l1', 'l2']),
-    'classifier__solver': sp.Categorical(['liblinear', 'saga']),
-    'classifier__class_weight': sp.Categorical(['balanced', None]),
-    'classifier__max_iter': sp.Integer(2000, 5000), # Aumentar se saga não convergir
+    'classifier__C': Real(1e-4, 1e4, prior='log-uniform'), # Range bem maior
+    'classifier__penalty': Categorical(['l1', 'l2']),
+    'classifier__solver': Categorical(['liblinear', 'saga']), # 'saga' suporta l1/l2
+    'classifier__class_weight': Categorical(['balanced', None]),
+    'classifier__max_iter': Integer(1000, 7000), # Aumentado um pouco
 }
 
-#LightGBM (Se for usar)
 lgbm_search_spaces = {
-    'classifier__n_estimators': sp.Integer(50, 300),
-    'classifier__learning_rate': sp.Real(0.01, 0.2, prior='log-uniform'),
-    'classifier__num_leaves': sp.Integer(10, 50),
-    'classifier__max_depth': sp.Integer(3, 15),
-    'classifier__reg_alpha': sp.Real(0.0, 0.5), # L1 reg
-    'classifier__reg_lambda': sp.Real(0.0, 0.5), # L2 reg
-    'classifier__colsample_bytree': sp.Real(0.6, 1.0),
- }
+    'classifier__n_estimators': Integer(100, 1000), # Mais estimadores
+    'classifier__learning_rate': Real(0.005, 0.15, prior='log-uniform'), # Learning rate menor
+    'classifier__num_leaves': Integer(10, 100),
+    'classifier__max_depth': Integer(3, 18), # Um pouco mais raso talvez
+    'classifier__reg_alpha': Real(1e-3, 5.0, prior='log-uniform'), # Maior range L1
+    'classifier__reg_lambda': Real(1e-3, 5.0, prior='log-uniform'),# Maior range L2
+    'classifier__colsample_bytree': Real(0.4, 0.9), # Range um pouco maior
+    'classifier__subsample': Real(0.4, 0.9),       
+    'classifier__boosting_type': Categorical(['gbdt', 'dart']),
+}
 
-# SVC
 svc_search_spaces = {
-    'classifier__C': sp.Real(0.5, 30.0, prior='log-uniform'),
-    'classifier__kernel': sp.Categorical(['rbf']),
-    #'degree': sp.Integer(2, 3), # Só para poly
-    'classifier__gamma': sp.Real(1e-3, 1.0, prior='log-uniform'), # Mais relevante para RBF
-    'classifier__class_weight': sp.Categorical(['balanced', None]),
+    'classifier__C': Real(1e-2, 1e3, prior='log-uniform'), # Range bem maior para C
+    'classifier__kernel': Categorical(['rbf']), # Mantem RBF por enquanto
+    'classifier__gamma': Real(1e-4, 1.0, prior='log-uniform'), # Range um pouco maior
+    'classifier__class_weight': Categorical(['balanced', None]),
 }
 
-# KNN
 knn_search_spaces = {
-    'classifier__n_neighbors': sp.Integer(3, 41, prior='uniform'), # Ímpares numa faixa maior
-    'classifier__weights': sp.Categorical(['uniform', 'distance']),
-    'classifier__metric': sp.Categorical(['minkowski', 'manhattan']),
-    'classifier__p': sp.Integer(1, 2), # 1 para manhattan, 2 para minkowski(euclidean)
+    'classifier__n_neighbors': Integer(5, 81, prior='uniform'), # Range maior, ímpares
+    'classifier__weights': Categorical(['uniform', 'distance']),
+    'classifier__metric': Categorical(['minkowski', 'manhattan']), #'euclidean' é minkowski com p=2
+    'classifier__p': Integer(1, 3),
 }
 
-# GaussianNB (Não tem muitos hiperparâmetros para otimizar com Bayes, GridSearchCV é ok)
-gnb_search_spaces = { 'classifier__var_smoothing': np.logspace(-9, -2, num=15) }
+# GNB usa param_grid para GridSearchCV (se Bayes não estiver ativo ou se preferir)
+gnb_param_grid = { 'classifier__var_smoothing': np.logspace(-11, 0, num=20) } # Aumenta range
 
-# CatBoost
 catboost_search_spaces = {
-    'classifier__iterations': sp.Integer(100, 1000), # Similar a n_estimators
-    'classifier__learning_rate': sp.Real(0.01, 0.3, prior='log-uniform'),
-    'classifier__depth': sp.Integer(4, 10), # Profundidade da árvore
-    'classifier__l2_leaf_reg': sp.Real(1, 10, prior='uniform'), # Regularização L2
-    'classifier__border_count': sp.Integer(32, 255), # Número de splits para features numéricas
-    'classifier__loss_function': sp.Categorical(['Logloss']), # Para classificação binária
+    'classifier__iterations': Integer(100, 1000), # Pode aumentar mais depois
+    'classifier__learning_rate': Real(0.008, 0.15, prior='log-uniform'),
+    'classifier__depth': Integer(4, 12),
+    'classifier__l2_leaf_reg': Real(1, 20, prior='uniform'),
+    'classifier__border_count': Integer(32, 255), 
+     'classifier__subsample': Real(0.5, 1.0),       
+    'classifier__boosting_type': Categorical(['Plain', 'Ordered']),
 }
 
-MODEL_CONFIG = {
-    'RandomForestClassifier': {
-        'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH},
-        'search_spaces': rf_search_spaces, 
-        'needs_scaling': False
-    },
-    'LogisticRegression': {
-        'model_kwargs': {'random_state': RANDOM_STATE}, # max_iter está no space
-        'search_spaces': lr_search_spaces, 
-        'needs_scaling': True
-    },
-     'LGBMClassifier': { 'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
-                        'objective': 'binary', 'metric': 'logloss',
-                        'is_unbalance': True},
-       'search_spaces': lgbm_search_spaces, 
-       'needs_scaling': False
-    },
-     'SVC': {
-        'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True},
-        'search_spaces': svc_search_spaces, 
-        'needs_scaling': True
-    },
-    'GaussianNB': { # Mantém GridSearchCV para GNB
-        'model_kwargs': {},
-        'param_grid': gnb_search_spaces,
-        'needs_scaling': False
-    },
-    'KNeighborsClassifier': {
-        'model_kwargs': {'n_jobs': N_JOBS_GRIDSEARCH},
-        'search_spaces': knn_search_spaces, 
-        'needs_scaling': True
-    },
-    'CatBoostClassifier': {
-        'model_kwargs': {
-            'random_state': RANDOM_STATE,
-            'verbose': 0, # Para não poluir o log durante CV/BayesOpt
-            'eval_metric': 'f1_score_draw', # Pode definir a métrica de avaliação interna
-            'early_stopping_rounds': 50}, # Útil para evitar overfitting
-            'search_spaces': catboost_search_spaces,
-            'needs_scaling': False # Geralmente não precisa de scaling
+# --- Configuração Final dos Modelos ---
+MODEL_CONFIG = {}
+
+if SKOPT_AVAILABLE_CONFIG: # Só adiciona se skopt estiver disponível (para BayesSearch)
+    MODEL_CONFIG['RandomForestClassifier'] = {
+        'model_kwargs': {'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH, 'class_weight': 'balanced_subsample' if 'balanced_subsample' in rf_search_spaces['classifier__class_weight'].categories else None}, # Define um default razoável
+        'search_spaces': rf_search_spaces, 'param_grid': None, 'needs_scaling': False
     }
-        
-    
+    MODEL_CONFIG['LogisticRegression'] = {
+        'model_kwargs': {'random_state': RANDOM_STATE, 'solver':'saga', 'max_iter': 3000}, # Saga suporta L1/L2
+        'search_spaces': lr_search_spaces, 'param_grid': None, 'needs_scaling': True
+    }
+    if LGBM_AVAILABLE:
+        MODEL_CONFIG['LGBMClassifier'] = {
+            'model_kwargs': { # Kwargs que NÃO estão no search_spaces
+                'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
+                'objective': 'binary',
+                'fit_params': {'classifier__callbacks': [lgb.early_stopping(100, verbose=False)]}
+                # 'metric': 'logloss', # Métrica interna de avaliação (não de otimização CV)
+                # early stopping é passado via fit_params no model_trainer
+             },
+            'search_spaces': lgbm_search_spaces, 'param_grid': None, 'needs_scaling': False
+        }
+    MODEL_CONFIG['SVC'] = {
+        'model_kwargs': {'random_state': RANDOM_STATE, 'probability': True},
+        'search_spaces': svc_search_spaces, 'param_grid': None, 'needs_scaling': True
+    }
+    MODEL_CONFIG['KNeighborsClassifier'] = {
+        'model_kwargs': {'n_jobs': N_JOBS_GRIDSEARCH},
+        'search_spaces': knn_search_spaces, 'param_grid': None, 'needs_scaling': True
+    }
+    if CATBOOST_AVAILABLE:
+        MODEL_CONFIG['CatBoostClassifier'] = {
+            'model_kwargs': {
+                'random_state': RANDOM_STATE, 'verbose': 0,
+                'eval_metric': 'F1', # Métrica para monitorar (ex: em early stopping)
+                'loss_function': 'Logloss',
+                # Early stopping é passado via fit_params no model_trainer
+                'cat_features': categorical_features_indices if categorical_features_indices else None # Passa índices se houver features categóricas
+             },
+             'search_spaces': catboost_search_spaces, 'param_grid': None, 'needs_scaling': False,
+             'fit_params': {'classifier__early_stopping_rounds': 100}
+        }
+else: # Fallback para GridSearchCV se skopt não estiver disponível
+      # Adapte os param_grid se necessário (não definidos aqui, requereria conversão dos search_spaces)
+    logger.warning("Usando GridSearchCV como fallback. Defina 'param_grid' em MODEL_CONFIG se necessário.")
+    # Exemplo (precisaria definir os grids):
+    # MODEL_CONFIG['RandomForestClassifier'] = { 'model_kwargs': {...}, 'search_spaces': None, 'param_grid': rf_param_grid, 'needs_scaling': False }
+
+# Adiciona GaussianNB (que sempre usa GridSearchCV ou nenhum param)
+MODEL_CONFIG['GaussianNB'] = {
+    'model_kwargs': {},
+    'search_spaces': None, # GNB não usa BayesSearch
+    'param_grid': gnb_param_grid, # Usa GridSearchCV com este grid
+    'needs_scaling': False
 }
-
-# Número de iterações para Otimização Bayesiana
-BAYESIAN_OPT_N_ITER = 25 # Ajuste conforme necessário (mais iterações = melhor, porém mais lento)
-
-# Número de iterações para GridSearchCV (se não usar Bayes)
-DEFAULT_EV_THRESHOLD = 0.05 # Threshold padrão para EV (Expected Value) - Ajuste conforme necessário
-
-DEFAULT_F1_THRESHOLD = 0.7
-
-MIN_RECALL_FOR_PRECISION_OPT = 0.25
-# --- Configuração GitHub ---
 
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 GITHUB_REPO_NAME = os.environ.get('GITHUB_REPO_NAME')

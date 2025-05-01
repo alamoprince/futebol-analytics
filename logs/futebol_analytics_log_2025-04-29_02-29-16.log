@@ -1,0 +1,43 @@
+2025-04-29 02:29:16 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-29 02:29:16 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-04-29 02:29:16 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-04-29 02:29:16 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-04-29 02:29:27 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-04-29 02:29:31 - MainApp - INFO - DPI Awareness set.
+2025-04-29 02:29:31 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-04-29 02:29:31 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-04-27 22:37:17)
+2025-04-29 02:29:31 - PredictorApp - INFO -   Tipo: VotingClassifier | Calib: Sim | F1 Thr: 0.3145 | EV Thr: 0.0500
+2025-04-29 02:29:31 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-04-27 22:37:17)
+2025-04-29 02:29:31 - PredictorApp - INFO -   Tipo: LGBMClassifier | Calib: Sim | F1 Thr: 0.2655 | EV Thr: 0.2000
+2025-04-29 02:29:31 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-04-29 02:29:31 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-04-29 02:29:31 - DataHandler - ERROR - Erro CRÍTICO processar dados_combinados_2019_2025.xlsx: Error tokenizing data. C error: Expected 1 fields in line 5, saw 2
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\data_handler.py", line 212, in load_historical_data
+    df_part = pd.read_csv(file_path, low_memory=False, encoding='ISO-8859-1')
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\parsers\readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\parsers\readers.py", line 626, in _read
+    return parser.read(nrows)
+           ~~~~~~~~~~~^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\parsers\readers.py", line 1923, in read
+    ) = self._engine.read(  # type: ignore[attr-defined]
+        ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        nrows
+        ^^^^^
+    )
+    ^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\parsers\c_parser_wrapper.py", line 239, in read
+    data = self._reader.read(nrows)
+  File "parsers.pyx", line 820, in pandas._libs.parsers.TextReader.read
+  File "parsers.pyx", line 914, in pandas._libs.parsers.TextReader._read_rows
+  File "parsers.pyx", line 891, in pandas._libs.parsers.TextReader._check_tokenize_status
+  File "parsers.pyx", line 2061, in pandas._libs.parsers.raise_parser_error
+pandas.errors.ParserError: Error tokenizing data. C error: Expected 1 fields in line 5, saw 2
+
+2025-04-29 02:29:31 - DataHandler - ERROR - Nenhum CSV histórico processado.
+2025-04-29 02:29:31 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-04-29 02:29:31 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-04-29 02:29:31 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-04-29 02:30:04 - MainApp - INFO - Fechando aplicação.
+2025-04-29 02:30:04 - MainApp - INFO - Destruindo janela principal.

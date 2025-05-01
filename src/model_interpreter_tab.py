@@ -48,7 +48,6 @@ if not SHAP_AVAILABLE: logger.warning("Biblioteca 'shap' não encontrada.")
 SHAP_CACHE_DIR = os.path.join(BASE_DIR, 'data', 'shap_cache'); os.makedirs(SHAP_CACHE_DIR, exist_ok=True)
 PDP_CACHE_DIR = os.path.join(BASE_DIR, 'data', 'pdp_cache'); os.makedirs(PDP_CACHE_DIR, exist_ok=True)
 N_SHAP_SAMPLES_FAST = 500; N_SHAP_SAMPLES_SLOW = 50; N_KERNEL_BG = 25; N_PDP_SAMPLES = 1000
-# ----------------------------------------
 
 class ModelInterpreterApp:
     # ... (__init__ e create_widgets como antes) ...
@@ -328,12 +327,14 @@ class ModelInterpreterApp:
             model = model_data_target.get('model'); features = model_data_target.get('features'); X_prepared = model_data_target.get('X_prepared') # <<< USA DADOS PREPARADOS
             if not all([model, features, X_prepared is not None]): raise ValueError("Dados insuficientes thread SHAP")
             X_shap_ready = X_prepared # Usa direto os dados preparados
-            N_SHAP_SAMPLES = N_SHAP_SAMPLES_SLOW if use_kernel_explainer else N_SHAP_SAMPLES_FAST; N_KERNEL_BG = N_KERNEL_BG if use_kernel_explainer else 50
+            N_SHAP_SAMPLES = N_SHAP_SAMPLES_SLOW if use_kernel_explainer else N_SHAP_SAMPLES_FAST
+        # Assign N_KERNEL_BG based on the global constant, not reading itself
+            N_KERNEL_BG_LOCAL = N_KERNEL_BG if use_kernel_explainer else 50
             if len(X_shap_ready) > N_SHAP_SAMPLES: X_shap_sample = shap.sample(X_shap_ready, N_SHAP_SAMPLES, random_state=RANDOM_STATE)
             else: X_shap_sample = X_shap_ready
             explainer=None; shap_values=None; model_type_name=model.__class__.__name__
             if use_kernel_explainer: #... (kernel explainer logic) ...
-                 X_kernel_bg=shap.sample(X_shap_ready,N_KERNEL_BG,random_state=RANDOM_STATE)
+                 X_kernel_bg=shap.sample(X_shap_ready,N_KERNEL_BG_LOCAL,random_state=RANDOM_STATE)
                  def model_predict_proba_pos(data):
                     if not isinstance(data,pd.DataFrame):data_df=pd.DataFrame(data,columns=features)
                     else: data_df=data
@@ -343,10 +344,10 @@ class ModelInterpreterApp:
             elif model_type_name in ['RandomForestClassifier','LGBMClassifier','GradientBoostingClassifier'] and LGBM_AVAILABLE and lgb is not None: explainer=shap.TreeExplainer(model); shap_values=explainer.shap_values(X_shap_sample)
             elif model_type_name in ['LogisticRegression']: explainer=shap.LinearExplainer(model,X_shap_sample); shap_values=explainer.shap_values(X_shap_sample)
             else: # Fallback
-                 logger.warning(f"Tipo {model_type_name} fallback Kernel."); use_kernel_explainer=True; N_SHAP_SAMPLES=N_SHAP_SAMPLES_SLOW; N_KERNEL_BG=N_KERNEL_BG; #... (resto fallback logic) ...
+                 logger.warning(f"Tipo {model_type_name} fallback Kernel."); use_kernel_explainer=True; N_SHAP_SAMPLES=N_SHAP_SAMPLES_SLOW; N_KERNEL_BG_LOCAL=N_KERNEL_BG; #... (resto fallback logic) ...
                  if len(X_shap_ready)>N_SHAP_SAMPLES: X_shap_sample=shap.sample(X_shap_ready, N_SHAP_SAMPLES, random_state=RANDOM_STATE)
                  else: X_shap_sample=X_shap_ready
-                 X_kernel_bg=shap.sample(X_shap_ready, N_KERNEL_BG, random_state=RANDOM_STATE)
+                 X_kernel_bg=shap.sample(X_shap_ready, N_KERNEL_BG_LOCAL, random_state=RANDOM_STATE)
                  def model_predict_proba_pos_fb(data):
                      if not isinstance(data,pd.DataFrame):data_df=pd.DataFrame(data,columns=features)
                      else: data_df=data

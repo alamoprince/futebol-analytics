@@ -1,0 +1,123 @@
+2025-05-01 03:35:44 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-01 03:35:44 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-01 03:35:44 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-01 03:35:44 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-01 03:35:46 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-01 03:35:47 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-01 03:35:48 - MainApp - INFO - DPI Awareness set.
+2025-05-01 03:35:48 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-01 03:35:48 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-01 01:22:25)
+2025-05-01 03:35:48 - PredictorApp - INFO -   Tipo: SVC | Calib: Sim | F1 Thr: 0.2385 | EV Thr: 0.1300
+2025-05-01 03:35:48 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-01 01:22:25)
+2025-05-01 03:35:48 - PredictorApp - INFO -   Tipo: LogisticRegression | Calib: Sim | F1 Thr: 0.2852 | EV Thr: 0.1700
+2025-05-01 03:35:48 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-01 03:35:48 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-01 03:36:29 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-01 03:36:29 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-01 03:36:29 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-01 03:36:29 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-01 03:36:29 - DataHandler - INFO -     -> Filtro: 20180/97670 jogos restantes.
+2025-05-01 03:36:29 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-01 03:36:29 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (20180, 19)).
+2025-05-01 03:36:29 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-01 03:36:29 - DataHandler - INFO - DF histórico combinado: (20180, 19)
+2025-05-01 03:36:29 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-01 03:36:29 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-01 03:36:29 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-01 03:36:29 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-01 03:36:29 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-01 03:36:29 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-01 03:36:29 - DataHandler - INFO - DF histórico ordenado.
+2025-05-01 03:36:29 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-01 03:36:30 - DataHandler - INFO - Pi-Ratings e Momentum calculados. Colunas adicionadas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-01 03:36:30 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (19941, 26)
+2025-05-01 03:36:30 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Under25_FT     157
+Odd_BTTS_No        155
+Odd_Over25_FT      157
+Odd_BTTS_Yes       155
+PiR_Mom_5G_H       656
+PiR_Mom_5G_A       686
+PiR_Mom_5G_Diff    876
+dtype: int64
+2025-05-01 03:36:30 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-05-01 03:36:30 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-01 03:36:31 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-01 03:38:41 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-01 03:38:41 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-01 03:39:20 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-01 03:39:20 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-01 03:39:20 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-01 03:39:20 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-01 03:39:20 - DataHandler - INFO -     -> Filtro: 20180/97670 jogos restantes.
+2025-05-01 03:39:20 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-01 03:39:20 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (20180, 19)).
+2025-05-01 03:39:20 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-01 03:39:20 - DataHandler - INFO - DF histórico combinado: (20180, 19)
+2025-05-01 03:39:20 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-01 03:39:21 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-01 03:39:21 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-01 03:39:21 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-01 03:39:21 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-01 03:39:21 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-01 03:39:21 - DataHandler - INFO - DF histórico ordenado.
+2025-05-01 03:39:21 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-01 03:39:22 - DataHandler - INFO - Pi-Ratings e Momentum calculados. Colunas adicionadas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-01 03:39:22 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (19941, 26)
+2025-05-01 03:39:22 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Under25_FT     157
+Odd_BTTS_No        155
+Odd_Over25_FT      157
+Odd_BTTS_Yes       155
+PiR_Mom_5G_H       656
+PiR_Mom_5G_A       686
+PiR_Mom_5G_Diff    876
+dtype: int64
+2025-05-01 03:39:22 - DataHandler - INFO - --- Iniciando Pré-proc e Feature Eng (Histórico) ---
+2025-05-01 03:39:22 - DataHandler - INFO - Médias Liga: Casa=1.367, Fora=1.067
+2025-05-01 03:39:22 - DataHandler - INFO - === INÍCIO PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-01 03:39:22 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-01 03:39:22 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-01 03:39:22 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-05-01 03:39:22 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-01 03:39:22 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-01 03:39:22 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-01 03:39:22 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-01 03:39:22 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-05-01 03:39:22 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-01 03:39:23 - DataHandler - INFO - Pi-Ratings e Momentum calculados. Colunas adicionadas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-01 03:39:23 - DataHandler - INFO - Calculando 9 métricas rolling (Janela Padrão=5)...
+2025-05-01 03:39:37 - DataHandler - INFO - Métricas rolling calculadas. Shape: (19941, 18).
+2025-05-01 03:39:37 - DataHandler - INFO - Calculando 4 métricas EWMA (Span Padrão=5)...
+2025-05-01 03:40:07 - DataHandler - INFO - Métricas EWMA calculadas. Shape: (19941, 8).
+2025-05-01 03:40:07 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_goals=6)...
+2025-05-01 03:40:07 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-05-01 03:40:07 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-05-01 03:40:07 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...
+2025-05-01 03:40:07 - DataHandler - INFO - Features de interação calculadas (incluindo novas).
+2025-05-01 03:40:07 - DataHandler - INFO - === FIM PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-01 03:40:07 - DataHandler - INFO - Selecionando features FINAIS para modelo: ['p_D_norm', 'CV_HDA', 'Std_CG_A', 'Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'EWMA_VG_H_s5', 'EWMA_GolsMarc_A_s10', 'Odd_Over25_FT']
+2025-05-01 03:40:07 - DataHandler - WARNING - Aviso FINAIS: Features selecionadas ausentes do DataFrame: ['EWMA_VG_H_s5', 'EWMA_GolsMarc_A_s10']. Verifique os cálculos.
+2025-05-01 03:40:07 - DataHandler - WARNING - Continuando APENAS com as features disponíveis: ['p_D_norm', 'CV_HDA', 'Std_CG_A', 'Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'Odd_Over25_FT']
+2025-05-01 03:40:07 - DataHandler - INFO - DF selecionado p/ dropna: (19941, 7). Verificando NaNs...
+2025-05-01 03:40:07 - DataHandler - WARNING - NaNs ANTES dropna final nas features selecionadas:
+Std_CG_A         205
+Odd_Over25_FT    157
+dtype: int64
+2025-05-01 03:40:07 - DataHandler - INFO - Removidas 360 linhas contendo NaNs/Infs nas features finais ou no alvo.
+2025-05-01 03:40:07 - DataHandler - INFO - --- Pré-proc Histórico OK --- Shape Final X:(19581, 6), y:(19581,).
+2025-05-01 03:40:07 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-01 03:40:07 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-01 03:40:07 - DataHandler - INFO - ->Calculando p_H/D/A (ausentes)...
+2025-05-01 03:40:07 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-01 03:40:07 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-01 03:40:07 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-01 03:40:07 - Main2 - INFO - DEBUG Main: df_full_data_aligned_for_split (19581, 37)
+2025-05-01 03:40:07 - ModelTrainerApp - INFO - --- Treinando 7 Modelos (Sampler: smote, CV Temporal: f1, Opt(F1:True, EV:True, Prec:True)) ---
+2025-05-01 03:40:07 - ModelTrainerApp - INFO - Dividindo dados temporalmente (Treino+CV / Teste Final)...
+2025-05-01 03:40:07 - ModelTrainerApp - INFO - Split Temporal: T+CV=15665 (80.0%), Teste=3916 (20.0%)
+2025-05-01 03:40:07 - ModelTrainerApp - INFO - Odds alinhadas (Temporal): Teste=True (3916 jogos)
+2025-05-01 03:40:07 - ModelTrainerApp - INFO - 
+--- Modelo 1/7: RandomForestClassifier ---
+2025-05-01 03:40:07 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: RandomForestClassifier)
+2025-05-01 03:40:07 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...

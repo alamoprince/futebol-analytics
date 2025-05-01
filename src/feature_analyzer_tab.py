@@ -200,43 +200,33 @@ class FeatureAnalyzerApp:
             logger.info("=== FIM PIPELINE FEAT ENG ===")
 
             # 3. Preparar X, y para Análise
-            self.log("Etapa 3: Preparando X, y para análise...")
+            self.log("Etapa 3: Preparando dados para análise (sem dropna)...")
             target_col='IsDraw'
-            if target_col not in self.df_historical_processed.columns: raise ValueError(f"Coluna alvo '{target_col}' não encontrada!");
+            if target_col not in self.df_historical_processed.columns:
+                raise ValueError(f"Coluna alvo '{target_col}' não encontrada!")
 
-            # Seleciona features NUMÉRICAS do DF processado para análise
-            features_to_analyze = self.df_historical_processed.select_dtypes(include=np.number).columns.tolist()
-            cols_to_exclude = list(GOALS_COLS.values()) + [target_col, 'Ptos_H', 'Ptos_A'] # Exclui gols, alvo e pontos
-            # Garante que só features que realmente existem sejam usadas
-            features_present = [f for f in features_to_analyze if f not in cols_to_exclude and f in self.df_historical_processed.columns]
-            self.log(f"Features numéricas para análise: {len(features_present)}")
-            if not features_present: raise ValueError("Nenhuma feature numérica válida encontrada após processamento.")
+            # Seleciona TODAS as colunas numéricas E o alvo do DF processado
+            self.X_analysis_data = self.df_historical_processed.select_dtypes(include=np.number).copy()
+            self.X_analysis_data.replace([np.inf, -np.inf], np.nan, inplace=True) # Trata infinitos
 
-            # Cria X_raw e y_raw a partir do DF PROCESSADO
-            X_raw = self.df_historical_processed[features_present].copy()
-            y_raw = self.df_historical_processed[target_col]
+            if target_col in self.df_historical_processed.columns:
+                self.y_analysis_data = self.df_historical_processed.loc[self.X_analysis_data.index, target_col].copy()
+                self.y_analysis_data = pd.to_numeric(self.y_analysis_data, errors='coerce').astype('Int64')
+            else:
+                self.y_analysis_data = None
+                logger.warning("Coluna alvo não encontrada para y_analysis_data.")
 
-            # Combina para dropna consistente
-            analysis_df = X_raw.join(y_raw)
-            initial_rows = len(analysis_df)
-            analysis_df.replace([np.inf, -np.inf], np.nan, inplace=True) # Trata infinitos
-            # Drop baseado nas features presentes + alvo
-            analysis_df.dropna(subset=(features_present + [target_col]), inplace=True);
-            rows_dropped = initial_rows - len(analysis_df)
-            self.log(f"Dados p/ análise (final): {analysis_df.shape} ({rows_dropped} linhas removidas).")
-            if analysis_df.empty: raise ValueError("Nenhum dado restou após limpeza final.")
+            analysis_shape_x = self.X_analysis_data.shape
+            analysis_shape_y = self.y_analysis_data.shape if self.y_analysis_data is not None else "N/A"
+            self.log(f"Dados p/ análise (bruto processado): X={analysis_shape_x}, y={analysis_shape_y}")
 
-            # Define X_clean e y_clean finais
-            self.X_clean = analysis_df[features_present].copy()
-            self.y_clean = analysis_df[target_col].astype(int)
-            # Validações finais (opcional, mas bom ter)
-            if self.X_clean.isnull().values.any() or self.X_clean.isin([np.inf, -np.inf]).values.any(): raise ValueError("NaNs/Infs persistentes em X_clean")
-            if self.y_clean.isnull().values.any(): raise ValueError("NaNs persistentes em y_clean")
+            # Define X_clean e y_clean como essas cópias (com NaNs)
+            self.X_clean = self.X_analysis_data
+            self.y_clean = self.y_analysis_data
 
             # --- ATUALIZA IDENTIFICADOR DOS DADOS ---
             self.current_data_identifier = (self.X_clean.shape, tuple(self.X_clean.columns))
             self.log(f"Identificador de dados atualizado: {self.current_data_identifier}")
-            # -----------------------------------------
 
             # 4. Display Describe/Target (AGORA USA X_clean e y_clean)
             self.log("Etapa 4: Atualizando Describe/Target...");
