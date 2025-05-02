@@ -1,0 +1,103 @@
+2025-05-02 09:14:13 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-02 09:14:13 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-02 09:14:13 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-02 09:14:13 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-02 09:14:15 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-02 09:14:16 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-02 09:14:16 - MainApp - INFO - DPI Awareness set.
+2025-05-02 09:14:16 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-02 09:14:16 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-02 01:37:35)
+2025-05-02 09:14:16 - PredictorApp - INFO -   Tipo: SVC | Calib: Sim | F1 Thr: 0.2664 | EV Thr: 0.1400
+2025-05-02 09:14:16 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-02 01:37:35)
+2025-05-02 09:14:16 - PredictorApp - INFO -   Tipo: LogisticRegression | Calib: Sim | F1 Thr: 0.2462 | EV Thr: 0.1600
+2025-05-02 09:14:16 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-02 09:14:16 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-02 09:14:55 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-02 09:14:55 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-02 09:14:56 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-02 09:14:56 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-02 09:14:56 - DataHandler - INFO -     -> Filtro: 20180/97670 jogos restantes.
+2025-05-02 09:14:56 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-02 09:14:56 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (20180, 19)).
+2025-05-02 09:14:56 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-02 09:14:56 - DataHandler - INFO - DF histórico combinado: (20180, 19)
+2025-05-02 09:14:56 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-02 09:14:56 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-02 09:14:56 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-02 09:14:56 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-02 09:14:56 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-02 09:14:56 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-02 09:14:56 - DataHandler - INFO - DF histórico ordenado.
+2025-05-02 09:14:56 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-02 09:14:57 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-02 09:14:57 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (19941, 26)
+2025-05-02 09:14:57 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Over25_FT      157
+Odd_Under25_FT     157
+Odd_BTTS_Yes       155
+Odd_BTTS_No        155
+PiR_Mom_5G_H       656
+PiR_Mom_5G_A       686
+PiR_Mom_5G_Diff    876
+dtype: int64
+2025-05-02 09:14:57 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-05-02 09:14:57 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-02 09:14:57 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-02 09:17:08 - DataHandler - INFO - Buscando jogos de tomorrow (2025-05-03): https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/main/data/raw_scraped/scraped_fixtures_2025-05-03.csv
+2025-05-02 09:17:09 - DataHandler - INFO - Arquivo futuro encontrado. Tentando ler...
+2025-05-02 09:17:09 - DataHandler - INFO - Lido com sucesso como CSV.
+2025-05-02 09:17:09 - DataHandler - INFO - Arquivo futuro baixado e lido. Shape: (702, 15)
+2025-05-02 09:17:09 - DataHandler - INFO - Processando arquivo de jogos futuros...
+2025-05-02 09:17:09 - DataHandler - INFO - Filtro de liga DESATIVADO para arquivo de jogos futuros.
+2025-05-02 09:17:09 - DataHandler - INFO - Verificando NaNs essenciais (Futuro): ['League', 'Time_Str', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-02 09:17:09 - DataHandler - INFO - Futuro: Removidas 311 linhas com NaNs essenciais.
+2025-05-02 09:17:09 - DataHandler - INFO - Processamento jogos futuros OK. Shape final: (391, 14)
+2025-05-02 09:17:09 - DataHandler - INFO - --- Preparando Features Futuras ---
+2025-05-02 09:17:09 - DataHandler - INFO - Calculando/Garantindo features intermediárias no histórico...
+2025-05-02 09:17:09 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-02 09:17:09 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-02 09:17:09 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-02 09:17:09 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-02 09:17:09 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-02 09:17:09 - DataHandler - INFO - Features intermediárias OK.
+2025-05-02 09:17:09 - DataHandler - INFO - Usando Médias Liga (Hist): Casa=1.367, Fora=1.067
+2025-05-02 09:17:09 - DataHandler - INFO - Processando histórico p/ estado final rolling/EWMA...
+2025-05-02 09:17:09 - DataHandler - INFO - Configs rolling necessárias p/ futuro: ['Std_CG', 'Media_GolsMarcados', 'Media_GolsSofridos']
+2025-05-02 09:17:09 - DataHandler - INFO - Configs EWMA necessárias p/ futuro: ['EWMA_GolsMarc', 'EWMA_GolsSofr']
+2025-05-02 09:17:09 - DataHandler - INFO - Construindo estado final histórico rolling/EWMA...
+2025-05-02 09:17:10 - DataHandler - INFO - Estado final construído (1.22s) p/ 269 times.
+2025-05-02 09:17:10 - DataHandler - INFO - Calculando features rolling/EWMA para jogos futuros...
+2025-05-02 09:17:10 - DataHandler - INFO - Rolling/EWMA stats p/ futuro calculadas. Shape: (391, 10).
+2025-05-02 09:17:10 - DataHandler - INFO - Calculando Pi-Ratings atuais...
+2025-05-02 09:17:11 - DataHandler - WARNING - PiRating Momentum (Futuro) definido como NaN.
+2025-05-02 09:17:11 - DataHandler - INFO - Calculando FA/FD, Poisson, Derivadas/Interações futuras...
+2025-05-02 09:17:11 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-02 09:17:11 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-05-02 09:17:11 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-05-02 09:17:11 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_goals=6)...
+2025-05-02 09:17:11 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-05-02 09:17:11 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...
+2025-05-02 09:17:11 - DataHandler - WARNING - Médias CG ausentes p/ Diff_Media_CG.
+2025-05-02 09:17:11 - DataHandler - INFO - Features de interação calculadas (incluindo novas).
+2025-05-02 09:17:11 - DataHandler - INFO - Selecionando features FINAIS (['p_D_norm', 'CV_HDA', 'Std_CG_A', 'Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'Odd_Over25_FT', 'OddD_div_PiRDiffAbs', 'PiR_Mom_5G_Diff', 'AvgGolsMarc_Diff']) para predição...
+2025-05-02 09:17:11 - DataHandler - INFO - Shape X_fix_prep: (391, 9)
+2025-05-02 09:17:11 - DataHandler - WARNING - 1158 NaNs restantes. Preenchendo com 0.
+2025-05-02 09:17:11 - DataHandler - INFO - --- Preparação Features Futuras OK. Shape Final Retornado: (391, 9) ---
+2025-05-02 09:17:11 - PredictorApp - INFO - Realizando previsões (SVC) para 391 jogos...
+2025-05-02 09:17:11 - PredictorApp - INFO -   Aplicando scaler...
+2025-05-02 09:17:11 - PredictorApp - INFO -   Calculando probs brutas...
+2025-05-02 09:17:11 - PredictorApp - INFO -   Aplicando calibrador na coluna 'ProbRaw_Empate'...
+2025-05-02 09:17:11 - PredictorApp - INFO -   -> Coluna 'Prob_Empate' (Calibrada) preenchida.
+2025-05-02 09:17:11 - PredictorApp - INFO -   Calculando EV usando probs calibradas...
+2025-05-02 09:17:11 - PredictorApp - INFO -   -> EV_Empate calculado para 391 jogos.
+2025-05-02 09:17:11 - PredictorApp - INFO - Previsões (com EV e probs Raw/Calib) geradas.
+2025-05-02 09:17:11 - PredictorApp - INFO - Realizando previsões (SVC) para 391 jogos...
+2025-05-02 09:17:11 - PredictorApp - INFO -   Aplicando scaler...
+2025-05-02 09:17:11 - PredictorApp - INFO -   Calculando probs brutas...
+2025-05-02 09:17:12 - PredictorApp - INFO -   Aplicando calibrador na coluna 'ProbRaw_Empate'...
+2025-05-02 09:17:12 - PredictorApp - INFO -   -> Coluna 'Prob_Empate' (Calibrada) preenchida.
+2025-05-02 09:17:12 - PredictorApp - INFO -   Calculando EV usando probs calibradas...
+2025-05-02 09:17:12 - PredictorApp - INFO -   -> EV_Empate calculado para 391 jogos.
+2025-05-02 09:17:12 - PredictorApp - INFO - Previsões (com EV e probs Raw/Calib) geradas.
+2025-05-02 09:52:44 - MainApp - INFO - Fechando aplicação.
+2025-05-02 09:52:44 - MainApp - INFO - Destruindo janela principal.

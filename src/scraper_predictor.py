@@ -13,7 +13,8 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException,
 from config import (
     SCRAPER_BASE_URL, SCRAPER_TARGET_DAY, CHROMEDRIVER_PATH,
     SCRAPER_TIMEOUT, SCRAPER_ODDS_TIMEOUT, ODDS_COLS, OTHER_ODDS_NAMES, # Nomes das odds que queremos
-    SCRAPER_TO_INTERNAL_LEAGUE_MAP, SCRAPER_SLEEP_BETWEEN_GAMES, SCRAPER_SLEEP_AFTER_NAV
+    SCRAPER_TO_INTERNAL_LEAGUE_MAP, SCRAPER_SLEEP_BETWEEN_GAMES, SCRAPER_SLEEP_AFTER_NAV, TARGET_LEAGUES_INTERNAL_IDS, 
+    SCRAPER_FILTER_LEAGUES
 )
 from typing import Dict, List, Optional, Any
 from tqdm import tqdm
@@ -59,14 +60,10 @@ def _initialize_driver(chromedriver_path: Optional[str], headless: bool) -> Opti
         if chromedriver_path and os.path.exists(chromedriver_path):
             service = ChromeService(executable_path=chromedriver_path)
             driver = webdriver.Chrome(service=service, options=options)
-            # print(f"  WebDriver iniciado usando: {chromedriver_path}") # Debug Path
         else:
-            # print(f"  Aviso: Chromedriver não encontrado. Tentando PATH.") # Debug Path
             driver = webdriver.Chrome(options=options)
-            # print("  WebDriver iniciado a partir do PATH.") # Debug Path
 
         if driver:
-            # Tenta aplicar script anti-detecção (pode não ser necessário com undetected_chromedriver)
              try:
                  driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
                      'source': '''Object.defineProperty(navigator, 'webdriver', {get: () => undefined})'''
@@ -89,10 +86,8 @@ def _close_cookies(driver, timeout=10):
             EC.element_to_be_clickable((By.CSS_SELECTOR, cookie_button_selector))
         )
         button_cookies.click()
-        # print("  Banner de cookies fechado.") # Debug
         time.sleep(0.5)
     except Exception:
-        # print("  Aviso: Não foi possível fechar cookies (normal se já fechado).") # Debug
         pass # Ignora se não encontrar ou der erro
 
 def _select_target_day(driver, target_day, timeout):
@@ -368,81 +363,193 @@ def get_odds_btts_ft(driver, id_jogo) -> Dict[str, Optional[float]]:
 def scrape_upcoming_fixtures(chromedriver_path: Optional[str] = CHROMEDRIVER_PATH, headless: bool = True) -> Optional[pd.DataFrame]:
     driver = _initialize_driver(chromedriver_path, headless)
     if not driver: return None
+
     all_scraped_data = []
     try:
         driver.get(SCRAPER_BASE_URL)
-        driver.maximize_window()
+        # driver.maximize_window() # Pode causar problemas em headless, remover se necessário
         _close_cookies(driver)
 
         if not _select_target_day(driver, SCRAPER_TARGET_DAY, SCRAPER_TIMEOUT): return None
         match_ids = _get_match_ids(driver, SCRAPER_TIMEOUT)
-        if not match_ids: print(f"Nenhum jogo encontrado para {SCRAPER_TARGET_DAY}."); return pd.DataFrame()
+        if not match_ids:
+            print(f"Nenhum jogo encontrado para {SCRAPER_TARGET_DAY}.")
+            return pd.DataFrame() # Retorna DF vazio
 
-        print(f"\nIniciando scraping detalhado para {len(match_ids)} jogos encontrados...")
+        # --- LOG INDICANDO MODO DE FILTRAGEM ---
+        if SCRAPER_FILTER_LEAGUES:
+            print(f"\nIniciando scraping detalhado para {len(match_ids)} jogos encontrados (FILTRANDO por ligas alvo)...")
+            print(f"Ligas Alvo (IDs Internos): {TARGET_LEAGUES_INTERNAL_IDS}")
+        else:
+            print(f"\nIniciando scraping detalhado para {len(match_ids)} jogos encontrados (SEM FILTRO de ligas)...")
 
-        # IMPORTAR MAPA E IDs INTERNOS DENTRO DA FUNÇÃO
-        from config import SCRAPER_TO_INTERNAL_LEAGUE_MAP, TARGET_LEAGUES_INTERNAL_IDS
+        processed_count = 0
+        skipped_count = 0
 
         for match_id in tqdm(match_ids, total=len(match_ids), desc=f"Scraping {SCRAPER_TARGET_DAY}"):
-            # 1. Obter Informações Básicas (já inclui nome completo limpo em 'ScraperLeagueName')
+            # 1. Obter Informações Básicas (inclui 'ScraperLeagueName')
             basic_info = get_basic_info(driver, match_id)
             if not basic_info or 'ScraperLeagueName' not in basic_info:
-                time.sleep(0.5); continue
-
-            # *** LÓGICA DE MAPEAMENTO USANDO O NOME LIMPO ***
-            full_league_name_scraped = basic_info['ScraperLeagueName'] # Pega o nome construído
-            internal_league_id = None
-
-            # Comparação case-insensitive e com strip
-            scraped_name_norm = full_league_name_scraped.strip().lower()
-            for scraper_name_map, internal_id_map in SCRAPER_TO_INTERNAL_LEAGUE_MAP.items():
-                if scraper_name_map.strip().lower() == scraped_name_norm:
-                    internal_league_id = internal_id_map
-                    break
-
-            # Filtra se não mapeado OU se ID não está na lista alvo
-            if internal_league_id is None or internal_league_id not in TARGET_LEAGUES_INTERNAL_IDS:
-                # logger.debug(f"  Jogo ID {match_id} ({full_league_name_scraped}) fora do alvo ou não mapeado. Pulando.")
+                logger.warning(f"Jogo ID {match_id}: Falha ao obter info básica ou ScraperLeagueName ausente. Pulando.")
+                skipped_count += 1
+                time.sleep(0.2) # Pequena pausa antes do próximo
                 continue
 
-            # Se passou, ATUALIZA a coluna 'League' com o ID INTERNO
-            logger.info(f"  Jogo ID {match_id} ({full_league_name_scraped}) DENTRO do alvo. Mapeado para: '{internal_league_id}'. Coletando odds...")
-            basic_info['League'] = internal_league_id # Substitui pelo ID
+            # 2. Tentar Mapear a Liga (SEMPRE TENTAR)
+            full_league_name_scraped = basic_info['ScraperLeagueName'] # Nome construído: "PAÍS: Liga Limpa"
+            internal_league_id = None
+            scraped_name_norm = full_league_name_scraped.strip().lower()
 
-            # Remove a chave auxiliar que criamos
-            del basic_info['ScraperLeagueName']
+            # Procura por uma correspondência exata primeiro (case-insensitive)
+            for scraper_map_key, internal_id_map in SCRAPER_TO_INTERNAL_LEAGUE_MAP.items():
+                if scraper_map_key.strip().lower() == scraped_name_norm:
+                    internal_league_id = internal_id_map
+                    logger.debug(f"  Jogo ID {match_id}: Mapeamento EXATO encontrado para '{full_league_name_scraped}' -> '{internal_league_id}'")
+                    break
 
-            # 2. Coletar Odds
-            odds_1x2 = get_odds_1x2_ft(driver, match_id)
-            odds_ou25 = get_odds_ou25_ft(driver, match_id)
-            odds_btts = get_odds_btts_ft(driver, match_id)
+            # Fallback: Tentar correspondência parcial se exata falhar (Opcional, pode ser impreciso)
 
-            # 3. Combinar dados
-            final_jogo_data = basic_info.copy()
-            final_jogo_data.update(odds_1x2)
-            final_jogo_data.update(odds_ou25)
-            final_jogo_data.update(odds_btts)
-            all_scraped_data.append(final_jogo_data)
+            # 3. Aplicar Filtro ou Definir Nome da Liga Final
+            should_process = False
+            final_league_name = None
 
-            time.sleep(SCRAPER_SLEEP_BETWEEN_GAMES)
+            if SCRAPER_FILTER_LEAGUES:
+                # Modo Filtro: Só processa se mapeado E na lista alvo
+                if internal_league_id is not None and internal_league_id in TARGET_LEAGUES_INTERNAL_IDS:
+                    should_process = True
+                    final_league_name = internal_league_id # Usa ID interno
+                    logger.info(f"  Jogo ID {match_id} ({full_league_name_scraped}): DENTRO do alvo ('{internal_league_id}'). Coletando odds...")
+                else:
+                    # Se não mapeado ou não na lista alvo, PULA o jogo
+                    logger.debug(f"  Jogo ID {match_id} ({full_league_name_scraped}): Fora do alvo ou não mapeado (ID: {internal_league_id}). Pulando.")
+                    skipped_count += 1
+                    continue # Pula para o próximo jogo
+            else:
+                # Modo Sem Filtro: Processa TODOS os jogos
+                should_process = True
+                if internal_league_id is not None:
+                    final_league_name = internal_league_id # Usa ID interno se mapeado
+                    logger.info(f"  Jogo ID {match_id} ({full_league_name_scraped}): Mapeado para '{internal_league_id}' (sem filtro). Coletando odds...")
+                else:
+                    final_league_name = full_league_name_scraped # Usa nome raspado se não mapeado
+                    logger.info(f"  Jogo ID {match_id} ({full_league_name_scraped}): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...")
+
+            # 4. Se deve processar, coleta as odds e adiciona
+            if should_process:
+                processed_count += 1
+                # Atualiza a coluna 'League' com o nome final definido
+                basic_info['League'] = final_league_name
+                # Remove a chave auxiliar
+                if 'ScraperLeagueName' in basic_info:
+                    del basic_info['ScraperLeagueName']
+
+                # Coletar Odds
+                odds_1x2 = get_odds_1x2_ft(driver, match_id)
+                odds_ou25 = get_odds_ou25_ft(driver, match_id)
+                odds_btts = get_odds_btts_ft(driver, match_id)
+
+                # Combinar dados
+                final_jogo_data = basic_info.copy()
+                final_jogo_data.update(odds_1x2)
+                final_jogo_data.update(odds_ou25)
+                final_jogo_data.update(odds_btts)
+                all_scraped_data.append(final_jogo_data)
+
+                time.sleep(SCRAPER_SLEEP_BETWEEN_GAMES) # Pausa entre jogos processados
 
         # --- Fim do Loop ---
-        print(f"\nScraping concluído. {len(all_scraped_data)} jogos das ligas alvo coletados.")
-        if not all_scraped_data: return pd.DataFrame()
+        print(f"\nScraping concluído.")
+        print(f"  - Jogos processados (odds coletadas): {processed_count}")
+        if SCRAPER_FILTER_LEAGUES:
+            print(f"  - Jogos pulados (fora do filtro ou erro info básica): {skipped_count}")
+        else:
+             print(f"  - Jogos pulados (erro info básica): {skipped_count}")
+
+        if not all_scraped_data:
+            print("Nenhum dado de jogo válido foi coletado.")
+            return pd.DataFrame()
 
         df_fixtures = pd.DataFrame(all_scraped_data)
-        # ... (logs de odds ausentes e adição de colunas como antes) ...
-        missing_1x2 = df_fixtures[ODDS_COLS['home']].isnull().sum()
-        missing_ou = df_fixtures['Odd_Over25_FT'].isnull().sum()
-        missing_btts = df_fixtures['Odd_BTTS_Yes'].isnull().sum()
-        print(f"  Resumo de Odds Ausentes: 1x2={missing_1x2}, O/U 2.5={missing_ou}, BTTS={missing_btts}")
-        expected_cols = list(ODDS_COLS.values()) + OTHER_ODDS_NAMES
-        for col in expected_cols:
+
+        # Log de odds ausentes
+        missing_1x2 = df_fixtures[ODDS_COLS['home']].isnull().sum() + df_fixtures[ODDS_COLS['draw']].isnull().sum() + df_fixtures[ODDS_COLS['away']].isnull().sum()
+        missing_ou = df_fixtures['Odd_Over25_FT'].isnull().sum() + df_fixtures['Odd_Under25_FT'].isnull().sum()
+        missing_btts = df_fixtures['Odd_BTTS_Yes'].isnull().sum() + df_fixtures['Odd_BTTS_No'].isnull().sum()
+        print(f"  Resumo de Odds Ausentes (células): 1x2={missing_1x2}, O/U 2.5={missing_ou}, BTTS={missing_btts}")
+
+        # Garantir que todas as colunas de odds esperadas existam (mesmo que vazias)
+        expected_odds_cols = list(ODDS_COLS.values()) + OTHER_ODDS_NAMES
+        for col in expected_odds_cols:
              if col not in df_fixtures.columns: df_fixtures[col] = None
+
+        # Renomear colunas básicas para o padrão interno (se necessário - get_basic_info já usa os nomes corretos)
+        df_fixtures.rename(columns={'HomeTeam': 'Home', 'AwayTeam': 'Away'}, inplace=True) # Ajuste se necessário
+
+        # Adicionar 'Time_Str' se não existir (embora get_basic_info deva criar 'Time')
+        if 'Time' in df_fixtures.columns and 'Time_Str' not in df_fixtures.columns:
+             df_fixtures['Time_Str'] = df_fixtures['Date'] + ' ' + df_fixtures['Time'] # Exemplo
+
+        print(f"DataFrame final com {len(df_fixtures)} jogos gerado.")
         return df_fixtures
 
+    except KeyboardInterrupt:
+        print("\nScraping interrompido pelo usuário.")
+        # Retorna o que foi coletado até agora, se houver
+        if all_scraped_data: return pd.DataFrame(all_scraped_data)
+        else: return pd.DataFrame()
     except Exception as e_global:
         logging.error(f"Erro GERAL INESPERADO durante scraping: {e_global}", exc_info=True)
-        return None
+        # Tenta retornar o que foi coletado
+        if all_scraped_data: return pd.DataFrame(all_scraped_data)
+        else: return None # Indica falha maior
     finally:
-        if driver: driver.quit(); print("WebDriver fechado.")
+        if driver:
+            try:
+                driver.quit()
+                print("WebDriver fechado.")
+            except Exception as e_quit:
+                 print(f"Erro ao fechar WebDriver: {e_quit}")
+
+# --- Bloco de Teste (opcional) ---
+if __name__ == '__main__':
+    print("--- Iniciando Teste do Scraper ---")
+    # Forçar SEM filtro para testar a nova opção
+    SCRAPER_FILTER_LEAGUES = False
+    print(f"Modo de Filtro: {SCRAPER_FILTER_LEAGUES}")
+    # Reduzir pausas para teste rápido
+    SCRAPER_SLEEP_BETWEEN_GAMES = 0.5
+    SCRAPER_SLEEP_AFTER_NAV = 2
+
+    # Definir nível de log para DEBUG para ver mais detalhes
+    logger.setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG) # Define para o root logger também, se necessário
+
+    # Executar o scraper
+    df_scraped = scrape_upcoming_fixtures(headless=True) # Use headless=False para ver o navegador
+
+    if df_scraped is not None:
+        print("\n--- Resultado do Scraping ---")
+        print(f"Total de jogos coletados: {len(df_scraped)}")
+        if not df_scraped.empty:
+            print("Tipos de dados:")
+            print(df_scraped.info())
+            print("\nAmostra dos dados:")
+            print(df_scraped.head())
+            print("\nContagem de Ligas:")
+            print(df_scraped['League'].value_counts())
+
+            # Salvar localmente para inspeção (opcional)
+            try:
+                save_path = os.path.join(os.path.dirname(__file__), '..', 'data', f'test_scraped_{SCRAPER_TARGET_DAY}.csv')
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                df_scraped.to_csv(save_path, index=False)
+                print(f"\nDados salvos em: {save_path}")
+            except Exception as e_save:
+                 print(f"\nErro ao salvar CSV de teste: {e_save}")
+
+        else:
+            print("Scraper retornou um DataFrame vazio.")
+    else:
+        print("\nScraper falhou e retornou None.")
+
+    print("--- Teste do Scraper Concluído ---")

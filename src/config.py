@@ -62,6 +62,11 @@ HISTORICAL_DATA_PATH_3 = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME_3)
 SCRAPER_BASE_URL = "https://flashscore.com"
 SCRAPER_TARGET_DAY =  "tomorrow" # "today" ou "tomorrow"
 SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d") 
+
+# --- Fonte de Dados Futuros (CSV GitHub) ---
+FIXTURE_FETCH_DAY = "today" # Ou "today"
+FIXTURE_CSV_URL_TEMPLATE = "https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/main/data/raw_scraped/scraped_fixtures_{date_str}.csv" # Atualizado branch
+
 CHROMEDRIVER_PATH = os.path.join(BASE_DIR, 'chromedriver.exe')
 SCRAPER_TIMEOUT = 20
 SCRAPER_ODDS_TIMEOUT = 20
@@ -70,6 +75,9 @@ SCRAPER_ODDS_TIMEOUT = 20
 PI_RATING_INITIAL = 1500  # Rating inicial para times não vistos
 PI_RATING_K_FACTOR = 30   # Fator K (ajusta a magnitude da mudança de rating)
 PI_RATING_HOME_ADVANTAGE = 65 # Pontos de rating adicionados ao time da casa para cálculo da expectativa (ajuste experimental)
+
+# --- Filtro de Ligas do Scraper (OPCIONAL) ---
+SCRAPER_FILTER_LEAGUES = False
 
 # 1. NOMES INTERNOS PADRÃO (Seus identificadores únicos)
 INTERNAL_LEAGUE_NAMES = {
@@ -82,6 +90,164 @@ INTERNAL_LEAGUE_NAMES = {
      'ROMANIA 1': 'Romênia - Liga 1',
      'SERBIA 1': 'Serbia - SuperLiga', 
      'FRANCE 1': 'France - Ligue 1',
+      # --- Argentina ---
+    'ARGENTINA: PRIMERA': 'ARGENTINA 2', # Suposição: Seria a Primera B Nacional (Segunda Divisão) - VERIFICAR!
+
+    # --- Ásia ---
+    'ASIA: AFC CHAMPION': 'ASIA AFC CHAMPIONS', # Torneio Continental
+
+    # --- Austrália ---
+    'AUSTRALIA: A-LEAGUE': 'AUSTRALIA 1', # Principal liga
+
+    # --- Polônia ---
+    'POLAND: DIVISION 1': 'POLAND 2', # Division 1 na Polônia é a segunda divisão (Ekstraklasa é a 1ª)
+    'POLAND: CENTRAL YOUTH LEAGUE': 'POLAND YOUTH',
+    'POLAND: EKSTRALIGA WOMEN': 'POLAND WOMEN 1', # Principal liga feminina
+
+    # --- Portugal ---
+    'PORTUGAL: LIGA PORTUGAL': 'PORTUGAL 1', # Primeira Liga
+    'PORTUGAL: LIGA PORTUGAL 2': 'PORTUGAL 2', # Segunda Liga
+    'PORTUGAL: LIGA 3 - PROMOTION GROUP': 'PORTUGAL 3', # Terceira Liga (fase)
+
+    # --- Romênia ---
+    'ROMANIA 1': 'ROMANIA 1', # Já parece padronizado (Superliga)
+    'ROMANIA: SUPERLIGA - CHAMPIONSHIP GROUP': 'ROMANIA 1', # Mapeia fase para liga principal
+    'ROMANIA: LIGA 2 - RELEGATION GROUP': 'ROMANIA 2', # Segunda Liga (fase)
+    'ROMANIA: SUPERLIGA WOMEN - CHAMPIONSHIP GROUP': 'ROMANIA WOMEN 1', # Principal liga feminina (fase)
+
+    # --- Rússia ---
+    'RUSSIA: PREMIER LEAGUE': 'RUSSIA 1',
+    'RUSSIA: FNL': 'RUSSIA 2', # Football National League (Segunda Divisão)
+
+    # --- San Marino ---
+    'SAN MARINO: CAMPIONATO SAMMARINESE - PLAY OFFS - QUARTER-FINALS': 'SAN MARINO 1 PLAYOFF', # Liga principal (fase)
+
+    # --- São Tomé e Príncipe ---
+    'SÃO TOMÉ AND PRÍNCIPE: CAMPEONATO NACIONAL': 'SAO TOME 1', # Principal liga
+
+    # --- Escócia ---
+    'SCOTLAND: PREMIERSHIP - RELEGATION GROUP': 'SCOTLAND 1',
+    'SCOTLAND: PREMIERSHIP - CHAMPIONSHIP GROUP': 'SCOTLAND 1',
+    'SCOTLAND: LEAGUE ONE': 'SCOTLAND 3', # Terceira divisão
+    'SCOTLAND: LEAGUE TWO': 'SCOTLAND 4', # Quarta divisão
+    'SCOTLAND: LEAGUE TWO - RELEGATION - PLAY OFFS - SEMI-FINALS': 'SCOTLAND 4 PLAYOFF',
+
+    # --- Sérvia ---
+    'SERBIA: SUPER LIGA - RELEGATION GROUP': 'SERBIA 1',
+    'SERBIA: SUPER LIGA - CHAMPIONSHIP GROUP': 'SERBIA 1',
+    'SERBIA: PRVA LIGA - RELEGATION GROUP': 'SERBIA 2', # Segunda divisão (fase)
+    'SERBIA: PRVA LIGA - CHAMPIONSHIP GROUP': 'SERBIA 2', # Segunda divisão (fase)
+
+    # --- Sierra Leone ---
+    'SIERRA LEONE: PREMIER LEAGUE': 'SIERRA LEONE 1',
+
+    # --- Singapura ---
+    'SINGAPORE: PREMIER LEAGUE': 'SINGAPORE 1',
+
+    # --- Eslováquia ---
+    'SLOVAKIA: NIKE LIGA - RELEGATION GROUP': 'SLOVAKIA 1', # Principal liga (fase)
+    'SLOVAKIA: NIKE LIGA - CHAMPIONSHIP GROUP': 'SLOVAKIA 1', # Principal liga (fase)
+    'SLOVAKIA: 2. LIGA': 'SLOVAKIA 2',
+    'SLOVAKIA: 1. LIGA WOMEN - RELEGATION GROUP': 'SLOVAKIA WOMEN 1', # Principal liga feminina (fase)
+    'SLOVAKIA: 1. LIGA WOMEN - CHAMPIONSHIP GROUP': 'SLOVAKIA WOMEN 1', # Principal liga feminina (fase)
+
+    # --- Eslovênia ---
+    'SLOVENIA: PRVA LIGA': 'SLOVENIA 1',
+    'SLOVENIA: 2. SNL': 'SLOVENIA 2',
+
+    # --- Somália ---
+    'SOMALIA: NATIONAL LEAGUE': 'SOMALIA 1',
+
+    # --- África do Sul ---
+    'SOUTH AFRICA: PREMIERSHIP': 'SOUTH AFRICA 1',
+    'SOUTH AFRICA: MOTSEPE FOUNDATION CHAMPIONSHIP': 'SOUTH AFRICA 2', # Segunda divisão
+
+    # --- América do Sul (Torneio específico) ---
+    'SOUTH AMERICA: SOUTH AMERICAN CHAMPIONSHIP WOMEN U17': 'SOUTH AMERICA U17 WOMEN',
+
+    # --- Coreia do Sul ---
+    'SOUTH KOREA: K LEAGUE 1': 'SOUTH KOREA 1',
+
+    # --- Espanha ---
+    'SPAIN 2': 'SPAIN 2', # Já parece padronizado (Segunda División)
+    'SPAIN: PRIMERA RFEF': 'SPAIN 3', # Terceira divisão
+    'SPAIN: LIGA F WOMEN': 'SPAIN WOMEN 1', # Principal liga feminina
+
+    # --- Suriname ---
+    'SURINAME: SML': 'SURINAME 1', # Surinaamse Major League
+
+    # --- Suécia ---
+    'SWEDEN: ALLSVENSKAN': 'SWEDEN 1', # Principal liga
+    'SWEDEN: SUPERETTAN': 'SWEDEN 2', # Segunda divisão
+    'SWEDEN: ALLSVENSKAN WOMEN': 'SWEDEN WOMEN 1', # Principal liga feminina
+
+    # --- Suíça ---
+    'SWITZERLAND: SUPER LEAGUE - RELEGATION GROUP': 'SWITZERLAND 1',
+    'SWITZERLAND: SUPER LEAGUE - CHAMPIONSHIP GROUP': 'SWITZERLAND 1',
+    'SWITZERLAND: CHALLENGE LEAGUE': 'SWITZERLAND 2', # Segunda divisão
+    'SWITZERLAND: PROMOTION LEAGUE': 'SWITZERLAND 3', # Terceira divisão
+    'SWITZERLAND: SUPER LEAGUE WOMEN - PLAY OFFS - SEMI-FINALS': 'SWITZERLAND WOMEN 1 PLAYOFF',
+    'SWITZERLAND: SUPER LEAGUE WOMEN - RELEGATION': 'SWITZERLAND WOMEN 1 RELEGATION',
+    'SWITZERLAND: SUPER LEAGUE WOMEN - PLACEMENT PLAY OFFS - FINAL': 'SWITZERLAND WOMEN 1 PLAYOFF',
+
+    # --- Tajiquistão ---
+    'TAJIKISTAN: VYSSHAYA LIGA': 'TAJIKISTAN 1', # Principal liga
+
+    # --- Tailândia ---
+    'THAILAND: THAI FA CUP - QUARTER-FINALS': 'THAILAND CUP', # Copa Nacional
+
+    # --- Togo ---
+    'TOGO: CHAMPIONNAT NATIONAL': 'TOGO 1', # Principal liga
+
+    # --- Trinidad e Tobago ---
+    'TRINIDAD AND TOBAGO: TT PREMIER LEAGUE': 'TRINIDAD 1',
+
+    # --- Tunísia ---
+    'TUNISIA: LIGUE PROFESSIONNELLE 1': 'TUNISIA 1',
+
+    # --- Turquia ---
+    'TURKEY: SUPER LIG': 'TURKEY 1',
+
+    # --- Turcomenistão ---
+    'TURKMENISTAN: YOKARY LIGA': 'TURKMENISTAN 1', # Principal liga
+
+    # --- Uganda ---
+    'UGANDA: UGANDA CUP - SEMI-FINALS': 'UGANDA CUP', # Copa Nacional
+
+    # --- Ucrânia ---
+    'UKRAINE: PREMIER LEAGUE': 'UKRAINE 1',
+    'UKRAINE: PERSHA LIGA - PROMOTION GROUP': 'UKRAINE 2', # Segunda divisão (fase)
+    'UKRAINE: PERSHA LIGA - RELEGATION GROUP': 'UKRAINE 2', # Segunda divisão (fase)
+
+    # --- Emirados Árabes Unidos ---
+    'UNITED ARAB EMIRATES: UAE LEAGUE': 'UAE 1',
+
+    # --- Uruguai ---
+    'URUGUAY: LIGA AUF URUGUAYA - APERTURA': 'URUGUAY 1', # Principal liga (fase)
+
+    # --- EUA ---
+    'USA: MLS': 'USA 1', # Major League Soccer
+    'USA: USL CHAMPIONSHIP': 'USA 2', # Segunda divisão (geralmente considerada)
+    'USA: NWSL WOMEN': 'USA WOMEN 1', # Principal liga feminina
+    'USA: USL SUPER LEAGUE WOMEN': 'USA WOMEN 2', # Nova segunda liga feminina (a verificar nível exato)
+
+    # --- Uzbequistão ---
+    'UZBEKISTAN: SUPER LEAGUE': 'UZBEKISTAN 1',
+
+    # --- Venezuela ---
+    'VENEZUELA: LIGA FUTVE - APERTURA - QUADRANGULAR': 'VENEZUELA 1', # Principal liga (fase)
+
+    # --- Vietnã ---
+    'VIETNAM: V.LEAGUE 1': 'VIETNAM 1',
+
+    # --- Mundo (Amistosos) ---
+    'WORLD: FRIENDLY INTERNATIONAL WOMEN': 'WORLD FRIENDLY WOMEN',
+
+    # --- Zâmbia ---
+    'ZAMBIA: SUPER LEAGUE': 'ZAMBIA 1',
+
+    # --- Zimbábue ---
+    'ZIMBABWE: PREMIER SOCCER LEAGUE': 'ZIMBABWE 1',
 }
 
 # Lista apenas dos identificadores curtos, se preferir usá-los internamente
@@ -89,7 +255,7 @@ TARGET_LEAGUES_INTERNAL_IDS = list(INTERNAL_LEAGUE_NAMES.keys())
 
 #database historica
 
-TARGET_LEAGUES_1 = {'Argentina Primera División':'ARGENTINA 1','Spain Segunda División':'SPAIN 2', 'Serbia SuperLiga':'SERBIA 1', 'France Ligue 1':'FRANCE 1','Italy Serie A':'ITALY 1', 'Italy Serie B':'ITALY 2', 'Brazil Serie A':'BRAZIL 1','Brazil Serie B':'BRAZIL 2', 'Romania Liga I':'ROMANIA 1'}
+TARGET_LEAGUES_1 = {'Argentina Primera División':'ARGENTINA 1','Spain Segunda División':'SPAIN 2', 'Serbia SuperLiga':'SERBIA 1', 'France: Ligue 1':'FRANCE 1','Italy Serie A':'ITALY 1', 'Italy Serie B':'ITALY 2', 'Brazil Serie A':'BRAZIL 1','Brazil Serie B':'BRAZIL 2', 'Romania Liga I':'ROMANIA 1'}
 TARGET_LEAGUES_2 = {'ARGENTINA 1':'ARGENTINA 1','SPAIN 2':'SPAIN 2', 'SERBIA 1':'SERBIA 1', 'FRANCE 1':'FRANCE 1','ITALY 1':'ITALY 1', 'ITALY 2':'ITALY 2', 'BRAZIL 1':'BRAZIL 1','BRAZIL 2':'BRAZIL 2', 'ROMANIA 1':'ROMANIA 1'}
 
 #database futuro
@@ -142,34 +308,37 @@ OTHER_ODDS_NAMES = [ 'Odd_Over25_FT', 'Odd_Under25_FT', 'Odd_BTTS_Yes', 'Odd_BTT
 # Mapeamento CSV/Excel -> Nomes Internos (AJUSTADO E SIMPLIFICADO)
 CSV_HIST_COL_MAP = {
     # Coluna no Arquivo : Nome Interno Desejado
-    # Essenciais
+    # Essenciais (Baseado no seu CSV)
     'Date': 'Date',
-    'Time': 'Time', # Precisa da hora
+    'Time': 'Time',
+    'Time_Str': 'Time_Str',             
     'League': 'League',
-    'Home': 'Home', # Assumindo que a coluna é 'Home'
-    'Away': 'Away', # Assumindo que a coluna é 'Away'
-    'Goals_H_FT': GOALS_COLS['home'],
-    'Goals_A_FT': GOALS_COLS['away'],
-    'Odd_H_FT': ODDS_COLS['home'],
-    'Odd_D_FT': ODDS_COLS['draw'],
-    'Odd_A_FT': ODDS_COLS['away'],
+    'Home': 'Home',        
+    'Away': 'Away',  
+    'HomeTeam': 'Home',
+    'AwayTeam': 'Away',       
+    'Goals_H_FT': 'Goals_H_FT',
+    'Goals_A_FT': 'Goals_A_FT', 
+    'Odd_H_FT': 'Odd_H_FT',
+    'Odd_D_FT': 'Odd_D_FT',
+    'Odd_A_FT': 'Odd_A_FT',
     # Outras Odds
     'Odd_Over25_FT': 'Odd_Over25_FT',
     'Odd_Under25_FT': 'Odd_Under25_FT',
     'Odd_BTTS_Yes': 'Odd_BTTS_Yes',
     'Odd_BTTS_No': 'Odd_BTTS_No',
-     # xG (use os nomes EXATOS do seu arquivo Excel/CSV)
-    'XG_Home': XG_COLS['home'], # Exemplo: Mapeia 'XG_Home' do arquivo para 'XG_H' interno
-    'XG_Away': XG_COLS['away'], # Exemplo: Mapeia 'XG_Away' do arquivo para 'XG_A' interno
-    'XG_Total': XG_COLS['total'],# Exemplo: Mapeia 'XG_Total' para 'XG_Total'
-    # Stats (Adicione se existirem no arquivo e quiser usá-las para rolling stats)
+     # xG (Ajuste os nomes das colunas do SEU arquivo aqui, se diferentes)
+    'XG_Home': XG_COLS['home'],
+    'XG_Away': XG_COLS['away'],
+    'XG_Total': XG_COLS['total'],
+    # Stats (Ajuste os nomes das colunas do SEU arquivo aqui, se diferentes)
     'Shots_H': 'Shots_H',
     'Shots_A': 'Shots_A',
     'ShotsOnTarget_H': 'ShotsOnTarget_H',
     'ShotsOnTarget_A': 'ShotsOnTarget_A',
     'Corners_H_FT': 'Corners_H_FT',
     'Corners_A_FT': 'Corners_A_FT',
-    # Adicione outras colunas se necessário
+
 }
 # Colunas internas essenciais APÓS mapeamento para buscar jogos futuros
 # Ajustado para incluir Time_Str, remover Time (que será usado para criar Time_Str)
@@ -245,8 +414,6 @@ NEW_FEATURE_COLUMNS = [
     'Std_CG_A',
     'Prob_Empate_Poisson',
     'abs_ProbDiff_Norm',
-    EWMA_VG_H_SHORT, # Feature EWMA adicionada
-    EWMA_GolsMarc_A_LONG, # Feature EWMA adicionada
     'Odd_Over25_FT',
     INTERACTION_ODD_D_DIV_PIR_DIFF, # Interação mantida
     PIRATING_MOMENTUM_DIFF, # Momentum adicionado
@@ -353,7 +520,7 @@ if SKOPT_AVAILABLE_CONFIG: # Só adiciona se skopt estiver disponível (para Bay
             'model_kwargs': { # Kwargs que NÃO estão no search_spaces
                 'random_state': RANDOM_STATE, 'n_jobs': N_JOBS_GRIDSEARCH,
                 'objective': 'binary',
-                'fit_params': {'classifier__callbacks': [lgb.early_stopping(100, verbose=False)]}
+                #'fit_params': {'classifier__callbacks': [lgb.early_stopping(100, verbose=False)]}
                 # 'metric': 'logloss', # Métrica interna de avaliação (não de otimização CV)
                 # early stopping é passado via fit_params no model_trainer
              },
@@ -376,8 +543,8 @@ if SKOPT_AVAILABLE_CONFIG: # Só adiciona se skopt estiver disponível (para Bay
                 # Early stopping é passado via fit_params no model_trainer
                 'cat_features': categorical_features_indices if categorical_features_indices else None # Passa índices se houver features categóricas
              },
-             'search_spaces': catboost_search_spaces, 'param_grid': None, 'needs_scaling': False,
-             'fit_params': {'classifier__early_stopping_rounds': 100}
+            'search_spaces': catboost_search_spaces, 'param_grid': None, 'needs_scaling': False,
+            #'fit_params': {'classifier__early_stopping_rounds': 100}
         }
 else: # Fallback para GridSearchCV se skopt não estiver disponível
       # Adapte os param_grid se necessário (não definidos aqui, requereria conversão dos search_spaces)

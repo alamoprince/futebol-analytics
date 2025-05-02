@@ -782,16 +782,63 @@ class FootballPredictorDashboard:
 
             # --- Fim do Filtro ---
 
-            # Ordenação (opcional, pelo nome da coluna calibrada/usada)
-            if (df_predictions_final_filtered is not None and not df_predictions_final_filtered.empty 
-                    and prob_col_to_use and prob_col_to_use in df_predictions_final_filtered.columns):
-                self.log(f"Ordenando por '{prob_col_to_use}' descendente...")
-                try:
-                    df_predictions_final_filtered = df_predictions_final_filtered.sort_values(
-                        by=prob_col_to_use, ascending=False
-                    ).reset_index(drop=True)
-                except Exception as e_sort:
-                    self.log(f"Aviso: Erro ordenar: {e_sort}")
+            prob_draw_calib_col = f'Prob_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'Prob_Empate'
+
+            if df_predictions_final_to_display is not None and not df_predictions_final_to_display.empty:
+                if prob_draw_calib_col in df_predictions_final_to_display.columns:
+                    self.log(f"Ordenando previsões por '{prob_draw_calib_col}' descendente...")
+                    try:
+                        # Garante que a coluna é numérica antes de ordenar
+                        df_predictions_final_to_display[prob_draw_calib_col] = pd.to_numeric(
+                            df_predictions_final_to_display[prob_draw_calib_col], errors='coerce'
+                        )
+                        # Opcional: Remover linhas onde a probabilidade não pôde ser convertida
+                        df_predictions_final_to_display.dropna(subset=[prob_draw_calib_col], inplace=True)
+
+                        # Ordena o DataFrame
+                        df_predictions_final_to_display = df_predictions_final_to_display.sort_values(
+                            by=prob_draw_calib_col, ascending=False
+                        ).reset_index(drop=True) # reset_index para manter a ordem na exibição
+
+                    except KeyError:
+                        self.log(f"Aviso: Coluna '{prob_draw_calib_col}' não encontrada para ordenação (KeyError).")
+                        logger.warning(f"Coluna de ordenação '{prob_draw_calib_col}' não encontrada no DataFrame final (KeyError).")
+                    except Exception as e_sort:
+                        self.log(f"Aviso: Erro ao ordenar por probabilidade de empate: {e_sort}")
+                        logger.warning(f"Falha ao ordenar previsões por {prob_draw_calib_col}: {e_sort}", exc_info=True)
+                else:
+                    # Tenta ordenar pela probabilidade bruta como fallback, se a calibrada não existir
+                    prob_draw_raw_col = f'ProbRaw_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'ProbRaw_Empate'
+                    if prob_draw_raw_col in df_predictions_final_to_display.columns:
+                        self.log(f"Aviso: Coluna calibrada '{prob_draw_calib_col}' não encontrada. Ordenando por probabilidade bruta '{prob_draw_raw_col}'...")
+                        logger.warning(f"Coluna calibrada '{prob_draw_calib_col}' não encontrada. Tentando ordenar por bruta '{prob_draw_raw_col}'.")
+                        try:
+                            df_predictions_final_to_display[prob_draw_raw_col] = pd.to_numeric(
+                                df_predictions_final_to_display[prob_draw_raw_col], errors='coerce'
+                            )
+                            df_predictions_final_to_display.dropna(subset=[prob_draw_raw_col], inplace=True)
+                            df_predictions_final_to_display = df_predictions_final_to_display.sort_values(
+                                by=prob_draw_raw_col, ascending=False
+                            ).reset_index(drop=True)
+                        except Exception as e_sort_raw:
+                            self.log(f"Aviso: Erro ao ordenar por probabilidade bruta: {e_sort_raw}")
+                            logger.warning(f"Falha ao ordenar previsões por probabilidade bruta {prob_draw_raw_col}: {e_sort_raw}")
+                    else:
+                        self.log(f"Aviso: Colunas de probabilidade ('{prob_draw_calib_col}' ou '{prob_draw_raw_col}') não encontradas para ordenação.")
+                        logger.warning(f"Colunas de probabilidade ('{prob_draw_calib_col}' ou '{prob_draw_raw_col}') não encontradas para ordenação.")
+
+            # --- Fim do Bloco de Ordenação ---
+
+            # Envia resultado (agora ordenado, se possível) para GUI
+            self.gui_queue.put(("progress_update", (95, "Preparando Exibição...")))
+            if df_predictions_final_to_display is not None and not df_predictions_final_to_display.empty:
+                # Log indica se foi ordenado (baseado na presença da coluna calibrada)
+                sort_status = "ORDENADAS" if prob_draw_calib_col in df_predictions_final_to_display.columns else "NÃO ORDENADAS por Prob"
+                self.log(f"Enviando {len(df_predictions_final_to_display)} previsões {sort_status} para exibição.")
+                self.gui_queue.put(("prediction_complete", df_predictions_final_to_display)) # Passa o DF ORDENADO (ou original se falhou)
+            else:
+                self.log("Nenhuma previsão gerada ou DataFrame vazio.")
+                self.gui_queue.put(("prediction_complete", None))  # Passa None para limpar
 
             # Envia resultado para GUI
             self.gui_queue.put(("progress_update", (95, "Preparando Exibição...")))
