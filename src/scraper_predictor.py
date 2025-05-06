@@ -92,8 +92,15 @@ def _close_cookies(driver, timeout=10):
 
 def _select_target_day(driver, target_day, timeout):
     """Clica no botão do dia alvo (today/tomorrow)."""
+    # Se for today, não precisa fazer nada pois o site já abre nesse dia
+    if target_day == "today":
+        print("Dia 'today' já selecionado por padrão.")
+        return True
+        
+    # Para tomorrow, precisa clicar no botão
     day_selector = f'button.calendar__navigation--{target_day}'
     print(f"Selecionando dia '{target_day}'...")
+        
     try:
         day_button = WebDriverWait(driver, timeout).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, day_selector))

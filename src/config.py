@@ -64,7 +64,7 @@ SCRAPER_TARGET_DAY =  "tomorrow" # "today" ou "tomorrow"
 SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d") 
 
 # --- Fonte de Dados Futuros (CSV GitHub) ---
-FIXTURE_FETCH_DAY = "today" # Ou "today"
+FIXTURE_FETCH_DAY = "tomorrow" # Ou "today"
 FIXTURE_CSV_URL_TEMPLATE = "https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/main/data/raw_scraped/scraped_fixtures_{date_str}.csv" # Atualizado branch
 
 CHROMEDRIVER_PATH = os.path.join(BASE_DIR, 'chromedriver.exe')
@@ -295,10 +295,6 @@ MODEL_SAVE_PATH = BEST_F1_MODEL_SAVE_PATH # Padrão
 MODEL_ID_F1 = "Melhor F1 (Empate)"
 MODEL_ID_ROI = "Melhor ROI (Empate)"
 
-# --- Fonte de Dados Futuros (CSV GitHub) ---
-FIXTURE_FETCH_DAY = "tomorrow" # Ou "today"
-FIXTURE_CSV_URL_TEMPLATE = "https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/main/data/raw_scraped/scraped_fixtures_{date_str}.csv" # Atualizado branch
-
 # --- Nomes Colunas Internas ---
 XG_COLS = {'home': 'XG_H', 'away': 'XG_A', 'total': 'XG_Total'}
 ODDS_COLS = {'home': 'Odd_H_FT', 'draw': 'Odd_D_FT', 'away': 'Odd_A_FT'}
@@ -409,15 +405,15 @@ FEATURE_COLUMNS = [
 ]
 
 NEW_FEATURE_COLUMNS = [
-    'p_D_norm',
-    'CV_HDA',
+    'Media_VG_A',
+    'Std_CG_H',
     'Std_CG_A',
     'Prob_Empate_Poisson',
     'abs_ProbDiff_Norm',
     'Odd_Over25_FT',
     INTERACTION_ODD_D_DIV_PIR_DIFF, # Interação mantida
-    PIRATING_MOMENTUM_DIFF, # Momentum adicionado
-    INTERACTION_AVG_GOLS_MARC_DIFF, # Interação adicionada
+    'CV_HDA',
+    
 ]
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
@@ -430,8 +426,9 @@ BEST_MODEL_METRIC_ROI = 'roi' # ROI (Expected Value) - Para o modelo de ROI
 BEST_MODEL_METRIC = 'f1_score_draw'
 BEST_MODEL_METRIC_ROI = 'roi'
 DEFAULT_F1_THRESHOLD = 0.5
-DEFAULT_EV_THRESHOLD = 0.05
+DEFAULT_EV_THRESHOLD = 0.15
 MIN_RECALL_FOR_PRECISION_OPT = 0.10
+MIN_PROB_THRESHOLD_FOR_HIGHLIGHT = 0.28
 
 # --- Configuração Otimização Bayesiana/GridSearch ---
 BAYESIAN_OPT_N_ITER = 75 # Mantido

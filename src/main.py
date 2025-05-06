@@ -379,7 +379,8 @@ class FootballPredictorDashboard:
                                'Odd D', 'P(E) Raw', 'P(E) Calib', 'EV Empate']
 
             # Tag de destaque
-            try: self.prediction_tree.tag_configure('highlight_ev', background='lightgreen', foreground='black')
+            try:
+                self.prediction_tree.tag_configure('highlight_suggestion', background='lightgreen', foreground='black') # Renomear a tag talvez? (Opcional)
             except tk.TclError: pass
 
             # Limpa e configura Treeview
@@ -388,21 +389,15 @@ class FootballPredictorDashboard:
             self.log(f"GUI: DF {df.shape}. Reconfigurando colunas: {display_headers}");
             self._setup_prediction_columns(display_headers)
 
-            # Mapeamento Header GUI -> Coluna Interna DF (GARANTA QUE OS VALORES CORRESPONDAM AOS NOMES INTERNOS FINAIS)
+            # Mapeamento Header GUI -> Coluna Interna DF
             odds_d_col = CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT');
             prob_draw_raw_col = f'ProbRaw_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'ProbRaw_Empate'
-            # Usa o nome da coluna calibrada SEM Raw_ (gerado por make_predictions)
             prob_draw_calib_col = f'Prob_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'Prob_Empate'
             ev_col = 'EV_Empate';
             header_to_col_map = {
-                'Data': 'Date_Str',
-                'Hora': 'Time_Str', # <--- Nome interno correto
-                'Liga': 'League',
-                'Casa': 'Home',     # <--- Nome interno correto
-                'Fora': 'Away',     # <--- Nome interno correto
-                'Odd D': odds_d_col,
-                'P(E) Raw': prob_draw_raw_col,
-                'P(E) Calib': prob_draw_calib_col, # <--- Nome interno correto
+                'Data': 'Date_Str', 'Hora': 'Time_Str', 'Liga': 'League',
+                'Casa': 'Home', 'Fora': 'Away', 'Odd D': odds_d_col,
+                'P(E) Raw': prob_draw_raw_col, 'P(E) Calib': prob_draw_calib_col,
                 'EV Empate': ev_col
             }
 
@@ -429,31 +424,71 @@ class FootballPredictorDashboard:
                  except Exception: df_display[odds_d_col] = "-"
 
 
+            from config import MIN_PROB_THRESHOLD_FOR_HIGHLIGHT # Importa o novo limiar
+
+            prob_col_to_check = None
+            calibrator_exists = self.trained_calibrator is not None
+            if calibrator_exists and prob_draw_calib_col in df.columns:
+                prob_col_to_check = prob_draw_calib_col
+                prob_source_log = "Calibrada"
+            elif prob_draw_raw_col in df.columns:
+                prob_col_to_check = prob_draw_raw_col # Fallback para bruta
+                prob_source_log = "Bruta"
+                self.log(f"Aviso GUI: Usando Prob Bruta '{prob_col_to_check}' para verificação de limiar mínimo (calibrada ausente).")
+            else:
+                prob_source_log = "NENHUMA"
+                self.log(f"ERRO GUI: Nenhuma coluna de probabilidade ({prob_draw_calib_col} ou {prob_draw_raw_col}) encontrada para verificação de limiar.")
+
             # Inserir Linhas
-            self.log("GUI: Adicionando linhas..."); added_rows = 0
-            for index, row_original in df.iterrows(): # Itera no DF original para pegar EV não formatado
+            highlight_criteria_log = f"EV > {self.optimal_ev_threshold:.3f} E Prob ({prob_source_log}) >= {MIN_PROB_THRESHOLD_FOR_HIGHLIGHT:.1%}"
+            self.log(f"GUI: Adicionando linhas... (Highlight: {highlight_criteria_log})")
+            added_rows = 0
+            highlighted_count = 0
+
+            for index, row_original in df.iterrows(): # Itera no DF original para pegar valores numéricos
                 values_list = []
-                for header in display_headers: # Itera na ordem dos cabeçalhos da GUI
-                    internal_col = valid_internal_cols_map.get(header) # Acha nome interno correspondente
-                    if internal_col and internal_col in df_display.columns: # Se existe e foi mapeado
-                        # Pega valor FORMATADO do df_display usando o índice original
+                for header in display_headers:
+                    internal_col = header_to_col_map.get(header)
+                    if internal_col and internal_col in df_display.columns:
                         formatted_value = df_display.loc[index, internal_col]
                         values_list.append(str(formatted_value))
                     else:
-                        values_list.append("") # Coluna em branco se não mapeada ou não existe
+                        values_list.append("-") # Melhor que vazio
 
-                # Lógica da tag EV (usa DF original)
+                # --- Lógica de DESTAQUE MODIFICADA ---
                 tag_to_apply = ()
+                should_highlight = False # Começa como Falso
                 try:
+                    # 1. Verifica condição de EV
                     ev_val_orig = pd.to_numeric(row_original.get(ev_col), errors='coerce')
-                    if pd.notna(ev_val_orig) and ev_val_orig > self.optimal_ev_threshold: tag_to_apply = ('highlight_ev',)
-                except Exception: pass # Ignora erro na tag
+                    ev_condition_met = pd.notna(ev_val_orig) and ev_val_orig > self.optimal_ev_threshold
+
+                    # 2. Verifica condição de Probabilidade Mínima (se coluna existe)
+                    prob_condition_met = False
+                    if prob_col_to_check: # Só verifica se encontramos uma coluna de prob válida
+                        prob_val_orig = pd.to_numeric(row_original.get(prob_col_to_check), errors='coerce')
+                        prob_condition_met = pd.notna(prob_val_orig) and prob_val_orig >= MIN_PROB_THRESHOLD_FOR_HIGHLIGHT
+
+                    # 3. Combina as condições
+                    if ev_condition_met and prob_condition_met:
+                        should_highlight = True
+
+                except Exception as e_highlight:
+                     logger.warning(f"GUI Highlight Check Error (Index {index}): {e_highlight}")
+                     should_highlight = False # Segurança: não destaca se houver erro
+
+                if should_highlight:
+                    tag_to_apply = ('highlight_suggestion',) # Aplica a tag
+                    highlighted_count += 1
 
                 # Insere na Treeview
-                try: self.prediction_tree.insert('', tk.END, values=values_list, tags=tag_to_apply); added_rows += 1
-                except Exception as e_ins: self.log(f"!! Erro inserir linha {index}: {e_ins}")
+                try:
+                    self.prediction_tree.insert('', tk.END, values=values_list, tags=tag_to_apply)
+                    added_rows += 1
+                except Exception as e_ins:
+                    self.log(f"!! Erro inserir linha {index}: {e_ins}")
 
-            self.log(f"GUI: {added_rows}/{len(df)} linhas adicionadas.")
+            self.log(f"GUI: {added_rows}/{len(df)} linhas adicionadas. {highlighted_count} destacadas.")
 
         except Exception as e_disp:
              logger.error(f"Erro GERAL em _update_prediction_display: {e_disp}", exc_info=True)
