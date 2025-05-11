@@ -1,0 +1,284 @@
+2025-05-06 14:08:06 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-06 14:08:06 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-06 14:08:06 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-06 14:08:06 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-06 14:08:21 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-06 14:08:23 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-06 14:08:24 - MainApp - INFO - DPI Awareness set.
+2025-05-06 14:08:25 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-06 14:08:25 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-05 05:32:01)
+2025-05-06 14:08:25 - PredictorApp - INFO -   Tipo: LogisticRegression | Calib: Sim | F1 Thr: 0.2500 | EV Thr: 0.1800
+2025-05-06 14:08:25 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-05 05:32:01)
+2025-05-06 14:08:25 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2500 | EV Thr: 0.1900
+2025-05-06 14:08:25 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-06 14:08:25 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-06 14:09:08 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-06 14:09:08 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-06 14:09:08 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-06 14:09:08 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-06 14:09:08 - DataHandler - INFO -     -> Filtro: 18177/97670 jogos restantes.
+2025-05-06 14:09:08 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-06 14:09:08 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (18177, 19)).
+2025-05-06 14:09:08 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-06 14:09:08 - DataHandler - INFO - DF histórico combinado: (18177, 19)
+2025-05-06 14:09:08 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-06 14:09:08 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-06 14:09:08 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-06 14:09:08 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-06 14:09:08 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-06 14:09:08 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-06 14:09:08 - DataHandler - INFO - DF histórico ordenado.
+2025-05-06 14:09:08 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-06 14:09:09 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-06 14:09:09 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (17938, 26)
+2025-05-06 14:09:09 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Under25_FT     156
+Odd_BTTS_No        154
+Odd_BTTS_Yes       154
+Odd_Over25_FT      156
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-05-06 14:09:09 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-05-06 14:09:09 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-06 14:09:09 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-06 14:27:59 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-06 14:27:59 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-06 14:28:40 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-06 14:28:40 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-06 14:28:40 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-06 14:28:40 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-06 14:28:41 - DataHandler - INFO -     -> Filtro: 18177/97670 jogos restantes.
+2025-05-06 14:28:41 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-06 14:28:41 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (18177, 19)).
+2025-05-06 14:28:41 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-06 14:28:41 - DataHandler - INFO - DF histórico combinado: (18177, 19)
+2025-05-06 14:28:41 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-06 14:28:41 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-06 14:28:41 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-06 14:28:41 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-06 14:28:41 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-06 14:28:41 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-06 14:28:41 - DataHandler - INFO - DF histórico ordenado.
+2025-05-06 14:28:41 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-06 14:28:42 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-06 14:28:42 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (17938, 26)
+2025-05-06 14:28:42 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Under25_FT     156
+Odd_BTTS_No        154
+Odd_BTTS_Yes       154
+Odd_Over25_FT      156
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-05-06 14:28:42 - DataHandler - INFO - --- Iniciando Pré-proc e Feature Eng (Histórico) ---
+2025-05-06 14:28:42 - DataHandler - INFO - Médias Liga: Casa=1.353, Fora=1.045
+2025-05-06 14:28:42 - DataHandler - INFO - === INÍCIO PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-06 14:28:42 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-06 14:28:42 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-06 14:28:42 - DataHandler - INFO - ->Calculando p_H/D/A...
+2025-05-06 14:28:42 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-06 14:28:42 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-06 14:28:42 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-06 14:28:42 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-06 14:28:42 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-05-06 14:28:42 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-06 14:28:43 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-06 14:28:43 - DataHandler - INFO - Calculando 9 métricas rolling (Janela Padrão=5)...
+2025-05-06 14:28:55 - DataHandler - INFO - Métricas rolling calculadas. Shape: (17938, 18).
+2025-05-06 14:28:55 - DataHandler - INFO - Calculando 4 métricas EWMA (Span Padrão=5)...
+2025-05-06 14:29:22 - DataHandler - INFO - Métricas EWMA calculadas. Shape: (17938, 8).
+2025-05-06 14:29:22 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_goals=6)...
+2025-05-06 14:29:22 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-05-06 14:29:22 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-05-06 14:29:22 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...
+2025-05-06 14:29:22 - DataHandler - INFO - Features de interação calculadas (incluindo novas).
+2025-05-06 14:29:22 - DataHandler - INFO - === FIM PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-06 14:29:22 - DataHandler - INFO - Selecionando features FINAIS para modelo: ['Media_VG_A', 'Std_CG_H', 'Std_CG_A', 'Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'Odd_Over25_FT', 'OddD_div_PiRDiffAbs', 'CV_HDA']
+2025-05-06 14:29:22 - DataHandler - INFO - DF selecionado p/ dropna: (17938, 9). Verificando NaNs...
+2025-05-06 14:29:22 - DataHandler - WARNING - NaNs ANTES dropna final nas features selecionadas:
+Media_VG_A       135
+Std_CG_H         178
+Std_CG_A         186
+Odd_Over25_FT    156
+dtype: int64
+2025-05-06 14:29:22 - DataHandler - INFO - Removidas 433 linhas contendo NaNs/Infs nas features finais ou no alvo.
+2025-05-06 14:29:22 - DataHandler - INFO - --- Pré-proc Histórico OK --- Shape Final X:(17505, 8), y:(17505,).
+2025-05-06 14:29:22 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-06 14:29:22 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-06 14:29:22 - DataHandler - INFO - ->Calculando p_H/D/A...
+2025-05-06 14:29:22 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-06 14:29:22 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-06 14:29:22 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-06 14:29:22 - Main2 - INFO - DEBUG Main: df_full_data_aligned_for_split (17505, 37)
+2025-05-06 14:29:22 - ModelTrainerApp - INFO - --- Treinando 7 Modelos (Sampler: smote, CV Temporal: f1, Opt(F1:True, EV:True, Prec:True)) ---
+2025-05-06 14:29:22 - ModelTrainerApp - INFO - Dividindo dados temporalmente (Treino+CV / Teste Final)...
+2025-05-06 14:29:22 - ModelTrainerApp - INFO - Split Temporal: T+CV=14004 (80.0%), Teste=3501 (20.0%)
+2025-05-06 14:29:22 - ModelTrainerApp - INFO - Odds alinhadas (Temporal): Teste=True (3501 jogos)
+2025-05-06 14:29:22 - ModelTrainerApp - INFO - 
+--- Modelo 1/7: RandomForestClassifier ---
+2025-05-06 14:29:22 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: RandomForestClassifier)
+2025-05-06 14:29:22 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-06 14:41:56 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4231. Params: {'bootstrap': False, 'class_weight': 'balanced', 'max_depth': 5, 'max_features': 0.8, 'min_samples_leaf': 50, 'min_samples_split': 80, 'n_estimators': 50}
+2025-05-06 14:41:56 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...
+2025-05-06 14:41:57 - ModelTrainerApp - INFO -   -> Re-ajuste final OK.
+2025-05-06 14:41:57 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs (isotonic) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 14:41:57 - ModelTrainerApp - WARNING - Método calibração 'isotonic' não suportado. Usando Isotonic.
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR -   Erro INESPERADO durante calibração (no Teste): too many indices for array: array is 1-dimensional, but 2 were indexed
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py", line 507, in train_evaluate_and_save_best_models
+    y_proba_test_calib = calibrator.predict(y_proba_test_raw_draw)[:, 1]
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+IndexError: too many indices for array: array is 1-dimensional, but 2 were indexed
+2025-05-06 14:41:57 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 14:41:57 - ModelTrainerApp - INFO -     Limiar F1 ótimo(Teste): 0.3541 (F1=0.4634)
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:41:57 - ModelTrainerApp - WARNING -     ROI Teste inválido/negativo em otimização EV.
+2025-05-06 14:41:57 - ModelTrainerApp - INFO -   Otimizando Precision (Teste Probs Raw(Teste), Recall Mín: 10.0%)...
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -     Limiar Prec ótimo(Teste): 0.5638 (Prec=0.3416, Rec=0.3298)
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL no Teste...
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -   Calculando métricas teste final (probs: Raw(Teste))
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -     -> Métricas @ Thr 0.5: F1=0.4208, P=0.3164, R=0.6280
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -     -> Métricas @ Thr F1 (0.3541): F1=0.4634, P=0.3083, R=0.9329
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -     -> Métricas @ Thr Prec (0.5638): F1=0.3356, P=0.3416, R=0.3298
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -     -> AUC(Raw(Teste))=0.5422, Brier(Raw(Teste))=0.2482
+2025-05-06 14:42:02 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -     -> ROI @ Thr EV (0.150) = N/A (0 bets)
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -     ==> Resultado FINAL RandomForestClassifier adicionado.
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -   Tempo p/ RandomForestClassifier: 760.77 seg.
+2025-05-06 14:42:02 - ModelTrainerApp - INFO - 
+--- Modelo 2/7: LogisticRegression ---
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -  -> Scaling OK.
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: LogisticRegression)
+2025-05-06 14:42:02 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-06 14:44:03 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4267. Params: {'C': 0.022136486492953092, 'class_weight': None, 'max_iter': 7000, 'penalty': 'l1', 'solver': 'liblinear'}
+2025-05-06 14:44:03 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...
+2025-05-06 14:44:03 - ModelTrainerApp - INFO -   -> Re-ajuste final OK.
+2025-05-06 14:44:03 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs (isotonic) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 14:44:03 - ModelTrainerApp - WARNING - Método calibração 'isotonic' não suportado. Usando Isotonic.
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR -   Erro INESPERADO durante calibração (no Teste): too many indices for array: array is 1-dimensional, but 2 were indexed
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py", line 507, in train_evaluate_and_save_best_models
+    y_proba_test_calib = calibrator.predict(y_proba_test_raw_draw)[:, 1]
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+IndexError: too many indices for array: array is 1-dimensional, but 2 were indexed
+2025-05-06 14:44:03 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 14:44:03 - ModelTrainerApp - INFO -     Limiar F1 ótimo(Teste): 0.4560 (F1=0.4712)
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:03 - ModelTrainerApp - WARNING -     ROI Teste inválido/negativo em otimização EV.
+2025-05-06 14:44:03 - ModelTrainerApp - INFO -   Otimizando Precision (Teste Probs Raw(Teste), Recall Mín: 10.0%)...
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -     Limiar Prec ótimo(Teste): 0.5780 (Prec=0.3716, Rec=0.1582)
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL no Teste...
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -   Calculando métricas teste final (probs: Raw(Teste))
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -     -> Métricas @ Thr 0.5: F1=0.4326, P=0.3335, R=0.6155
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -     -> Métricas @ Thr F1 (0.4560): F1=0.4712, P=0.3294, R=0.8274
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -     -> Métricas @ Thr Prec (0.5780): F1=0.2219, P=0.3716, R=0.1582
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -     -> AUC(Raw(Teste))=0.5621, Brier(Raw(Teste))=0.2486
+2025-05-06 14:44:17 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -     -> ROI @ Thr EV (0.150) = N/A (0 bets)
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -     ==> Resultado FINAL LogisticRegression adicionado.
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -   Tempo p/ LogisticRegression: 134.86 seg.
+2025-05-06 14:44:17 - ModelTrainerApp - INFO - 
+--- Modelo 3/7: LGBMClassifier ---
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: LGBMClassifier)
+2025-05-06 14:44:17 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-06 14:52:42 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4294. Params: {'boosting_type': 'dart', 'colsample_bytree': 0.44335711961781754, 'learning_rate': 0.005, 'max_depth': 3, 'n_estimators': 100, 'num_leaves': 66, 'reg_alpha': 0.0011592726016548729, 'reg_lambda': 4.999999999999999, 'subsample': 0.4}
+2025-05-06 14:52:42 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...
+2025-05-06 14:52:42 - ModelTrainerApp - INFO -   -> Re-ajuste final OK.
+2025-05-06 14:52:42 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs (isotonic) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 14:52:42 - ModelTrainerApp - WARNING - Método calibração 'isotonic' não suportado. Usando Isotonic.
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR -   Erro INESPERADO durante calibração (no Teste): too many indices for array: array is 1-dimensional, but 2 were indexed
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py", line 507, in train_evaluate_and_save_best_models
+    y_proba_test_calib = calibrator.predict(y_proba_test_raw_draw)[:, 1]
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+IndexError: too many indices for array: array is 1-dimensional, but 2 were indexed
+2025-05-06 14:52:42 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 14:52:42 - ModelTrainerApp - INFO -     Limiar F1 ótimo(Teste): 0.4757 (F1=0.4661)
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:42 - ModelTrainerApp - WARNING -     ROI Teste inválido/negativo em otimização EV.
+2025-05-06 14:52:42 - ModelTrainerApp - INFO -   Otimizando Precision (Teste Probs Raw(Teste), Recall Mín: 10.0%)...
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -     Limiar Prec ótimo(Teste): 0.5072 (Prec=0.3447, Rec=0.3595)
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL no Teste...
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -   Calculando métricas teste final (probs: Raw(Teste))
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -     -> Métricas @ Thr 0.5: F1=0.4401, P=0.3237, R=0.6874
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -     -> Métricas @ Thr F1 (0.4757): F1=0.4661, P=0.3053, R=0.9847
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -     -> Métricas @ Thr Prec (0.5072): F1=0.3519, P=0.3447, R=0.3595
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -     -> AUC(Raw(Teste))=0.5541, Brier(Raw(Teste))=0.2489
+2025-05-06 14:52:47 - ModelTrainerApp - ERROR - EV Metr: Error aligning y_proba: Data must be 1-dimensional, got ndarray of shape (3501, 1) instead
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -     -> ROI @ Thr EV (0.150) = N/A (0 bets)
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -     ==> Resultado FINAL LGBMClassifier adicionado.
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -   Tempo p/ LGBMClassifier: 509.61 seg.
+2025-05-06 14:52:47 - ModelTrainerApp - INFO - 
+--- Modelo 4/7: SVC ---
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -  -> Scaling OK.
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: SVC)
+2025-05-06 14:52:47 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-06 15:06:33 - MainApp - INFO - Fechando aplicação.
+2025-05-06 15:06:33 - MainApp - INFO - Destruindo janela principal.

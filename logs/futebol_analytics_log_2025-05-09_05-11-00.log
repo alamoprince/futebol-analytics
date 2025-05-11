@@ -1,0 +1,25 @@
+2025-05-09 05:11:00 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-09 05:11:00 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-09 05:11:00 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-09 05:11:00 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-09 05:11:02 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-09 05:11:03 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-09 05:11:03 - ModelTrainerApp - INFO - Biblioteca 'catboost' carregada.
+2025-05-09 05:11:04 - MainApp - INFO - DPI Awareness set.
+2025-05-09 05:11:04 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-09 05:11:04 - MainApp - ERROR - Erro instanciar FootballPredictorDashboard: 'FootballPredictorDashboard' object has no attribute 'parent'
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\app_launcher.py", line 79, in __init__
+    self.predictor_dashboard = FootballPredictorDashboard(self.tab2_frame, main_app_ref=self) # Precisa de main_root
+                               ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\main.py", line 96, in __init__
+    self.create_train_predict_widgets() # Agora os widgets serão colocados em self.parent_for_widgets
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\main.py", line 146, in create_train_predict_widgets
+    main_frame = ttk.Frame(self.parent, padding="10")
+                           ^^^^^^^^^^^
+AttributeError: 'FootballPredictorDashboard' object has no attribute 'parent'
+2025-05-09 05:11:06 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-09 05:11:06 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-09 05:11:08 - MainApp - INFO - Fechando aplicação.
+2025-05-09 05:11:08 - MainApp - INFO - Destruindo janela principal.

@@ -302,7 +302,6 @@ def scale_features(X_train: pd.DataFrame, X_val: Optional[pd.DataFrame], X_test:
 
     except Exception as e:
         logger.error(f"Erro GERAL durante scaling: {e}", exc_info=True)
-        # Return original data and no scaler on error
         return X_train, X_val, X_test, None
 
 # --- Função Principal de Treinamento (COM PIPELINE IMBLEARN) ---

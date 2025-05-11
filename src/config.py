@@ -64,7 +64,7 @@ SCRAPER_TARGET_DAY =  "tomorrow" # "today" ou "tomorrow"
 SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d") 
 
 # --- Fonte de Dados Futuros (CSV GitHub) ---
-FIXTURE_FETCH_DAY = "tomorrow" # Ou "today"
+FIXTURE_FETCH_DAY = "today" # Ou "today"
 FIXTURE_CSV_URL_TEMPLATE = "https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/main/data/raw_scraped/scraped_fixtures_{date_str}.csv" # Atualizado branch
 
 CHROMEDRIVER_PATH = os.path.join(BASE_DIR, 'chromedriver.exe')
@@ -405,16 +405,15 @@ FEATURE_COLUMNS = [
 ]
 
 NEW_FEATURE_COLUMNS = [
-    'Media_VG_A',
-    'Std_CG_H',
-    'Std_CG_A',
     'Prob_Empate_Poisson',
     'abs_ProbDiff_Norm',
-    'Odd_Over25_FT',
-    INTERACTION_ODD_D_DIV_PIR_DIFF, # Interação mantida
+    'Odd_Over25_FT', 
     'CV_HDA',
-    
-]
+    PIRATING_MOMENTUM_DIFF,
+    'Media_CG_H',
+    'Std_CG_A',
+
+]   
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
 
@@ -425,13 +424,13 @@ BEST_MODEL_METRIC_ROI = 'roi' # ROI (Expected Value) - Para o modelo de ROI
 # --- Métrica Principal e Limiares Default ---
 BEST_MODEL_METRIC = 'f1_score_draw'
 BEST_MODEL_METRIC_ROI = 'roi'
-DEFAULT_F1_THRESHOLD = 0.5
-DEFAULT_EV_THRESHOLD = 0.15
-MIN_RECALL_FOR_PRECISION_OPT = 0.10
+DEFAULT_F1_THRESHOLD = 0.7
+DEFAULT_EV_THRESHOLD = 0.1
+MIN_RECALL_FOR_PRECISION_OPT = 0.30
 MIN_PROB_THRESHOLD_FOR_HIGHLIGHT = 0.28
 
 # --- Configuração Otimização Bayesiana/GridSearch ---
-BAYESIAN_OPT_N_ITER = 75 # Mantido
+BAYESIAN_OPT_N_ITER = 100 # Mantido
 
 categorical_feature_names = ['Odd_D_Cat']
 categorical_features_indices = [
@@ -557,6 +556,65 @@ MODEL_CONFIG['GaussianNB'] = {
     'needs_scaling': False
 }
 
+# --- Em config.py ---
+HEURISTIC_FILTER_RULES = {
+    'CV_HDA': {'min': 0.3, 'max': 0.4},
+    'Odd_H_FT': {'min': 1.01, 'max': 2.01},
+    'Odd_D_FT': {'min': 3.0, 'max': None},
+    'Odd_Over25_FT': {'min': 1.01, 'max': 2.01},
+    'Odd_BTTS_Yes': {'min': 1.45, 'max': None}, # Ajuste o nome da coluna se necessário
+    'Media_CG_H': {'min': None, 'max': 0.31}
+}
+HEURISTIC_FILTER_MODEL_NAME = "Filtro Heurístico A"
+
+# Coluna alvo
+TARGET_COLUMN = 'IsDraw' # Certifique-se que é esta
+CALIBRATION_METHOD_DEFAULT = 'sigmoid'
+
+STATS_ROLLING_CONFIG = [
+    # VG (Value Goals)
+    {'base_col_h': 'VG_H_raw', 'base_col_a': 'VG_A_raw', 'output_prefix': 'Media_VG',
+     'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'}, # Context 'all' é implícito se não houver H/A no output
+    # CG (Cost Goals)
+    {'base_col_h': 'CG_H_raw', 'base_col_a': 'CG_A_raw', 'output_prefix': 'Media_CG',
+     'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+    {'base_col_h': 'CG_H_raw', 'base_col_a': 'CG_A_raw', 'output_prefix': 'Std_CG',
+     'agg_func': np.nanstd, 'min_periods': 2, 'window': ROLLING_WINDOW, 'context': 'all'},
+    # Gols Marcados
+    {'base_col_h': GOALS_COLS.get('home'), 'base_col_a': GOALS_COLS.get('away'), 'stat_type': 'offensive',
+     'output_prefix': 'Media_GolsMarcados', 'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+    # Gols Sofridos
+    {'base_col_h': GOALS_COLS.get('away'), 'base_col_a': GOALS_COLS.get('home'), 'stat_type': 'defensive',
+     'output_prefix': 'Media_GolsSofridos', 'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+    # Chutes Totais
+    {'base_col_h': 'Shots_H', 'base_col_a': 'Shots_A', 'stat_type': 'offensive',
+     'output_prefix': 'Media_ChutesTotal', 'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+    # Chutes ao Alvo
+    {'base_col_h': 'ShotsOnTarget_H', 'base_col_a': 'ShotsOnTarget_A', 'stat_type': 'offensive',
+     'output_prefix': 'Media_ChutesAlvo', 'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+    # Escanteios
+    {'base_col_h': 'Corners_H_FT', 'base_col_a': 'Corners_A_FT', 'stat_type': 'offensive',
+     'output_prefix': 'Media_Escanteios', 'agg_func': np.nanmean, 'window': 10, 'context': 'all'}, # Janela específica
+    # Outras que você pode querer adicionar:
+    # {'base_col_h': 'Ptos_H', 'base_col_a': 'Ptos_A', 'output_prefix': 'Media_Ptos',
+    #  'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+]
+
+# --- Configurações para Estatísticas EWMA (Média Móvel Exponencial Ponderada) ---
+STATS_EWMA_CONFIG = [
+    # VG
+    {'base_col_h': 'VG_H_raw', 'base_col_a': 'VG_A_raw', 'output_prefix': 'EWMA_VG', 'span': EWMA_SPAN_SHORT, 'context': 'all'},
+    # CG
+    {'base_col_h': 'CG_H_raw', 'base_col_a': 'CG_A_raw', 'output_prefix': 'EWMA_CG', 'span': EWMA_SPAN_SHORT, 'context': 'all'},
+    # Gols Marcados
+    {'base_col_h': GOALS_COLS.get('home'), 'base_col_a': GOALS_COLS.get('away'), 'stat_type': 'offensive',
+     'output_prefix': 'EWMA_GolsMarc', 'span': EWMA_SPAN_LONG, 'context': 'all'},
+    # Gols Sofridos
+    {'base_col_h': GOALS_COLS.get('away'), 'base_col_a': GOALS_COLS.get('home'), 'stat_type': 'defensive',
+     'output_prefix': 'EWMA_GolsSofr', 'span': EWMA_SPAN_LONG, 'context': 'all'},
+    # Você pode adicionar EWMA para Shots, Corners, etc., se fizerem sentido
+]
+# --- Configurações do GitHub ---
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 GITHUB_REPO_NAME = os.environ.get('GITHUB_REPO_NAME')
 GITHUB_PREDICTIONS_PATH = f"data/predictions_{MODEL_TYPE_NAME}"

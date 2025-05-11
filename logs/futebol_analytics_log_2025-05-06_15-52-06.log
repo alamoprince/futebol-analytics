@@ -1,0 +1,200 @@
+2025-05-06 15:52:06 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-06 15:52:06 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-06 15:52:06 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-06 15:52:06 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-06 15:52:08 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-06 15:52:09 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-06 15:52:10 - MainApp - INFO - DPI Awareness set.
+2025-05-06 15:52:10 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-06 15:52:10 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-05 05:32:01)
+2025-05-06 15:52:10 - PredictorApp - INFO -   Tipo: LogisticRegression | Calib: Sim | F1 Thr: 0.2500 | EV Thr: 0.1800
+2025-05-06 15:52:10 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-05 05:32:01)
+2025-05-06 15:52:10 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2500 | EV Thr: 0.1900
+2025-05-06 15:52:10 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-06 15:52:10 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-06 15:52:53 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-06 15:52:53 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-06 15:52:53 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-06 15:52:53 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-06 15:52:53 - DataHandler - INFO -     -> Filtro: 18177/97670 jogos restantes.
+2025-05-06 15:52:53 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-06 15:52:53 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (18177, 19)).
+2025-05-06 15:52:53 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-06 15:52:53 - DataHandler - INFO - DF histórico combinado: (18177, 19)
+2025-05-06 15:52:53 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-06 15:52:53 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-06 15:52:53 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-06 15:52:53 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-06 15:52:53 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-06 15:52:53 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-06 15:52:53 - DataHandler - INFO - DF histórico ordenado.
+2025-05-06 15:52:53 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-06 15:52:54 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-06 15:52:54 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (17938, 26)
+2025-05-06 15:52:54 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Under25_FT     156
+Odd_Over25_FT      156
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-05-06 15:52:54 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-05-06 15:52:54 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-06 15:52:54 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-06 16:09:28 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-06 16:09:28 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-06 16:10:11 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-06 16:10:11 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-06 16:10:11 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-06 16:10:11 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-06 16:10:11 - DataHandler - INFO -     -> Filtro: 18177/97670 jogos restantes.
+2025-05-06 16:10:11 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-06 16:10:11 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (18177, 19)).
+2025-05-06 16:10:11 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-06 16:10:11 - DataHandler - INFO - DF histórico combinado: (18177, 19)
+2025-05-06 16:10:11 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-06 16:10:11 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-06 16:10:11 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-06 16:10:11 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-06 16:10:11 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-06 16:10:11 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-06 16:10:11 - DataHandler - INFO - DF histórico ordenado.
+2025-05-06 16:10:11 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-06 16:10:12 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-06 16:10:12 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (17938, 26)
+2025-05-06 16:10:12 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_Under25_FT     156
+Odd_Over25_FT      156
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-05-06 16:10:12 - DataHandler - INFO - --- Iniciando Pré-proc e Feature Eng (Histórico) ---
+2025-05-06 16:10:12 - DataHandler - INFO - Médias Liga: Casa=1.353, Fora=1.045
+2025-05-06 16:10:12 - DataHandler - INFO - === INÍCIO PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-06 16:10:12 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-06 16:10:12 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-06 16:10:12 - DataHandler - INFO - ->Calculando p_H/D/A...
+2025-05-06 16:10:12 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-06 16:10:12 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-06 16:10:12 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-06 16:10:12 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-06 16:10:12 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-05-06 16:10:12 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-06 16:10:13 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-06 16:10:13 - DataHandler - INFO - Calculando 9 métricas rolling (Janela Padrão=5)...
+2025-05-06 16:10:26 - DataHandler - INFO - Métricas rolling calculadas. Shape: (17938, 18).
+2025-05-06 16:10:26 - DataHandler - INFO - Calculando 4 métricas EWMA (Span Padrão=5)...
+2025-05-06 16:10:54 - DataHandler - INFO - Métricas EWMA calculadas. Shape: (17938, 8).
+2025-05-06 16:10:54 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_goals=6)...
+2025-05-06 16:10:54 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-05-06 16:10:54 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-05-06 16:10:54 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...
+2025-05-06 16:10:54 - DataHandler - INFO - Features de interação calculadas (incluindo novas).
+2025-05-06 16:10:54 - DataHandler - INFO - === FIM PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-06 16:10:54 - DataHandler - INFO - Selecionando features FINAIS para modelo: ['Media_VG_A', 'Std_CG_H', 'Std_CG_A', 'Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'Odd_Over25_FT', 'OddD_div_PiRDiffAbs', 'CV_HDA']
+2025-05-06 16:10:54 - DataHandler - INFO - DF selecionado p/ dropna: (17938, 9). Verificando NaNs...
+2025-05-06 16:10:54 - DataHandler - WARNING - NaNs ANTES dropna final nas features selecionadas:
+Media_VG_A       135
+Std_CG_H         178
+Std_CG_A         186
+Odd_Over25_FT    156
+dtype: int64
+2025-05-06 16:10:54 - DataHandler - INFO - Removidas 433 linhas contendo NaNs/Infs nas features finais ou no alvo.
+2025-05-06 16:10:54 - DataHandler - INFO - --- Pré-proc Histórico OK --- Shape Final X:(17505, 8), y:(17505,).
+2025-05-06 16:10:54 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-06 16:10:54 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-06 16:10:54 - DataHandler - INFO - ->Calculando p_H/D/A...
+2025-05-06 16:10:54 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-06 16:10:54 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-06 16:10:54 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-06 16:10:54 - Main2 - INFO - DEBUG Main: df_full_data_aligned_for_split (17505, 37)
+2025-05-06 16:10:54 - ModelTrainerApp - INFO - --- Treinando 7 Modelos (Sampler: smote, CV Temporal: f1, Opt(F1:True, EV:True, Prec:True), Calib: isotonic) ---
+2025-05-06 16:10:54 - ModelTrainerApp - INFO - Dividindo dados temporalmente (Treino+CV / Teste Final)...
+2025-05-06 16:10:54 - ModelTrainerApp - INFO - Split Temporal: T+CV=14004 (80.0%), Teste=3501 (20.0%)
+2025-05-06 16:10:54 - ModelTrainerApp - INFO - Odds alinhadas (Temporal): Teste=True (3501 jogos)
+2025-05-06 16:10:54 - ModelTrainerApp - INFO - 
+--- Modelo 1/7: RandomForestClassifier ---
+2025-05-06 16:10:54 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: RandomForestClassifier)
+2025-05-06 16:10:54 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-06 16:23:28 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4231. Params: {'bootstrap': False, 'class_weight': 'balanced', 'max_depth': 5, 'max_features': 0.8, 'min_samples_leaf': 50, 'min_samples_split': 80, 'n_estimators': 50}
+2025-05-06 16:23:28 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...
+2025-05-06 16:23:29 - ModelTrainerApp - INFO -   -> Re-ajuste final OK.
+2025-05-06 16:23:29 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs (isotonic) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 16:23:29 - ModelTrainerApp - INFO -   -> Calibrador (isotonic) treinado (no Teste).
+2025-05-06 16:23:29 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 16:23:29 - ModelTrainerApp - INFO -     Limiar F1 ótimo(Teste): 0.2400 (F1=0.4634)
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -     Limiar EV ótimo(Teste): 0.200 (ROI=19.64%)
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -   Otimizando Precision (Teste Probs Calib(isotonic), Recall Mín: 10.0%)...
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -     Limiar Prec ótimo(Teste): 0.3402 (Prec=0.3416, Rec=0.3298)
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL no Teste...
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -   Calculando métricas teste final (probs: Calib(isotonic))
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -     -> Métricas @ Thr 0.5: F1=0.4208, P=0.3164, R=0.6280
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -     -> Métricas @ Thr F1 (0.2400): F1=0.4634, P=0.3083, R=0.9329
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -     -> Métricas @ Thr Prec (0.3402): F1=0.3356, P=0.3416, R=0.3298
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -     -> AUC(Calib(isotonic))=0.5510, Brier(Calib(isotonic))=0.2074
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -     -> ROI @ Thr EV (0.200) = 19.64% (151 bets)
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -     ==> Resultado FINAL RandomForestClassifier adicionado.
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -   Tempo p/ RandomForestClassifier: 755.18 seg.
+2025-05-06 16:23:30 - ModelTrainerApp - INFO - 
+--- Modelo 2/7: LogisticRegression ---
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -  -> Scaling OK.
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: LogisticRegression)
+2025-05-06 16:23:30 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-06 16:25:32 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4267. Params: {'C': 0.022136486492953092, 'class_weight': None, 'max_iter': 7000, 'penalty': 'l1', 'solver': 'liblinear'}
+2025-05-06 16:25:32 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -   -> Re-ajuste final OK.
+2025-05-06 16:25:33 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs (isotonic) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -   -> Calibrador (isotonic) treinado (no Teste).
+2025-05-06 16:25:33 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     Limiar F1 ótimo(Teste): 0.2500 (F1=0.4712)
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     Limiar EV ótimo(Teste): 0.180 (ROI=49.13%)
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -   Otimizando Precision (Teste Probs Calib(isotonic), Recall Mín: 10.0%)...
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     Limiar Prec ótimo(Teste): 0.3571 (Prec=0.3716, Rec=0.1582)
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL no Teste...
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -   Calculando métricas teste final (probs: Calib(isotonic))
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     -> Métricas @ Thr 0.5: F1=0.4326, P=0.3335, R=0.6155
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     -> Métricas @ Thr F1 (0.2500): F1=0.4712, P=0.3294, R=0.8274
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     -> Métricas @ Thr Prec (0.3571): F1=0.2219, P=0.3716, R=0.1582
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     -> AUC(Calib(isotonic))=0.5717, Brier(Calib(isotonic))=0.2054
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     -> ROI @ Thr EV (0.180) = 49.13% (47 bets)
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -     ==> Resultado FINAL LogisticRegression adicionado.
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -   Tempo p/ LogisticRegression: 123.33 seg.
+2025-05-06 16:25:33 - ModelTrainerApp - INFO - 
+--- Modelo 3/7: LGBMClassifier ---
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: LGBMClassifier)
+2025-05-06 16:25:33 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-06 16:33:09 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4294. Params: {'boosting_type': 'dart', 'colsample_bytree': 0.44335711961781754, 'learning_rate': 0.005, 'max_depth': 3, 'n_estimators': 100, 'num_leaves': 66, 'reg_alpha': 0.0011592726016548729, 'reg_lambda': 4.999999999999999, 'subsample': 0.4}
+2025-05-06 16:33:09 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...
+2025-05-06 16:33:09 - ModelTrainerApp - INFO -   -> Re-ajuste final OK.
+2025-05-06 16:33:09 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs (isotonic) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 16:33:09 - ModelTrainerApp - INFO -   -> Calibrador (isotonic) treinado (no Teste).
+2025-05-06 16:33:09 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...
+2025-05-06 16:33:09 - ModelTrainerApp - INFO -     Limiar F1 ótimo(Teste): 0.2525 (F1=0.4661)
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -     Limiar EV ótimo(Teste): 0.190 (ROI=28.93%)
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -   Otimizando Precision (Teste Probs Calib(isotonic), Recall Mín: 10.0%)...
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -     Limiar Prec ótimo(Teste): 0.3447 (Prec=0.3447, Rec=0.3595)
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL no Teste...
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -   Calculando métricas teste final (probs: Calib(isotonic))
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -     -> Métricas @ Thr 0.5: F1=0.4401, P=0.3237, R=0.6874
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -     -> Métricas @ Thr F1 (0.2525): F1=0.4661, P=0.3053, R=0.9847
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -     -> Métricas @ Thr Prec (0.3447): F1=0.3519, P=0.3447, R=0.3595
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -     -> AUC(Calib(isotonic))=0.5610, Brier(Calib(isotonic))=0.2065
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -     -> ROI @ Thr EV (0.190) = 28.93% (84 bets)
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -     ==> Resultado FINAL LGBMClassifier adicionado.
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -   Tempo p/ LGBMClassifier: 456.77 seg.
+2025-05-06 16:33:10 - ModelTrainerApp - INFO - 
+--- Modelo 4/7: SVC ---
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -  -> Scaling OK.
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -   Pipeline criado (Sampler: SMOTE, Classifier: SVC)
+2025-05-06 16:33:10 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-06 17:06:54 - MainApp - INFO - Fechando aplicação.
+2025-05-06 17:06:54 - MainApp - INFO - Destruindo janela principal.

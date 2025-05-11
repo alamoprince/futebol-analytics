@@ -1,0 +1,343 @@
+2025-05-09 16:34:46 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-09 16:34:46 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-09 16:34:46 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-09 16:34:46 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-09 16:34:48 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-09 16:34:48 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-09 16:34:48 - ModelTrainerApp - INFO - Biblioteca 'catboost' carregada.
+2025-05-09 16:34:49 - MainApp - INFO - DPI Awareness set.
+2025-05-09 16:34:49 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-09 16:34:49 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-09 16:34:49 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-05-09 16:34:49 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-09 16:34:49 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-09 16:34:49 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-09 16:35:29 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-09 16:35:29 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-09 16:35:29 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-09 16:35:29 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-09 16:35:29 - DataHandler - INFO -     -> Filtro: 18177/97670 jogos restantes.
+2025-05-09 16:35:29 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-09 16:35:29 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (18177, 19)).
+2025-05-09 16:35:29 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-09 16:35:29 - DataHandler - INFO - DF histórico combinado: (18177, 19)
+2025-05-09 16:35:29 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-09 16:35:29 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-09 16:35:29 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-09 16:35:29 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-09 16:35:29 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-09 16:35:29 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-09 16:35:29 - DataHandler - INFO - DF histórico ordenado.
+2025-05-09 16:35:29 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-09 16:35:30 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-09 16:35:30 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (17938, 26)
+2025-05-09 16:35:30 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+Odd_Under25_FT     156
+Odd_Over25_FT      156
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-05-09 16:35:30 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-08 21:42:01)
+2025-05-09 16:35:30 - PredictorApp - INFO -   Tipo: SVC | Calib: LogisticRegression | F1 Thr: 0.2529 | EV Thr: 0.1700
+2025-05-09 16:35:30 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-08 21:42:01)
+2025-05-09 16:35:30 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: LogisticRegression | F1 Thr: 0.2314 | EV Thr: 0.1900
+2025-05-09 16:38:07 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-09 16:38:07 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx...
+2025-05-09 16:38:46 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-09 16:38:46 - DataHandler - INFO -   Mapeando coluna 'League' para ID Interno usando mapa específico do arquivo...
+2025-05-09 16:38:46 - DataHandler - WARNING -     Ligas NÃO mapeadas p/ ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-09 16:38:46 - DataHandler - INFO -   APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-09 16:38:46 - DataHandler - INFO -     -> Filtro: 18177/97670 jogos restantes.
+2025-05-09 16:38:46 - DataHandler - INFO -   Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...
+2025-05-09 16:38:46 - DataHandler - INFO -   DataFrame dados_combinados_2019_2025.xlsx processado (Shape: (18177, 19)).
+2025-05-09 16:38:46 - DataHandler - INFO - Concatenando 1 DFs...
+2025-05-09 16:38:46 - DataHandler - INFO - DF histórico combinado: (18177, 19)
+2025-05-09 16:38:46 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-09 16:38:46 - DataHandler - WARNING - Coluna numérica esperada 'XG_H' ausente.
+2025-05-09 16:38:46 - DataHandler - WARNING - Coluna numérica esperada 'XG_A' ausente.
+2025-05-09 16:38:46 - DataHandler - WARNING - Coluna numérica esperada 'XG_Total' ausente.
+2025-05-09 16:38:46 - DataHandler - INFO - Verificando NaNs essenciais: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-09 16:38:46 - DataHandler - INFO - Removidas 239 linhas NaNs essenciais.
+2025-05-09 16:38:46 - DataHandler - INFO - DF histórico ordenado.
+2025-05-09 16:38:46 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-09 16:38:47 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-09 16:38:47 - DataHandler - INFO - Carregamento histórico OK (FILTRADO). Shape Final: (17938, 26)
+2025-05-09 16:38:47 - DataHandler - INFO - Contagem NaNs finais (opcionais):
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+Odd_Under25_FT     156
+Odd_Over25_FT      156
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-05-09 16:38:47 - DataHandler - INFO - --- Iniciando Pré-proc e Feature Eng (Histórico) ---
+2025-05-09 16:38:47 - DataHandler - INFO - Médias Liga: Casa=1.353, Fora=1.045
+2025-05-09 16:38:47 - DataHandler - INFO - === INÍCIO PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-09 16:38:47 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-09 16:38:47 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-09 16:38:47 - DataHandler - INFO - ->Calculando p_H/D/A...
+2025-05-09 16:38:47 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-09 16:38:47 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-09 16:38:47 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-09 16:38:47 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-09 16:38:47 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-05-09 16:38:47 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-09 16:38:48 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-09 16:38:48 - DataHandler - INFO - Calculando 9 métricas rolling (Janela Padrão=5)...
+2025-05-09 16:39:01 - DataHandler - INFO - Métricas rolling calculadas. Shape: (17938, 18).
+2025-05-09 16:39:01 - DataHandler - INFO - Calculando 4 métricas EWMA (Span Padrão=5)...
+2025-05-09 16:39:28 - DataHandler - INFO - Métricas EWMA calculadas. Shape: (17938, 8).
+2025-05-09 16:39:28 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_goals=6)...
+2025-05-09 16:39:28 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-05-09 16:39:28 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-05-09 16:39:28 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...
+2025-05-09 16:39:28 - DataHandler - INFO - Features de interação calculadas (incluindo novas).
+2025-05-09 16:39:28 - DataHandler - INFO - === FIM PIPELINE FEAT ENG (HISTÓRICO) ===
+2025-05-09 16:39:28 - DataHandler - INFO - Selecionando features FINAIS para modelo: ['Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'Odd_Over25_FT', 'CV_HDA', 'Odd_BTTS_Yes', 'Media_CG_H', 'Std_CG_A']
+2025-05-09 16:39:28 - DataHandler - INFO - DF selecionado p/ dropna: (17938, 8). Verificando NaNs...
+2025-05-09 16:39:28 - DataHandler - WARNING - NaNs ANTES dropna final nas features selecionadas:
+Odd_Over25_FT    156
+Odd_BTTS_Yes     154
+Media_CG_H       178
+Std_CG_A         186
+dtype: int64
+2025-05-09 16:39:28 - DataHandler - INFO - Removidas 571 linhas contendo NaNs/Infs nas features finais ou no alvo.
+2025-05-09 16:39:28 - DataHandler - INFO - --- Pré-proc Histórico OK --- Shape Final X:(17367, 7), y:(17367,).
+2025-05-09 16:39:28 - DataHandler - INFO - Calculando stats intermediárias...
+2025-05-09 16:39:28 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-05-09 16:39:28 - DataHandler - INFO - ->Calculando p_H/D/A...
+2025-05-09 16:39:28 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-09 16:39:28 - DataHandler - INFO - ->VG/CG Raw OK.
+2025-05-09 16:39:28 - DataHandler - INFO - Cálculo Intermediárias concluído.
+2025-05-09 16:39:28 - Main2 - INFO - DEBUG Main: df_full_data_aligned_for_split (17367, 37)
+2025-05-09 16:39:28 - ModelTrainerApp - INFO - --- Avaliando 7 Modelos ML e 1 Filtro Heurístico (Sampler: smote, CV Temporal: f1, Opt(F1:True, EV:True, Prec:True), Calib ML: sigmoid) ---
+2025-05-09 16:39:28 - ModelTrainerApp - INFO - Dividindo dados temporalmente (Treino+CV / Teste Final)...
+2025-05-09 16:39:28 - ModelTrainerApp - INFO - Split Temporal: T+CV (ML)=13894 (80.0%), Teste Final=3473 (20.0%)
+2025-05-09 16:39:28 - ModelTrainerApp - INFO - Odds finais alinhadas com y_test_final (3473 jogos)
+2025-05-09 16:39:28 - ModelTrainerApp - INFO - 
+--- Modelo ML 1/7: RandomForestClassifier ---
+2025-05-09 16:39:28 - ModelTrainerApp - INFO -   Pipeline ML criado (Sampler: SMOTE, Classifier: RandomForestClassifier)
+2025-05-09 16:39:28 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-09 16:47:41 - ModelTrainerApp - INFO -     -> Busca CV ML (BayesSearchCV) OK. Melhor CV f1: 0.4324. Params: {'bootstrap': False, 'class_weight': 'balanced', 'max_depth': 5, 'max_features': 'sqrt', 'min_samples_leaf': 21, 'min_samples_split': 80, 'n_estimators': 50}
+2025-05-09 16:47:41 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline ML encontrado pela CV em TODO X_train_cv_ml...
+2025-05-09 16:47:42 - ModelTrainerApp - INFO -   -> Re-ajuste ML final OK.
+2025-05-09 16:47:42 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs ML (sigmoid) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 16:47:42 - ModelTrainerApp - INFO -   -> Calibrador ML (sigmoid (LogisticRegression)) treinado (no Teste Final).
+2025-05-09 16:47:42 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares ML (RandomForestClassifier) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 16:47:42 - ModelTrainerApp - INFO -     Limiar F1 ML (RandomForestClassifier) ótimo(Teste): 0.2394 (F1=0.4690)
+2025-05-09 16:47:42 - ModelTrainerApp - INFO -     Limiar EV ML (RandomForestClassifier) ótimo(Teste): 0.190 (ROI=25.50%)
+2025-05-09 16:47:42 - ModelTrainerApp - INFO -   Otimizando Precision ML (RandomForestClassifier, Teste Probs Calib(sigmoid (LogisticRegression)), Recall Mín: 10.0%)...
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -     Limiar Prec ML (RandomForestClassifier) ótimo(Teste): 0.3388 (Prec=0.3500, Rec=0.1149)
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -   Avaliando Modelo ML FINAL (RandomForestClassifier) no Teste Final...
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -   Calculando métricas ML (RandomForestClassifier) teste final (probs: Calib(sigmoid (LogisticRegression)))
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -     -> ML (RandomForestClassifier) Métricas @ Thr 0.5: F1=0.4321, P=0.3237, R=0.6496
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -     -> ML (RandomForestClassifier) Métricas @ Thr F1 (0.2394): F1=0.4690, P=0.3131, R=0.9344
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -     -> ML (RandomForestClassifier) Métricas @ Thr Prec (0.3388): F1=0.1730, P=0.3500, R=0.1149
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -     -> ML (RandomForestClassifier) AUC(Calib(sigmoid (LogisticRegression)))=0.5475, Brier(Calib(sigmoid (LogisticRegression)))=0.2076
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -     -> ML (RandomForestClassifier) ROI @ Thr EV (0.190) = 25.50% (66 bets)
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -     ==> Resultado FINAL ML RandomForestClassifier adicionado.
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -   Tempo p/ ML RandomForestClassifier: 503.09 seg.
+2025-05-09 16:47:51 - ModelTrainerApp - INFO - 
+--- Modelo ML 2/7: LogisticRegression ---
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -  -> Scaling OK para LogisticRegression.
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -   Pipeline ML criado (Sampler: SMOTE, Classifier: LogisticRegression)
+2025-05-09 16:47:51 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-09 16:49:37 - ModelTrainerApp - INFO -     -> Busca CV ML (BayesSearchCV) OK. Melhor CV f1: 0.4346. Params: {'C': 0.001933993182016986, 'class_weight': None, 'max_iter': 2882, 'penalty': 'l1', 'solver': 'saga'}
+2025-05-09 16:49:37 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline ML encontrado pela CV em TODO X_train_cv_ml...
+2025-05-09 16:49:37 - ModelTrainerApp - INFO -   -> Re-ajuste ML final OK.
+2025-05-09 16:49:37 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs ML (sigmoid) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 16:49:37 - ModelTrainerApp - INFO -   -> Calibrador ML (sigmoid (LogisticRegression)) treinado (no Teste Final).
+2025-05-09 16:49:37 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares ML (LogisticRegression) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 16:49:37 - ModelTrainerApp - INFO -     Limiar F1 ML (LogisticRegression) ótimo(Teste): 0.2545 (F1=0.4689)
+2025-05-09 16:49:37 - ModelTrainerApp - INFO -     Limiar EV ML (LogisticRegression) ótimo(Teste): 0.120 (ROI=23.88%)
+2025-05-09 16:49:37 - ModelTrainerApp - INFO -   Otimizando Precision ML (LogisticRegression, Teste Probs Calib(sigmoid (LogisticRegression)), Recall Mín: 10.0%)...
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -     Limiar Prec ML (LogisticRegression) ótimo(Teste): 0.3561 (Prec=0.3711, Rec=0.1361)
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -   Avaliando Modelo ML FINAL (LogisticRegression) no Teste Final...
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -   Calculando métricas ML (LogisticRegression) teste final (probs: Calib(sigmoid (LogisticRegression)))
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -     -> ML (LogisticRegression) Métricas @ Thr 0.5: F1=0.4374, P=0.3397, R=0.6139
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -     -> ML (LogisticRegression) Métricas @ Thr F1 (0.2545): F1=0.4689, P=0.3211, R=0.8687
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -     -> ML (LogisticRegression) Métricas @ Thr Prec (0.3561): F1=0.1992, P=0.3711, R=0.1361
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -     -> ML (LogisticRegression) AUC(Calib(sigmoid (LogisticRegression)))=0.5630, Brier(Calib(sigmoid (LogisticRegression)))=0.2070
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -     -> ML (LogisticRegression) ROI @ Thr EV (0.120) = 23.88% (195 bets)
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -     ==> Resultado FINAL ML LogisticRegression adicionado.
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -   Tempo p/ ML LogisticRegression: 119.16 seg.
+2025-05-09 16:49:50 - ModelTrainerApp - INFO - 
+--- Modelo ML 3/7: LGBMClassifier ---
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -   Pipeline ML criado (Sampler: SMOTE, Classifier: LGBMClassifier)
+2025-05-09 16:49:50 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-09 16:59:39 - ModelTrainerApp - INFO -     -> Busca CV ML (BayesSearchCV) OK. Melhor CV f1: 0.4406. Params: {'boosting_type': 'dart', 'colsample_bytree': 0.9, 'learning_rate': 0.005, 'max_depth': 3, 'n_estimators': 100, 'num_leaves': 100, 'reg_alpha': 0.001, 'reg_lambda': 0.001, 'subsample': 0.9}
+2025-05-09 16:59:39 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline ML encontrado pela CV em TODO X_train_cv_ml...
+2025-05-09 16:59:39 - ModelTrainerApp - INFO -   -> Re-ajuste ML final OK.
+2025-05-09 16:59:39 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs ML (sigmoid) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 16:59:39 - ModelTrainerApp - INFO -   -> Calibrador ML (sigmoid (LogisticRegression)) treinado (no Teste Final).
+2025-05-09 16:59:39 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares ML (LGBMClassifier) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 16:59:39 - ModelTrainerApp - INFO -     Limiar F1 ML (LGBMClassifier) ótimo(Teste): 0.2128 (F1=0.4660)
+2025-05-09 16:59:39 - ModelTrainerApp - INFO -     Limiar EV ML (LGBMClassifier) ótimo(Teste): 0.170 (ROI=22.83%)
+2025-05-09 16:59:39 - ModelTrainerApp - INFO -   Otimizando Precision ML (LGBMClassifier, Teste Probs Calib(sigmoid (LogisticRegression)), Recall Mín: 10.0%)...
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -     Limiar Prec ML (LGBMClassifier) ótimo(Teste): 0.3229 (Prec=0.3213, Rec=0.4044)
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -   Avaliando Modelo ML FINAL (LGBMClassifier) no Teste Final...
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -   Calculando métricas ML (LGBMClassifier) teste final (probs: Calib(sigmoid (LogisticRegression)))
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -     -> ML (LGBMClassifier) Métricas @ Thr 0.5: F1=0.4416, P=0.3145, R=0.7413
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -     -> ML (LGBMClassifier) Métricas @ Thr F1 (0.2128): F1=0.4660, P=0.3054, R=0.9826
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -     -> ML (LGBMClassifier) Métricas @ Thr Prec (0.3229): F1=0.3581, P=0.3213, R=0.4044
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -     -> ML (LGBMClassifier) AUC(Calib(sigmoid (LogisticRegression)))=0.5363, Brier(Calib(sigmoid (LogisticRegression)))=0.2081
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -     -> ML (LGBMClassifier) ROI @ Thr EV (0.170) = 22.83% (204 bets)
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -     ==> Resultado FINAL ML LGBMClassifier adicionado.
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -   Tempo p/ ML LGBMClassifier: 589.86 seg.
+2025-05-09 16:59:40 - ModelTrainerApp - INFO - 
+--- Modelo ML 4/7: SVC ---
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -  -> Scaling OK para SVC.
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -   Pipeline ML criado (Sampler: SMOTE, Classifier: SVC)
+2025-05-09 16:59:40 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-09 18:57:53 - ModelTrainerApp - INFO -     -> Busca CV ML (BayesSearchCV) OK. Melhor CV f1: 0.4519. Params: {'C': 0.01, 'class_weight': 'balanced', 'gamma': 0.008081904701153978, 'kernel': 'rbf'}
+2025-05-09 18:57:53 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline ML encontrado pela CV em TODO X_train_cv_ml...
+2025-05-09 18:59:16 - ModelTrainerApp - INFO -   -> Re-ajuste ML final OK.
+2025-05-09 18:59:21 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs ML (sigmoid) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 18:59:21 - ModelTrainerApp - INFO -   -> Calibrador ML (sigmoid (LogisticRegression)) treinado (no Teste Final).
+2025-05-09 18:59:21 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares ML (SVC) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 18:59:21 - ModelTrainerApp - INFO -     Limiar F1 ML (SVC) ótimo(Teste): 0.2499 (F1=0.4696)
+2025-05-09 18:59:21 - ModelTrainerApp - INFO -     Limiar EV ML (SVC) ótimo(Teste): 0.150 (ROI=17.73%)
+2025-05-09 18:59:21 - ModelTrainerApp - INFO -   Otimizando Precision ML (SVC, Teste Probs Calib(sigmoid (LogisticRegression)), Recall Mín: 10.0%)...
+2025-05-09 18:59:34 - ModelTrainerApp - INFO -     Limiar Prec ML (SVC) ótimo(Teste): 0.3607 (Prec=0.3774, Rec=0.1129)
+2025-05-09 18:59:34 - ModelTrainerApp - INFO -   Avaliando Modelo ML FINAL (SVC) no Teste Final...
+2025-05-09 18:59:34 - ModelTrainerApp - INFO -   Calculando métricas ML (SVC) teste final (probs: Calib(sigmoid (LogisticRegression)))
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -     -> ML (SVC) Métricas @ Thr 0.5: F1=0.4645, P=0.3243, R=0.8185
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -     -> ML (SVC) Métricas @ Thr F1 (0.2499): F1=0.4696, P=0.3202, R=0.8803
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -     -> ML (SVC) Métricas @ Thr Prec (0.3607): F1=0.1738, P=0.3774, R=0.1129
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -     -> ML (SVC) AUC(Calib(sigmoid (LogisticRegression)))=0.5628, Brier(Calib(sigmoid (LogisticRegression)))=0.2069
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -     -> ML (SVC) ROI @ Thr EV (0.150) = 17.73% (109 bets)
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -     ==> Resultado FINAL ML SVC adicionado.
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -   Tempo p/ ML SVC: 7198.84 seg.
+2025-05-09 18:59:39 - ModelTrainerApp - INFO - 
+--- Modelo ML 5/7: KNeighborsClassifier ---
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -   Aplicando StandardScaler...
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -   Scaling concluído.
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -  -> Scaling OK para KNeighborsClassifier.
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -   Pipeline ML criado (Sampler: SMOTE, Classifier: KNeighborsClassifier)
+2025-05-09 18:59:39 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-09 19:01:39 - ModelTrainerApp - INFO -     -> Busca CV ML (BayesSearchCV) OK. Melhor CV f1: 0.4149. Params: {'metric': 'minkowski', 'n_neighbors': 79, 'p': 3, 'weights': 'uniform'}
+2025-05-09 19:01:39 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline ML encontrado pela CV em TODO X_train_cv_ml...
+2025-05-09 19:01:39 - ModelTrainerApp - INFO -   -> Re-ajuste ML final OK.
+2025-05-09 19:01:39 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs ML (sigmoid) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 19:01:39 - ModelTrainerApp - INFO -   -> Calibrador ML (sigmoid (LogisticRegression)) treinado (no Teste Final).
+2025-05-09 19:01:39 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares ML (KNeighborsClassifier) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 19:01:39 - ModelTrainerApp - INFO -     Limiar F1 ML (KNeighborsClassifier) ótimo(Teste): 0.2473 (F1=0.4644)
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -     Limiar EV ML (KNeighborsClassifier) ótimo(Teste): 0.150 (ROI=-1.43%)
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -   Otimizando Precision ML (KNeighborsClassifier, Teste Probs Calib(sigmoid (LogisticRegression)), Recall Mín: 10.0%)...
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -     Limiar Prec ML (KNeighborsClassifier) ótimo(Teste): 0.3036 (Prec=0.3214, Rec=0.5106)
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -   Avaliando Modelo ML FINAL (KNeighborsClassifier) no Teste Final...
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -   Calculando métricas ML (KNeighborsClassifier) teste final (probs: Calib(sigmoid (LogisticRegression)))
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -     -> ML (KNeighborsClassifier) Métricas @ Thr 0.5: F1=0.4143, P=0.3149, R=0.6052
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -     -> ML (KNeighborsClassifier) Métricas @ Thr F1 (0.2473): F1=0.4644, P=0.3048, R=0.9749
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -     -> ML (KNeighborsClassifier) Métricas @ Thr Prec (0.3036): F1=0.3945, P=0.3214, R=0.5106
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -     -> ML (KNeighborsClassifier) AUC(Calib(sigmoid (LogisticRegression)))=0.5320, Brier(Calib(sigmoid (LogisticRegression)))=0.2086
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -     -> ML (KNeighborsClassifier) ROI @ Thr EV (0.150) = -1.43% (399 bets)
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -     ==> Resultado FINAL ML KNeighborsClassifier adicionado.
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -   Tempo p/ ML KNeighborsClassifier: 121.65 seg.
+2025-05-09 19:01:40 - ModelTrainerApp - INFO - 
+--- Modelo ML 6/7: CatBoostClassifier ---
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -   Pipeline ML criado (Sampler: SMOTE, Classifier: CatBoostClassifier)
+2025-05-09 19:01:40 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-09 20:01:59 - ModelTrainerApp - INFO -     -> Busca CV ML (BayesSearchCV) OK. Melhor CV f1: 0.4362. Params: {'boosting_type': 'Ordered', 'border_count': 255, 'depth': 4, 'iterations': 100, 'l2_leaf_reg': 20.0, 'learning_rate': 0.00849590820973315, 'subsample': 0.5}
+2025-05-09 20:01:59 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline ML encontrado pela CV em TODO X_train_cv_ml...
+2025-05-09 20:02:00 - ModelTrainerApp - INFO -   -> Re-ajuste ML final OK.
+2025-05-09 20:02:00 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs ML (sigmoid) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 20:02:00 - ModelTrainerApp - INFO -   -> Calibrador ML (sigmoid (LogisticRegression)) treinado (no Teste Final).
+2025-05-09 20:02:00 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares ML (CatBoostClassifier) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 20:02:00 - ModelTrainerApp - INFO -     Limiar F1 ML (CatBoostClassifier) ótimo(Teste): 0.1828 (F1=0.4664)
+2025-05-09 20:02:00 - ModelTrainerApp - INFO -     Limiar EV ML (CatBoostClassifier) ótimo(Teste): 0.200 (ROI=27.87%)
+2025-05-09 20:02:00 - ModelTrainerApp - INFO -   Otimizando Precision ML (CatBoostClassifier, Teste Probs Calib(sigmoid (LogisticRegression)), Recall Mín: 10.0%)...
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     Limiar Prec ML (CatBoostClassifier) ótimo(Teste): 0.3390 (Prec=0.3561, Rec=0.1409)
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -   Avaliando Modelo ML FINAL (CatBoostClassifier) no Teste Final...
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -   Calculando métricas ML (CatBoostClassifier) teste final (probs: Calib(sigmoid (LogisticRegression)))
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     -> ML (CatBoostClassifier) Métricas @ Thr 0.5: F1=0.4522, P=0.3270, R=0.7326
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     -> ML (CatBoostClassifier) Métricas @ Thr F1 (0.1828): F1=0.4664, P=0.3049, R=0.9923
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     -> ML (CatBoostClassifier) Métricas @ Thr Prec (0.3390): F1=0.2019, P=0.3561, R=0.1409
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     -> ML (CatBoostClassifier) AUC(Calib(sigmoid (LogisticRegression)))=0.5550, Brier(Calib(sigmoid (LogisticRegression)))=0.2073
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     -> ML (CatBoostClassifier) ROI @ Thr EV (0.200) = 27.87% (54 bets)
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     ==> Resultado FINAL ML CatBoostClassifier adicionado.
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -   Tempo p/ ML CatBoostClassifier: 3632.67 seg.
+2025-05-09 20:02:13 - ModelTrainerApp - INFO - 
+--- Modelo ML 7/7: GaussianNB ---
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -   Pipeline ML criado (Sampler: SMOTE, Classifier: GaussianNB)
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -   Iniciando GridSearchCV (Score: f1, CV: Temporal 5 splits)...
+2025-05-09 20:02:13 - ModelTrainerApp - ERROR -     Erro GridSearchCV.fit: name 'GridSearchCV' is not defined
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\model_trainer.py", line 581, in train_evaluate_and_save_best_models
+    else: search_cv_ml = GridSearchCV(estimator=pipeline_ml, param_grid=param_space_or_grid_ml, cv=tscv, n_jobs=N_JOBS_GRIDSEARCH, scoring=scoring_metric, verbose=0, error_score='raise') # Renomeado
+                         ^^^^^^^^^^^^
+NameError: name 'GridSearchCV' is not defined
+2025-05-09 20:02:13 - ModelTrainerApp - WARNING -     -> Tentando fallback treino padrão ML...
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -   Treinando Pipeline ML com params padrão em TODO X_train_cv_ml...
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     -> Treino ML padrão OK.
+2025-05-09 20:02:13 - ModelTrainerApp - WARNING -   AVISO: Calibrando probs ML (sigmoid) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -   -> Calibrador ML (sigmoid (LogisticRegression)) treinado (no Teste Final).
+2025-05-09 20:02:13 - ModelTrainerApp - WARNING -   AVISO: Otimizando limiares ML (GaussianNB) no CONJUNTO DE TESTE FINAL (avaliação otimista)...
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     Limiar F1 ML (GaussianNB) ótimo(Teste): 0.2031 (F1=0.4662)
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -     Limiar EV ML (GaussianNB) ótimo(Teste): 0.200 (ROI=6.36%)
+2025-05-09 20:02:13 - ModelTrainerApp - INFO -   Otimizando Precision ML (GaussianNB, Teste Probs Calib(sigmoid (LogisticRegression)), Recall Mín: 10.0%)...
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -     Limiar Prec ML (GaussianNB) ótimo(Teste): 0.3434 (Prec=0.3746, Rec=0.1284)
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Avaliando Modelo ML FINAL (GaussianNB) no Teste Final...
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Calculando métricas ML (GaussianNB) teste final (probs: Calib(sigmoid (LogisticRegression)))
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -     -> ML (GaussianNB) Métricas @ Thr 0.5: F1=0.4501, P=0.3264, R=0.7249
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -     -> ML (GaussianNB) Métricas @ Thr F1 (0.2031): F1=0.4662, P=0.3057, R=0.9817
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -     -> ML (GaussianNB) Métricas @ Thr Prec (0.3434): F1=0.1912, P=0.3746, R=0.1284
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -     -> ML (GaussianNB) AUC(Calib(sigmoid (LogisticRegression)))=0.5591, Brier(Calib(sigmoid (LogisticRegression)))=0.2074
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -     -> ML (GaussianNB) ROI @ Thr EV (0.200) = 6.36% (64 bets)
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -     ==> Resultado FINAL ML GaussianNB adicionado.
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Tempo p/ ML GaussianNB: 14.05 seg.
+2025-05-09 20:02:27 - ModelTrainerApp - INFO - 
+--- Avaliando Filtro Heurístico: Filtro Heurístico A ---
+2025-05-09 20:02:27 - ModelTrainerApp - WARNING -   Filtro Heurístico: Coluna 'CV_HDA' ausente nos dados de teste. Ignorando regra.
+2025-05-09 20:02:27 - ModelTrainerApp - WARNING -   Filtro Heurístico: Coluna 'Media_CG_H' ausente nos dados de teste. Ignorando regra.
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Filtro Heurístico: 604 jogos do conjunto de teste satisfazem as regras.
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Filtro Heurístico (Teste): F1=0.3654, P=0.2235, R=1.0000, Acc=0.2235
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Filtro Heurístico (Teste): ROI=-8.53% (604 bets), Profit=-51.54
+2025-05-09 20:02:27 - ModelTrainerApp - INFO - 
+--- Criando Ensemble com Top 3 Modelos ML: ['SVC', 'RandomForestClassifier', 'LogisticRegression'] ---
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Usando pipeline_object ML para SVC no ensemble.
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Usando pipeline_object ML para RandomForestClassifier no ensemble.
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Usando pipeline_object ML para LogisticRegression no ensemble.
+2025-05-09 20:02:27 - ModelTrainerApp - INFO -   Ajustando o wrapper VotingClassifier ML...
+2025-05-09 20:03:52 - ModelTrainerApp - INFO -   Wrapper VotingClassifier ML ajustado.
+2025-05-09 20:03:52 - ModelTrainerApp - INFO -   Avaliando VotingClassifier ML (ajustado) no Teste Final...
+2025-05-09 20:04:02 - ModelTrainerApp - INFO -   Calibrando/Otimizando limiares p/ Ensemble ML (no Teste Final, Método: sigmoid)...
+2025-05-09 20:04:03 - ModelTrainerApp - INFO -   --- Métricas Ensemble ML (Teste Final) ---
+2025-05-09 20:04:04 - ModelTrainerApp - INFO -     F1 @ThrF1(0.2394) = 0.4690
+2025-05-09 20:04:04 - ModelTrainerApp - INFO -     ROI @ThrEV(0.190) = 25.50% (66 bets)
+2025-05-09 20:04:04 - ModelTrainerApp - INFO -   ---------------------------------
+2025-05-09 20:04:04 - ModelTrainerApp - INFO - --- Treino e Avaliação Heurística concluídos (12276.07 seg) ---
+2025-05-09 20:04:04 - ModelTrainerApp - INFO - --- Comparativo Desempenho Modelos (Teste Final) ---
+2025-05-09 20:04:05 - ModelTrainerApp - INFO - 
+            model_name  f1_score_draw  precision_draw_thrF1  recall_draw_thrF1  precision_draw_thrPrec  recall_draw_thrPrec  f1_score_draw_thrPrec    auc  brier    roi  num_bets  optimal_f1_threshold  optimal_ev_threshold  optimal_precision_threshold
+                   SVC         0.4696                0.3202             0.8803                  0.3774               0.1129                 0.1738 0.5628 0.2069 17.73%       109                0.2499                  0.15                       0.3607
+RandomForestClassifier         0.4690                0.3131             0.9344                  0.3500               0.1149                 0.1730 0.5475 0.2076 25.50%        66                0.2394                  0.19                       0.3388
+        VotingEnsemble         0.4690                0.3131             0.9344                  0.3400               0.1467                 0.2050 0.5475 0.2076 25.50%        66                0.2394                  0.19                       0.3382
+    LogisticRegression         0.4689                0.3211             0.8687                  0.3711               0.1361                 0.1992 0.5630 0.2070 23.88%       195                0.2545                  0.12                       0.3561
+    CatBoostClassifier         0.4664                0.3049             0.9923                  0.3561               0.1409                 0.2019 0.5550 0.2073 27.87%        54                0.1828                  0.20                       0.3390
+            GaussianNB         0.4662                0.3057             0.9817                  0.3746               0.1284                 0.1912 0.5591 0.2074  6.36%        64                0.2031                  0.20                       0.3434
+        LGBMClassifier         0.4660                0.3054             0.9826                  0.3213               0.4044                 0.3581 0.5363 0.2081 22.83%       204                0.2128                  0.17                       0.3229
+  KNeighborsClassifier         0.4644                0.3048             0.9749                  0.3214               0.5106                 0.3945 0.5320 0.2086 -1.43%       399                0.2473                  0.15                       0.3036
+   Filtro Heurístico A         0.3654                0.2235             1.0000                  0.2235               1.0000                 0.3654 0.0000 1.0000 -8.53%       604                0.5000                  0.15                       0.5000
+2025-05-09 20:04:05 - ModelTrainerApp - INFO - --------------------------------------------------------------------------------
+2025-05-09 20:04:07 - ModelTrainerApp - INFO - SELEÇÃO: Melhor ROI Válido: CatBoostClassifier (ROI=27.87%)
+2025-05-09 20:04:07 - ModelTrainerApp - INFO - Salvando Melhor F1 (SVC)...
+2025-05-09 20:04:07 - ModelTrainerApp - INFO -   -> Objeto salvo: 'SVC' (F1 Thr=0.2499, EV Thr=0.150, Prec Thr=0.3607) em best_model_backdraw_best_f1.joblib.
+2025-05-09 20:04:07 - ModelTrainerApp - INFO -   -> Usando Melhor ROI (CatBoostClassifier) p/ slot ROI.
+2025-05-09 20:04:07 - ModelTrainerApp - INFO - Salvando Melhor ROI/2nd F1 (CatBoostClassifier)...
+2025-05-09 20:04:07 - ModelTrainerApp - INFO -   -> Objeto salvo: 'CatBoostClassifier' (F1 Thr=0.1828, EV Thr=0.200, Prec Thr=0.3390) em best_model_backdraw_best_roi.joblib.
+2025-05-09 20:04:07 - ModelTrainerApp - INFO - --- Processo Completo ---
+2025-05-09 20:04:07 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-09 20:04:07)
+2025-05-09 20:04:07 - PredictorApp - INFO -   Tipo: SVC | Calib: LogisticRegression | F1 Thr: 0.2499 | EV Thr: 0.1500
+2025-05-09 20:04:07 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-09 20:04:07)
+2025-05-09 20:04:07 - PredictorApp - INFO -   Tipo: CatBoostClassifier | Calib: LogisticRegression | F1 Thr: 0.1828 | EV Thr: 0.2000
+2025-05-09 21:01:56 - MainApp - INFO - Fechando aplicação.
+2025-05-09 21:01:56 - MainApp - INFO - Destruindo janela principal.

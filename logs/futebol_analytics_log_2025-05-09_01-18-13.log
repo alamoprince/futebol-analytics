@@ -1,0 +1,29 @@
+2025-05-09 01:18:13 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-09 01:18:13 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\src
+2025-05-09 01:18:13 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-09 01:18:13 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-09 01:18:23 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-09 01:18:25 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-09 01:18:25 - ModelTrainerApp - INFO - Biblioteca 'catboost' carregada.
+2025-05-09 01:18:26 - MainApp - INFO - DPI Awareness set.
+2025-05-09 01:18:27 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-09 01:18:27 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-08 21:42:01)
+2025-05-09 01:18:27 - PredictorApp - INFO -   Tipo: SVC | Calib: LogisticRegression | F1 Thr: 0.2529 | EV Thr: 0.1700
+2025-05-09 01:18:27 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-08 21:42:01)
+2025-05-09 01:18:27 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: LogisticRegression | F1 Thr: 0.2314 | EV Thr: 0.1900
+2025-05-09 01:18:27 - MainApp - ERROR - Erro instanciar FootballPredictorDashboard: 'FootballPredictorDashboard' object has no attribute 'model_choices'
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\app_launcher.py", line 77, in __init__
+    self.predictor_dashboard = FootballPredictorDashboard(self.tab2_frame, main_root=self.root) # Precisa de main_root
+                               ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\main.py", line 93, in __init__
+    self.load_existing_model_assets()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\main.py", line 1051, in load_existing_model_assets
+    if HEURISTIC_FILTER_MODEL_NAME not in [name.split(' (')[1][:-1] for name in self.model_choices if ' (' in name]: # Verifica se o nome base já não está lá
+                                                                                ^^^^^^^^^^^^^^^^^^
+AttributeError: 'FootballPredictorDashboard' object has no attribute 'model_choices'
+2025-05-09 01:18:37 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-09 01:18:37 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-09 01:18:55 - MainApp - INFO - Fechando aplicação.
+2025-05-09 01:18:55 - MainApp - INFO - Destruindo janela principal.
