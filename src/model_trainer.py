@@ -9,6 +9,7 @@ from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.isotonic import IsotonicRegression
+
 from logger_config import setup_logger
 from collections import defaultdict
 import warnings # Import warnings
@@ -22,7 +23,7 @@ try:
 except ImportError:
     logger.error("ERRO CRÍTICO: 'imbalanced-learn' não instalado. Sampler desativado.")
     IMBLEARN_AVAILABLE = False
-    from sklearn.pipeline import Pipeline as ImbPipeline # Fallback
+    from sklearn.pipeline import Pipeline as ImbPipeline 
     SMOTE = None; RandomOverSampler = None
 
 # --- Skopt/BayesSearchCV Imports ---
@@ -68,13 +69,14 @@ try:
                         CROSS_VALIDATION_SPLITS, N_JOBS_GRIDSEARCH, DEFAULT_F1_THRESHOLD,
                         ODDS_COLS, BEST_MODEL_METRIC, BEST_MODEL_METRIC_ROI,
                         DEFAULT_EV_THRESHOLD, MIN_RECALL_FOR_PRECISION_OPT,
-                        BAYESIAN_OPT_N_ITER, FEATURE_EPSILON)
+                        BAYESIAN_OPT_N_ITER, FEATURE_EPSILON, CALIBRATION_METHOD_DEFAULT)
     from typing import Any, Optional, Dict, Tuple, List, Callable
-except ImportError as e: logger.critical(f"Erro crítico import config/typing: {e}", exc_info=True); raise
+
+    from calibrator import BaseCalibrator, get_calibrator_instance
+except ImportError as e: logger.critical(f"Erro crítico import config/typing/calibrator: {e}", exc_info=True); raise
 
 
 # --- Funções Auxiliares (roi, calculate_roi_with_threshold, calculate_metrics_with_ev, scale_features) ---
-# (Cole as definições completas e corretas aqui)
 def roi(y_test: pd.Series, y_pred: np.ndarray, X_test_odds_aligned: Optional[pd.DataFrame], odd_draw_col_name: str) -> Optional[float]:
     if X_test_odds_aligned is None or odd_draw_col_name not in X_test_odds_aligned.columns:
         return None
@@ -194,30 +196,28 @@ def calculate_metrics_with_ev(y_true: pd.Series, y_proba_calibrated: np.ndarray,
             logger.error(f"EV Metr: Error aligning y_proba: {e}")
             return None, 0, None
 
-        # Calculate EV only for valid odds and probabilities
         valid_mask = odds_common.notna() & y_proba_common.notna() & (odds_common > 1)
-        ev = pd.Series(np.nan, index=common_index) # Initialize with NaN
+        ev = pd.Series(np.nan, index=common_index) 
         prob_ok = y_proba_common[valid_mask]
         odds_ok = odds_common[valid_mask]
-        if not prob_ok.empty: # Proceed only if there are valid entries
+        if not prob_ok.empty: 
             ev_calc = (prob_ok * (odds_ok - 1)) - ((1 - prob_ok) * 1)
-            ev.loc[valid_mask] = ev_calc # Assign calculated EV only where valid
+            ev.loc[valid_mask] = ev_calc 
 
         # Find indices where calculated EV is above threshold
-        bet_indices = common_index[ev > ev_threshold] # Relies on NaN comparison being False
-        num_bets_suggested = len(bet_indices) # Total bets suggested by EV threshold
+        bet_indices = common_index[ev > ev_threshold] 
+        num_bets_suggested = len(bet_indices) 
 
-        if num_bets_suggested == 0: return 0.0, 0, 0.0 # 0 valid bets placed
+        if num_bets_suggested == 0: return 0.0, 0, 0.0 
 
         actuals = y_true_common.loc[bet_indices]
-        odds_selected = odds_common.loc[bet_indices] # Use already filtered odds
+        odds_selected = odds_common.loc[bet_indices] 
 
         for idx in bet_indices:
             try:
                 odd_d = odds_selected.loc[idx]
-                # Check odd validity again (should be valid due to mask, but safe)
                 if pd.notna(odd_d) and odd_d > 1:
-                    if idx in actuals.index: # Check if actual result exists
+                    if idx in actuals.index: 
                         profit_calc += (odd_d - 1) if actuals.loc[idx] == 1 else -1
                         valid_bets_count += 1
                     else: logger.warning(f"EV Metr calc: Actual result missing for index {idx}")
@@ -227,8 +227,7 @@ def calculate_metrics_with_ev(y_true: pd.Series, y_proba_calibrated: np.ndarray,
         profit = profit_calc
         roi_value = (profit / valid_bets_count) * 100 if valid_bets_count > 0 else 0.0
 
-        # logger.debug(f"    -> Métricas EV (Th={ev_threshold:.3f}): ROI={roi_value:.2f}%, Bets Sug={num_bets_suggested}, Bets Vál={valid_bets_count}, Profit={profit:.2f}")
-        return roi_value, valid_bets_count, profit # Return count of *valid* bets placed
+        return roi_value, valid_bets_count, profit 
 
     except Exception as e:
         logger.error(f"EV Metr: General error - {e}", exc_info=True)
@@ -237,7 +236,6 @@ def calculate_metrics_with_ev(y_true: pd.Series, y_proba_calibrated: np.ndarray,
 
 def scale_features(X_train: pd.DataFrame, X_val: Optional[pd.DataFrame], X_test: Optional[pd.DataFrame], scaler_type='standard') -> Tuple[pd.DataFrame, Optional[pd.DataFrame], Optional[pd.DataFrame], Any]:
     """Scales features using StandardScaler or MinMaxScaler."""
-    # Check if input DataFrames are valid
     if X_train is None or X_train.empty:
         logger.error("Scaling Error: X_train is None or empty.")
         raise ValueError("X_train cannot be None or empty for scaling.")
@@ -255,44 +253,34 @@ def scale_features(X_train: pd.DataFrame, X_val: Optional[pd.DataFrame], X_test:
         logger.info(f"  Aplicando {scaler.__class__.__name__}...")
         cols = X_train_c.columns
 
-        # Impute NaNs and Infs before fitting/transforming
-        # Calculate median based only on the training set
         train_median = X_train_c.replace([np.inf, -np.inf], np.nan).median()
 
-        # Impute Training Data
         X_train_c = X_train_c.replace([np.inf, -np.inf], np.nan)
         if X_train_c.isnull().values.any():
             logger.warning(f"  NaNs/Infs encontrados em X_train ({X_train_c.isnull().sum().sum()}). Imputando com mediana.")
             X_train_c.fillna(train_median, inplace=True)
-            # Check if any columns are still all NaN (median might be NaN if column was all NaN)
             if X_train_c.isnull().values.any():
-                 nan_cols_after_impute = X_train_c.columns[X_train_c.isnull().all()].tolist()
-                 logger.error(f"  ERRO: NaNs persistentes em X_train após imputação (Colunas: {nan_cols_after_impute}). Scaling falhará.")
-                 raise ValueError("NaNs persistentes em X_train após imputação com mediana.")
+                nan_cols_after_impute = X_train_c.columns[X_train_c.isnull().all()].tolist()
+                logger.error(f"  ERRO: NaNs persistentes em X_train após imputação (Colunas: {nan_cols_after_impute}). Scaling falhará.")
+                raise ValueError("NaNs persistentes em X_train após imputação com mediana.")
 
-        # Impute Validation Data (if exists)
         if X_val_c is not None:
             X_val_c = X_val_c.replace([np.inf, -np.inf], np.nan)
             if X_val_c.isnull().values.any():
                  # logger.debug(f"  NaNs/Infs encontrados em X_val ({X_val_c.isnull().sum().sum()}). Imputando com mediana do TREINO.")
-                 X_val_c.fillna(train_median, inplace=True)
+                X_val_c.fillna(train_median, inplace=True)
 
-        # Impute Test Data (if exists)
         if X_test_c is not None:
             X_test_c = X_test_c.replace([np.inf, -np.inf], np.nan)
             if X_test_c.isnull().values.any():
-                 # logger.debug(f"  NaNs/Infs encontrados em X_test ({X_test_c.isnull().sum().sum()}). Imputando com mediana do TREINO.")
-                 X_test_c.fillna(train_median, inplace=True)
+                X_test_c.fillna(train_median, inplace=True)
 
-        # Fit scaler ONLY on training data
         scaler.fit(X_train_c)
 
-        # Transform all sets
         X_train_scaled = scaler.transform(X_train_c)
         X_val_scaled = scaler.transform(X_val_c) if X_val_c is not None else None
         X_test_scaled = scaler.transform(X_test_c) if X_test_c is not None else None
 
-        # Convert back to DataFrame
         X_train_sc = pd.DataFrame(X_train_scaled, index=X_train.index, columns=cols)
         X_val_sc = pd.DataFrame(X_val_scaled, index=X_val.index, columns=cols) if X_val_scaled is not None else None
         X_test_sc = pd.DataFrame(X_test_scaled, index=X_test.index, columns=cols) if X_test_scaled is not None else None
@@ -304,689 +292,562 @@ def scale_features(X_train: pd.DataFrame, X_val: Optional[pd.DataFrame], X_test:
         logger.error(f"Erro GERAL durante scaling: {e}", exc_info=True)
         return X_train, X_val, X_test, None
 
-# --- Função Principal de Treinamento (COM PIPELINE IMBLEARN) ---
+# --- Função Principal de Treinamento ---
+def _temporal_train_test_split(
+    X: pd.DataFrame, y: pd.Series, test_size_ratio: float, cv_splits_for_min_train: int
+) -> Optional[Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]]:
+    logger.info("Dividindo dados temporalmente (Treino+CV / Teste Final)...")
+    n_total = len(X)
+    n_test = int(n_total * test_size_ratio)
+    min_train_cv_samples_needed = cv_splits_for_min_train + 1 
+    if n_total - n_test < min_train_cv_samples_needed :
+        logger.error(f"Divisão Temporal Inválida: Treino+CV ({n_total-n_test}) muito pequeno para {cv_splits_for_min_train} splits CV (precisa de >= {min_train_cv_samples_needed}).")
+        return None
+    if n_test < 1 :
+        logger.error(f"Divisão Temporal Inválida: Conjunto de teste teria {n_test} amostras.")
+        return None
+    n_train_cv = n_total - n_test
+    try:
+        X_train_cv = X.iloc[:n_train_cv]; y_train_cv = y.iloc[:n_train_cv]
+        X_test = X.iloc[n_train_cv:]; y_test = y.iloc[n_train_cv:]
+        logger.info(f"Split Temporal: T+CV={len(X_train_cv)} ({len(X_train_cv)/n_total:.1%}), Teste={len(X_test)} ({len(X_test)/n_total:.1%})")
+        if not (X_train_cv.index.is_monotonic_increasing and X_test.index.is_monotonic_increasing and \
+                y_train_cv.index.is_monotonic_increasing and y_test.index.is_monotonic_increasing):
+             logger.warning("Índices não são monotonicamente crescentes após split temporal. Verifique ordenação inicial do DataFrame de entrada.")
+        return X_train_cv, y_train_cv, X_test, y_test
+    except Exception as e:
+        logger.error(f"Erro durante a divisão temporal manual: {e}", exc_info=True)
+        return None
+
+def _align_odds_with_test_set(
+    X_test: pd.DataFrame, X_test_with_odds_full: Optional[pd.DataFrame], odd_draw_col_name: str
+) -> Optional[pd.DataFrame]:
+    if X_test_with_odds_full is None or X_test_with_odds_full.empty or odd_draw_col_name not in X_test_with_odds_full.columns:
+        logger.warning("DF de odds ausente/vazio ou sem coluna de odd de empate. ROI/EV não serão calculados no teste.")
+        return None
+    try:
+        common_test_indices = X_test.index.intersection(X_test_with_odds_full.index)
+        if not common_test_indices.empty:
+            X_test_odds_aligned = X_test_with_odds_full.loc[common_test_indices, [odd_draw_col_name]].copy()
+            X_test_odds_aligned[odd_draw_col_name] = pd.to_numeric(X_test_odds_aligned[odd_draw_col_name], errors='coerce')
+            logger.info(f"Odds alinhadas com o conjunto de teste: {len(X_test_odds_aligned)} jogos.")
+            if len(X_test_odds_aligned) != len(X_test):
+                logger.warning(f"Perda de {len(X_test) - len(X_test_odds_aligned)} amostras de teste durante alinhamento de odds.")
+            return X_test_odds_aligned
+        else:
+            logger.warning("Nenhum índice em comum encontrado entre X_test e X_test_with_odds_full para alinhamento de odds.")
+            return None
+    except Exception as e:
+        logger.error(f"Erro ao alinhar odds com X_test: {e}", exc_info=True)
+        return None
+
+def _setup_model_and_pipeline(
+    model_name: str, model_config: Dict, sampler_type: Optional[str]
+) -> Optional[ImbPipeline]:
+    """Configura o pipeline base (com sampler opcional e classificador)."""
+    try:
+        model_class_module_name = model_name 
+        if model_name == 'LGBMClassifier' and LGBM_AVAILABLE: model_class = LGBMClassifier
+        elif model_name == 'CatBoostClassifier' and CATBOOST_AVAILABLE: model_class = CatBoostClassifier
+        else: model_class = eval(model_name) 
+
+        if model_class is None: raise NameError(f"Classe {model_name} é None.")
+    except NameError: logger.error(f"Classe do modelo '{model_name}' não encontrada."); return None
+    except Exception as e_eval: logger.error(f"Erro ao obter classe para '{model_name}': {e_eval}."); return None
+
+    model_kwargs = model_config.get('model_kwargs', {})
+    pipeline_steps = []
+    sampler_instance = None; sampler_log_name = "None"
+
+    if sampler_type == 'smote' and SMOTE and IMBLEARN_AVAILABLE:
+        sampler_instance = SMOTE(random_state=RANDOM_STATE); pipeline_steps.append(('sampler', sampler_instance)); sampler_log_name = "SMOTE"
+    elif sampler_type == 'random' and RandomOverSampler and IMBLEARN_AVAILABLE:
+        sampler_instance = RandomOverSampler(random_state=RANDOM_STATE); pipeline_steps.append(('sampler', sampler_instance)); sampler_log_name = "RandomOverSampler"
+    elif sampler_type and not IMBLEARN_AVAILABLE:
+        logger.warning(f"Sampler '{sampler_type}' solicitado, mas imblearn não disponível. Sampler não será usado.")
+
+    pipeline_steps.append(('classifier', model_class(**model_kwargs)))
+    pipeline = ImbPipeline(pipeline_steps)
+    logger.info(f"  Pipeline base criado (Sampler: {sampler_log_name}, Classifier: {model_name})")
+    return pipeline
+
+
+def _perform_hyperparameter_search(
+    pipeline_to_tune: ImbPipeline, X_train_cv_processed: pd.DataFrame, y_train_cv: pd.Series,
+    model_config: Dict, cv_splitter: TimeSeriesSplit, scoring_metric: str,
+    n_bayes_iter: int, model_name_log: str
+) -> Tuple[Optional[ImbPipeline], Optional[Dict]]:
+    use_bayes = SKOPT_AVAILABLE and 'search_spaces' in model_config and model_config['search_spaces']
+    param_space_or_grid = model_config.get('search_spaces') if use_bayes else model_config.get('param_grid')
+
+    if not param_space_or_grid:
+        logger.info(f"  Sem config de busca para {model_name_log}. Usando pipeline base com params default."); return None, None
+
+    search_method_name = 'BayesSearchCV' if use_bayes else 'GridSearchCV'
+    logger.info(f"  Iniciando {search_method_name} para {model_name_log} (Score: {scoring_metric}, CV: Temporal)...")
+    try:
+        model_fit_params = model_config.get('fit_params', {})
+        if use_bayes:
+            search_cv = BayesSearchCV(estimator=pipeline_to_tune, search_spaces=param_space_or_grid,
+                                      n_iter=n_bayes_iter, cv=cv_splitter, n_jobs=N_JOBS_GRIDSEARCH,
+                                      scoring=scoring_metric, random_state=RANDOM_STATE, verbose=0)
+        else:
+            search_cv = GridSearchCV(estimator=pipeline_to_tune, param_grid=param_space_or_grid,
+                                     cv=cv_splitter, n_jobs=N_JOBS_GRIDSEARCH, scoring=scoring_metric,
+                                     verbose=0, error_score='raise')
+        search_cv.fit(X_train_cv_processed, y_train_cv, **model_fit_params)
+        best_pipeline = search_cv.best_estimator_
+        best_params_raw = search_cv.best_params_
+        best_classifier_params = {k.replace('classifier__', ''): v for k,v in best_params_raw.items() if k.startswith('classifier__')}
+        logger.info(f"    -> Busca CV ({search_method_name}) OK. Melhor CV {scoring_metric}: {search_cv.best_score_:.4f}. Params: {best_classifier_params}")
+        return best_pipeline, best_classifier_params
+    except Exception as e: logger.error(f"    Erro {search_method_name}.fit: {e}", exc_info=True); return None, None
+
+
+def _train_final_pipeline(
+    base_pipeline: ImbPipeline, best_pipeline_from_cv: Optional[ImbPipeline],
+    X_train_full_processed: pd.DataFrame, y_train_full: pd.Series,
+    model_fit_params_config: Dict, model_name_log: str
+) -> Tuple[Optional[ImbPipeline], Optional[Any], Optional[Dict]]:
+    pipeline_for_final_train = clone(best_pipeline_from_cv) if best_pipeline_from_cv else clone(base_pipeline)
+    action_log = "Re-ajustando MELHOR pipeline (da CV)" if best_pipeline_from_cv else "Treinando pipeline BASE com params default"
+    logger.info(f"  {action_log} para {model_name_log} em todos os dados de treino+CV...")
+    try:
+        pipeline_for_final_train.fit(X_train_full_processed, y_train_full, **model_fit_params_config)
+        trained_classifier_instance = pipeline_for_final_train.named_steps['classifier']
+        effective_classifier_params = trained_classifier_instance.get_params()
+        logger.info(f"  -> Treino final do pipeline para {model_name_log} OK.")
+        return pipeline_for_final_train, trained_classifier_instance, effective_classifier_params
+    except Exception as e: logger.error(f"  Erro CRÍTICO ao treinar pipeline final para {model_name_log}: {e}", exc_info=True); return None, None, None
+
+def _calibrate_and_optimize_thresholds(
+    y_true_for_opt: pd.Series, y_proba_raw_draw_for_opt: Optional[np.ndarray],
+    X_odds_for_opt: Optional[pd.DataFrame], odd_draw_col_name_for_opt: str,
+    calibration_method_config: Optional[str], optimize_f1_flag: bool, optimize_ev_flag: bool,
+    optimize_precision_flag: bool, min_recall_target_for_prec: float, model_name_log: str,
+    progress_callback: Optional[Callable[[int, str], None]], model_idx_for_callback: int
+) -> Tuple[Optional[BaseCalibrator], Optional[np.ndarray], float, float, float]:
+    calibrator_fitted = None; y_proba_calibrated_draw = None
+    optimal_f1_thr = DEFAULT_F1_THRESHOLD; optimal_ev_thr = DEFAULT_EV_THRESHOLD; optimal_prec_thr = 0.5
+
+    if y_proba_raw_draw_for_opt is None:
+        logger.warning(f"  Probs brutas ausentes para {model_name_log}. Calibração/Otim. pulada.")
+        return None, None, optimal_f1_thr, optimal_ev_thr, optimal_prec_thr
+
+    # 1. Calibração
+    calibrator_instance = get_calibrator_instance(calibration_method_config)
+
+    if calibrator_instance:
+        if progress_callback: progress_callback(model_idx_for_callback, f"{model_name_log}: Calibrando ({calibration_method_config})...")
+        logger.info(f"  Calibrando probs ({calibration_method_config}) para {model_name_log}...")
+        try:
+            fitted_calibrator_object = calibrator_instance.fit(y_proba_raw_draw_for_opt, y_true_for_opt)
+            y_proba_calibrated_draw = fitted_calibrator_object.predict_proba(y_proba_raw_draw_for_opt)
+            logger.info(f"  -> Calibrador ({calibration_method_config}) ajustado e probabilidades previstas para {model_name_log}.")
+        except Exception as e_calib:
+            logger.error(f"  Erro durante calibração ({calibration_method_config}) para {model_name_log}: {e}. Usando probs brutas.", exc_info=True)
+            fitted_calibrator_object = None 
+            y_proba_calibrated_draw = y_proba_raw_draw_for_opt.copy() 
+    else:
+        logger.info(f"  Nenhum método de calibração válido especificado ('{calibration_method_config}'). Usando probs brutas para otimização.")
+        y_proba_calibrated_draw = y_proba_raw_draw_for_opt.copy() 
+
+    proba_for_thr_opt = y_proba_calibrated_draw 
+    opt_src = calibration_method_config if fitted_calibrator_object else 'Brutas'
+
+    if optimize_f1_flag:
+        if progress_callback: progress_callback(model_idx_for_callback, f"{model_name_log}: Otim. F1 ({opt_src})...")
+        try:
+            p, r, t = precision_recall_curve(y_true_for_opt, proba_for_thr_opt, pos_label=1)
+            if len(p) > len(t): p,r = p[:-1],r[:-1] 
+            f1s = np.divide(2*p*r, p+r+FEATURE_EPSILON, where=(p+r)>0, out=np.zeros_like(p+r))
+            valid_f1_indices = np.where(np.isfinite(f1s) & (f1s > 0))[0]
+            if valid_f1_indices.size > 0: best_f1_idx = valid_f1_indices[np.argmax(f1s[valid_f1_indices])]; optimal_f1_thr = t[best_f1_idx]; logger.info(f"    Limiar F1 ({opt_src}): {optimal_f1_thr:.4f} (F1={f1s[best_f1_idx]:.4f})")
+            else: logger.warning(f"    Não otimizou F1 para {model_name_log}.")
+        except Exception as e: logger.error(f"  Erro otim. F1 {model_name_log}: {e}")
+
+    if optimize_ev_flag and X_odds_for_opt is not None:
+        if progress_callback: progress_callback(model_idx_for_callback, f"{model_name_log}: Otim. EV ({opt_src})...")
+        try:
+            best_roi = -np.inf; ev_ths_try = np.linspace(0.0, 0.25, 26)
+            for ev_th in ev_ths_try:
+                roi_v,_,_ = calculate_metrics_with_ev(y_true_for_opt, proba_for_thr_opt, ev_th, X_odds_for_opt, odd_draw_col_name_for_opt)
+                if roi_v is not None and np.isfinite(roi_v) and roi_v > best_roi: best_roi = roi_v; optimal_ev_thr = ev_th
+            if best_roi > -np.inf: logger.info(f"    Limiar EV ({opt_src}): {optimal_ev_thr:.3f} (ROI={best_roi:.2f}%)")
+            else: logger.warning(f"    ROI inválido otim. EV {model_name_log}.")
+        except Exception as e: logger.error(f"  Erro otim. EV {model_name_log}: {e}")
+    elif optimize_ev_flag: logger.warning(f"  Otim. EV {model_name_log} pulada (sem odds).")
+
+    if optimize_precision_flag:
+        if progress_callback: progress_callback(model_idx_for_callback, f"{model_name_log}: Otim. Prec ({opt_src})...")
+        try:
+            best_p = -1.0; found_p_thr = False
+            ps, rs, ts_pr = precision_recall_curve(y_true_for_opt, proba_for_thr_opt, pos_label=1)
+            for i in range(len(ts_pr)): 
+                p_c, r_c, t_c = ps[i], rs[i], ts_pr[i]
+                if r_c >= min_recall_target_for_prec:
+                    if p_c > best_p: best_p=p_c; optimal_prec_thr=t_c; found_p_thr=True
+                    elif p_c == best_p and t_c > optimal_prec_thr: optimal_prec_thr=t_c; found_p_thr=True 
+            if found_p_thr: rec_at_opt_p = recall_score(y_true_for_opt,(proba_for_thr_opt>=optimal_prec_thr).astype(int),pos_label=1,zero_division=0); logger.info(f"    Limiar Prec ({opt_src}): {optimal_prec_thr:.4f} (P={best_p:.4f}, R={rec_at_opt_p:.4f})")
+            else: logger.warning(f"    Não encontrou limiar Prec. {model_name_log} (Recall Mín={min_recall_target_for_prec:.1%}).")
+        except Exception as e: logger.error(f"  Erro otim. Prec {model_name_log}: {e}")
+
+    return fitted_calibrator_object, y_proba_calibrated_draw, optimal_f1_thr, optimal_ev_thr, optimal_prec_thr
+
+
+def _evaluate_model_on_test_set(
+    final_trained_pipeline: ImbPipeline, X_test_eval_processed: pd.DataFrame, y_test_eval: pd.Series,
+    y_proba_raw_test_full_eval: Optional[np.ndarray], y_proba_final_draw_test_eval: Optional[np.ndarray], 
+    opt_f1_thr_eval: float, opt_ev_thr_eval: float, opt_prec_thr_eval: float,
+    X_test_odds_eval: Optional[pd.DataFrame], odd_draw_col_name_eval: str, model_name_log_eval: str
+) -> Dict:
+    logger.info(f"  Avaliando Modelo FINAL ({model_name_log_eval}) no Teste...")
+    metrics = {'model_name': model_name_log_eval, 'optimal_f1_threshold': opt_f1_thr_eval, 'optimal_ev_threshold': opt_ev_thr_eval, 'optimal_precision_threshold': opt_prec_thr_eval, 'test_set_size': len(y_test_eval)}
+    eval_src = 'Calib' if y_proba_final_draw_test_eval is not None and y_proba_raw_test_full_eval is not None and not np.array_equal(y_proba_final_draw_test_eval, y_proba_raw_test_full_eval[:,1] if y_proba_raw_test_full_eval.ndim > 1 and y_proba_raw_test_full_eval.shape[1]>1 else y_proba_raw_test_full_eval) else 'Raw'
+
+    try: y_pred05 = final_trained_pipeline.predict(X_test_eval_processed)
+    except Exception as e_pred05: logger.error(f"Erro pred 0.5 {model_name_log_eval}: {e_pred05}"); y_pred05 = np.zeros_like(y_test_eval) 
+    metrics.update({'accuracy_thr05': accuracy_score(y_test_eval,y_pred05), 'precision_draw_thr05':precision_score(y_test_eval,y_pred05,pos_label=1,zero_division=0), 'recall_draw_thr05':recall_score(y_test_eval,y_pred05,pos_label=1,zero_division=0), 'f1_score_draw_thr05':f1_score(y_test_eval,y_pred05,pos_label=1,zero_division=0)})
+    logger.info(f"    Métricas @0.5: F1={metrics['f1_score_draw_thr05']:.4f}, P={metrics['precision_draw_thr05']:.4f}, R={metrics['recall_draw_thr05']:.4f}")
+
+    if y_proba_final_draw_test_eval is not None:
+        y_predF1=(y_proba_final_draw_test_eval>=opt_f1_thr_eval).astype(int)
+        metrics.update({'accuracy_thrF1':accuracy_score(y_test_eval,y_predF1), 'precision_draw_thrF1':precision_score(y_test_eval,y_predF1,pos_label=1,zero_division=0), 'recall_draw_thrF1':recall_score(y_test_eval,y_predF1,pos_label=1,zero_division=0), 'f1_score_draw':f1_score(y_test_eval,y_predF1,pos_label=1,zero_division=0)})
+        logger.info(f"    Métricas @F1Opt({opt_f1_thr_eval:.4f}): F1={metrics['f1_score_draw']:.4f}, P={metrics['precision_draw_thrF1']:.4f}, R={metrics['recall_draw_thrF1']:.4f}")
+        y_predPrec=(y_proba_final_draw_test_eval>=opt_prec_thr_eval).astype(int)
+        metrics.update({'accuracy_thrPrec':accuracy_score(y_test_eval,y_predPrec), 'precision_draw_thrPrec':precision_score(y_test_eval,y_predPrec,pos_label=1,zero_division=0), 'recall_draw_thrPrec':recall_score(y_test_eval,y_predPrec,pos_label=1,zero_division=0), 'f1_score_draw_thrPrec':f1_score(y_test_eval,y_predPrec,pos_label=1,zero_division=0)})
+        logger.info(f"    Métricas @PrecOpt({opt_prec_thr_eval:.4f}): F1={metrics['f1_score_draw_thrPrec']:.4f}, P={metrics['precision_draw_thrPrec']:.4f}, R={metrics['recall_draw_thrPrec']:.4f}")
+        
+        auc,brier,logloss_m=None,None,None
+        try: auc=roc_auc_score(y_test_eval,y_proba_final_draw_test_eval) if len(np.unique(y_test_eval))>1 else 0.5
+        except: pass
+        try: brier=brier_score_loss(y_test_eval,y_proba_final_draw_test_eval)
+        except: pass
+        if y_proba_raw_test_full_eval is not None:
+            try: logloss_m=log_loss(y_test_eval,y_proba_raw_test_full_eval)
+            except:pass
+        metrics.update({'roc_auc':auc,'brier_score':brier,'log_loss':logloss_m})
+        logger.info(f"    AUC({eval_src})={auc if auc is not None else 'N/A':.4f}, Brier({eval_src})={brier if brier is not None else 'N/A':.4f}, LogLoss(Raw)={logloss_m if logloss_m is not None else 'N/A':.4f}")
+
+        if X_test_odds_eval is not None:
+            roi,bets,prof = calculate_metrics_with_ev(y_test_eval,y_proba_final_draw_test_eval,opt_ev_thr_eval,X_test_odds_eval,odd_draw_col_name_eval)
+            metrics.update({'roi':roi,'num_bets':bets,'profit':prof})
+            roi_s = f"{roi:.2f}%" if roi is not None and np.isfinite(roi) else "N/A"
+            logger.info(f"    ROI @EVOpt({opt_ev_thr_eval:.3f}) = {roi_s} ({bets} bets)")
+        else: metrics.update({'roi':None,'num_bets':0,'profit':None})
+    else: metrics['f1_score_draw']=metrics.get('f1_score_draw_thr05',-1.0); logger.warning(f"  Sem probs {model_name_log_eval}. Usando F1@0.5.") 
+    return metrics
+
+
+def _save_model_object(model_result_dict: Dict, feature_names_list: List[str], file_path_to_save: str) -> None:
+    if not isinstance(model_result_dict, dict): logger.error(f"Salvar: Dados inválidos p/ {file_path_to_save}"); return
+    try:
+        model_obj_to_save = model_result_dict.get('model_object') 
+        pipeline_obj_to_save = model_result_dict.get('pipeline_object') 
+       
+        object_to_actually_save = pipeline_obj_to_save if pipeline_obj_to_save is not None else model_obj_to_save
+
+        if object_to_actually_save is None: logger.error(f"Salvar: Nenhum objeto (pipeline/modelo) para salvar em {file_path_to_save}"); return
+        
+        metrics_d = model_result_dict.get('metrics', {})
+        save_obj_dict = {
+            'model': object_to_actually_save, 
+            'scaler': model_result_dict.get('scaler'),
+            'calibrator': model_result_dict.get('calibrator'),
+            'feature_names': feature_names_list, 
+            'best_params': model_result_dict.get('params'), 
+            'eval_metrics': metrics_d,
+            'optimal_ev_threshold': metrics_d.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD),
+            'optimal_f1_threshold': metrics_d.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD),
+            'optimal_precision_threshold': metrics_d.get('optimal_precision_threshold', 0.5),
+            'save_timestamp': datetime.datetime.now().isoformat(),
+            'model_class_name': model_result_dict.get('model_name', object_to_actually_save.__class__.__name__) # Nome do modelo/pipeline
+        }
+        joblib.dump(save_obj_dict, file_path_to_save)
+        logger.info(f"  -> Objeto salvo: '{save_obj_dict['model_class_name']}' em {os.path.basename(file_path_to_save)}.")
+        logger.debug(f"     Detalhes salvos: Features={len(save_obj_dict['feature_names']) if save_obj_dict['feature_names'] else 'N/A'}, Scaler={'Sim' if save_obj_dict['scaler'] else 'Não'}, Calib={'Sim' if save_obj_dict['calibrator'] else 'Não'}")
+        logger.debug(f"     Limiares salvos: F1={save_obj_dict['optimal_f1_threshold']:.4f}, EV={save_obj_dict['optimal_ev_threshold']:.3f}, Prec={save_obj_dict['optimal_precision_threshold']:.4f}")
+
+    except Exception as e: logger.error(f"  -> Erro GRAVE ao salvar objeto em {file_path_to_save}: {e}", exc_info=True)
+
+# --- Função Principal ---
 def train_evaluate_and_save_best_models(
     X: pd.DataFrame, y: pd.Series,
     X_test_with_odds: Optional[pd.DataFrame] = None,
     progress_callback_stages: Optional[Callable[[int, str], None]] = None,
-    num_total_models: int = 1, # Should be passed correctly by main.py
+    num_total_models_expected: int = 1, 
     scaler_type: str = 'standard',
-    sampler_type: str = 'smote', # 'smote', 'random', None
+    sampler_type: Optional[str] = 'smote',
     odd_draw_col_name: str = ODDS_COLS.get('draw', 'Odd_D_FT'),
-    calibration_method: str = 'isotonic', # 'isotonic' or 'sigmoid'
-    optimize_ev_threshold: bool = True,
-    optimize_f1_threshold: bool = True,
-    optimize_precision_threshold: bool = True,
-    min_recall_target: float = MIN_RECALL_FOR_PRECISION_OPT,
-    bayes_opt_n_iter: int = BAYESIAN_OPT_N_ITER,
-    cv_splits: int = CROSS_VALIDATION_SPLITS,
-    scoring_metric: str = 'f1', # Metric for hyperparameter tuning
-    n_ensemble_models: int = 3
+    calibration_method: str = CALIBRATION_METHOD_DEFAULT,
+    optimize_ev_threshold_flag: bool = True, 
+    optimize_f1_threshold_flag: bool = True,
+    optimize_precision_threshold_flag: bool = True,
+    min_recall_target_for_prec_opt: float = MIN_RECALL_FOR_PRECISION_OPT, 
+    bayes_opt_n_iter_config: int = BAYESIAN_OPT_N_ITER, 
+    cv_splits_config: int = CROSS_VALIDATION_SPLITS, 
+    cv_scoring_metric_config: str = 'f1', 
+    n_ensemble_models_config: int = 3 
     ) -> bool:
-    """
-    Pipeline otimizado: Treina com CV Temporal, calibra/otimiza no teste (simplificado), avalia, salva.
-    """
-    # --- Validações Iniciais ---
-    if not IMBLEARN_AVAILABLE and sampler_type is not None: logger.error("'imbalanced-learn' não instalado, sampler desativado."); return False
-    if X is None or y is None or X.empty or y.empty: logger.error("Dados X ou y inválidos/vazios."); return False
-    if not X.index.equals(y.index): logger.error("Índices de X e y não coincidem ANTES da divisão."); return False # Check initial alignment
-    if not MODEL_CONFIG: logger.error("MODEL_CONFIG vazio."); return False
-    available_models = {name: config for name, config in MODEL_CONFIG.items() if not (name=='LGBMClassifier' and not LGBM_AVAILABLE) and \
-           not (name=='CatBoostClassifier' and not CATBOOST_AVAILABLE)}
-    if not available_models: logger.error("Nenhum modelo válido configurado."); return False
-    if num_total_models <= 0: num_total_models = len(available_models); logger.warning(f"Ajustando num_total_models para {num_total_models}.")
-    if cv_splits <= 1 : logger.error(f"cv_splits ({cv_splits}) deve ser maior que 1."); return False
 
-    feature_names = list(X.columns); all_results = []
-    sampler_log = f"Sampler: {sampler_type}" if sampler_type else "Sampler: None"
-    opt_log = f"Opt(F1:{optimize_f1_threshold}, EV:{optimize_ev_threshold}, Prec:{optimize_precision_threshold})"
-    logger.info(f"--- Treinando {len(available_models)} Modelos ({sampler_log}, CV Temporal: {scoring_metric}, {opt_log}) ---")
-    start_time_total = time.time()
+    # Validações Iniciais
+    if not IMBLEARN_AVAILABLE and sampler_type: logger.error("'imbalanced-learn' não instalado."); return False
+    if X is None or y is None or X.empty or y.empty: logger.error("Dados X ou y inválidos."); return False
+    if not X.index.is_monotonic_increasing or not y.index.is_monotonic_increasing:
+        logger.error("Dados de entrada X ou y não estão ordenados temporalmente. Isso é crucial para TimeSeriesSplit.")
 
-    # --- Divisão Temporal Manual ---
-    logger.info("Dividindo dados temporalmente (Treino+CV / Teste Final)...")
-    n_total = len(X)
-    n_test = int(n_total * TEST_SIZE)
-    # Ensure test set is large enough for at least one sample after CV splits train on min data
-    min_train_per_split = n_total // (cv_splits + 1) # Approx min samples per training fold in TimeSeriesSplit
-    if n_test < 1 or (n_total - n_test) < min_train_per_split :
-         logger.error(f"Divisão Temporal Inválida: Teste ({n_test}) ou Treino+CV ({n_total-n_test}) muito pequeno para {cv_splits} splits.")
-         return False
-    n_train_cv = n_total - n_test
+        return False
+    if not X.index.equals(y.index): logger.error("Índices X/y não coincidem."); return False
+    
+    available_model_configs = {
+        name: cfg for name, cfg in MODEL_CONFIG.items()
+        if not (name=='LGBMClassifier' and not LGBM_AVAILABLE) and \
+           not (name=='CatBoostClassifier' and not CATBOOST_AVAILABLE)
+    }
+    if not available_model_configs: logger.error("Nenhum modelo válido configurado em MODEL_CONFIG."); return False
+    if num_total_models_expected <= 0: num_total_models_expected = len(available_model_configs)
+    if cv_splits_config <= 1 : logger.error(f"cv_splits ({cv_splits_config}) deve ser > 1."); return False
 
-    # Assume X, y are already sorted chronologically (crucial!)
-    try:
-        X_train_cv = X.iloc[:n_train_cv]
-        y_train_cv = y.iloc[:n_train_cv]
-        X_test     = X.iloc[n_train_cv:]
-        y_test     = y.iloc[n_train_cv:]
-        logger.info(f"Split Temporal: T+CV={len(X_train_cv)} ({len(X_train_cv)/n_total:.1%}), Teste={len(X_test)} ({len(X_test)/n_total:.1%})")
-        if not X_train_cv.index.is_monotonic_increasing or not X_test.index.is_monotonic_increasing:
-             logger.warning("Índices não são monotonicamente crescentes após split temporal. Verifique ordenação inicial.")
-    except Exception as e_split:
-         logger.error(f"Erro durante a divisão temporal manual: {e_split}", exc_info=True)
-         return False
+    original_feature_names = list(X.columns) 
+    all_individual_model_results = []
+    logger.info(f"--- Iniciando Treinamento Otimizado para {len(available_model_configs)} Modelos Individuais ---")
+    total_training_start_time = time.time()
 
-    # Alinha Odds com os novos X_test
-    X_test_odds = None
-    if X_test_with_odds is not None and not X_test_with_odds.empty and odd_draw_col_name in X_test_with_odds.columns:
-        try:
-            common_test = X_test.index.intersection(X_test_with_odds.index)
-            if len(common_test) > 0:
-                 X_test_odds = X_test_with_odds.loc[common_test, [odd_draw_col_name]].copy()
-                 logger.info(f"Odds alinhadas (Temporal): Teste={X_test_odds is not None} ({len(common_test)} jogos)")
-                 # Check if alignment caused loss of test samples needed for metrics
-                 if len(X_test_odds) != len(X_test):
-                     logger.warning(f"Perda de {len(X_test) - len(X_test_odds)} amostras de teste durante alinhamento de odds.")
-                     # Optional: Re-align X_test/y_test to match odds if ROI is critical
-                     # X_test = X_test.loc[common_test]
-                     # y_test = y_test.loc[common_test]
-                     # logger.info(f"Re-alinhado X_test/y_test para {len(X_test)} amostras com odds.")
-            else: logger.warning("Nenhum índice em comum entre X_test e X_test_with_odds.")
-        except Exception as e_align_odds:
-             logger.error(f"Erro ao alinhar odds com X_test: {e_align_odds}", exc_info=True)
-             X_test_odds = None # Ensure it's None if alignment fails
-    else: logger.warning("DF de odds ausente/vazio/sem coluna. ROI/EV não serão calculados no teste.")
-    # --- Fim Divisão Temporal ---
+    # 1. Divisão Temporal (uma vez para todos os modelos)
+    split_result = _temporal_train_test_split(X, y, TEST_SIZE, cv_splits_config)
+    if split_result is None: return False 
+    X_train_cv_data, y_train_cv_data, X_test_data, y_test_data = split_result
 
-    # Define TimeSeriesSplit para CV
-    n_cv_splits_ts = cv_splits
-    tscv = TimeSeriesSplit(n_splits=n_cv_splits_ts)
+    # 2. Alinhar Odds com X_test_data (uma vez)
+    X_test_odds_data_aligned = _align_odds_with_test_set(X_test_data, X_test_with_odds, odd_draw_col_name)
 
-    # --- Loop principal pelos modelos ---
-    for i, (model_name, config) in enumerate(available_models.items()):
-        status_text_loop = f"Modelo {i+1}/{len(available_models)}: {model_name}"
-        logger.info(f"\n--- {status_text_loop} ---")
-        if progress_callback_stages: progress_callback_stages(i, f"Iniciando {model_name}...")
-        start_time_model = time.time()
-        model_trained = None; best_params = None; current_scaler = None; calibrator = None;
-        best_pipeline_object = None; final_pipeline_trained = None # Pipeline treinado em T+CV
-        current_optimal_f1_threshold = DEFAULT_F1_THRESHOLD
-        current_optimal_ev_threshold = DEFAULT_EV_THRESHOLD
-        current_optimal_precision_threshold = 0.5
+    # 3. Definir CV Splitter (uma vez)
+    cv_temporal_splitter = TimeSeriesSplit(n_splits=cv_splits_config)
 
-        try:
-            # --- Setup do Modelo ---
-            try: model_class = eval(model_name)
-            except NameError: logger.error(f"Classe do modelo '{model_name}' não encontrada."); continue
-            except Exception as e_eval: logger.error(f"Erro ao obter classe para '{model_name}': {e_eval}."); continue
-            if model_class is None: logger.error(f"Classe {model_name} é None (importação falhou?)."); continue
+    # 4. Loop pelos modelos individuais
+    for model_idx, (current_model_name, current_model_config) in enumerate(available_model_configs.items()):
+        log_prefix = f"Mod {model_idx+1}/{len(available_model_configs)} ({current_model_name})"
+        logger.info(f"\n--- {log_prefix}: Iniciando ---")
+        if progress_callback_stages: progress_callback_stages(model_idx, f"Iniciando {current_model_name}...")
+        current_model_start_time = time.time()
 
-            model_kwargs = config.get('model_kwargs', {}); needs_scaling = config.get('needs_scaling', False)
-            use_bayes = SKOPT_AVAILABLE and 'search_spaces' in config and config['search_spaces'] is not None
-            param_space_or_grid = config.get('search_spaces') if use_bayes else config.get('param_grid')
+        # a. Setup do pipeline base para o modelo
+        base_model_pipeline = _setup_model_and_pipeline(current_model_name, current_model_config, sampler_type)
+        if base_model_pipeline is None: logger.error(f"{log_prefix} Falha no setup do pipeline."); continue
+        
+        model_requires_scaling = current_model_config.get('needs_scaling', False)
+        X_train_cv_for_this_model, X_test_for_this_model = X_train_cv_data.copy(), X_test_data.copy()
+        fitted_scaler_for_this_model = None
 
-            # --- Scaling (Usa X_train_cv e X_test) ---
-            X_train_cv_m = X_train_cv.copy()
-            X_test_m = X_test.copy() # Não há X_val_m
-            if needs_scaling:
-                if progress_callback_stages: progress_callback_stages(i, f"Scaling...")
-                try:
-                    X_train_cv_m, _, X_test_m, current_scaler = scale_features(X_train_cv_m, None, X_test_m, scaler_type)
-                    if current_scaler is None: raise ValueError("Scaler fitting/transform failed.") # Check if scaler is returned
-                    logger.info(" -> Scaling OK.")
-                except Exception as e_scale: logger.error(f" ERRO scaling p/ {model_name}: {e_scale}", exc_info=True); continue
-            # --- Fim Scaling ---
-
-            # --- Criação do Pipeline ---
-            pipeline_steps = []; sampler_instance = None; sampler_log_name = "None"
-            if sampler_type == 'smote' and SMOTE: sampler_instance = SMOTE(random_state=RANDOM_STATE); pipeline_steps.append(('sampler', sampler_instance)); sampler_log_name="SMOTE"
-            elif sampler_type == 'random' and RandomOverSampler: sampler_instance = RandomOverSampler(random_state=RANDOM_STATE); pipeline_steps.append(('sampler', sampler_instance)); sampler_log_name="RandomOverSampler"
-            pipeline_steps.append(('classifier', model_class(**model_kwargs)))
-            pipeline = ImbPipeline(pipeline_steps)
-            logger.info(f"  Pipeline criado (Sampler: {sampler_log_name}, Classifier: {model_name})")
-            # --- Fim Criação Pipeline ---
-
-            # --- Treino com Busca de Hiperparâmetros (CV Temporal) ---
-            if param_space_or_grid:
-                 search_method_name = 'BayesSearchCV' if use_bayes else 'GridSearchCV'
-                 search_status_msg = f"Ajustando CV ({search_method_name[:5]}" + (f"+{sampler_log_name})" if sampler_instance else ")")
-                 if progress_callback_stages: progress_callback_stages(i, search_status_msg);
-                 logger.info(f"  Iniciando {search_method_name} (Score: {scoring_metric}, CV: Temporal {n_cv_splits_ts} splits)...")
-                 try:
-                     if param_space_or_grid is None: raise ValueError(f"Espaço de busca/grid é None para {search_method_name} do modelo {model_name}")
-                     model_fit_params = config.get('fit_params', {})
-                     logger.debug(f"Fit params para {model_name}: {model_fit_params}")
-                     if use_bayes: search_cv = BayesSearchCV(estimator=pipeline, search_spaces=param_space_or_grid, n_iter=bayes_opt_n_iter, cv=tscv, n_jobs=N_JOBS_GRIDSEARCH, scoring=scoring_metric, random_state=RANDOM_STATE, verbose=0)
-                     else: search_cv = GridSearchCV(estimator=pipeline, param_grid=param_space_or_grid, cv=tscv, n_jobs=N_JOBS_GRIDSEARCH, scoring=scoring_metric, verbose=0, error_score='raise')
-                     search_cv.fit(X_train_cv_m, y_train_cv, **model_fit_params) # <<< Fit nos dados de treino+CV
-                     best_pipeline_object = search_cv.best_estimator_; # Este é o pipeline com os melhores params encontrados na CV
-                     best_params_raw = search_cv.best_params_; best_params = {k.replace('classifier__', ''): v for k, v in best_params_raw.items() if k.startswith('classifier__')}
-                     best_cv_score = search_cv.best_score_; logger.info(f"    -> Busca CV ({search_method_name}) OK. Melhor CV {scoring_metric}: {best_cv_score:.4f}. Params: {best_params}");
-                 except Exception as e_search: logger.error(f"    Erro {search_method_name}.fit: {e_search}", exc_info=True); model_trained=None; best_pipeline_object=None; logger.warning("    -> Tentando fallback treino padrão...");
-            # --- Fim Busca CV ---
-
-            # --- Fallback ou Treino Final ---
-            if best_pipeline_object is None: # Se CV falhou ou não foi usado
-                fallback_status = f"Ajustando (Padrão" + (f"+{sampler_log_name})" if sampler_instance else ")")
-                if progress_callback_stages: progress_callback_stages(i, fallback_status)
-                logger.info(f"  Treinando Pipeline com params padrão em TODO X_train_cv...");
-                try:
-                    pipeline.fit(X_train_cv_m, y_train_cv);
-                    final_pipeline_trained = pipeline # O pipeline treinado é o final
-                    model_fit_params_final = config.get('fit_params', {})
-                    final_pipeline_trained.fit(X_train_cv_m, y_train_cv, **model_fit_params_final)
-                    model_trained = final_pipeline_trained.named_steps['classifier']
-                    best_params = {k:v for k,v in model_trained.get_params().items() if k in model_kwargs} # Pega params default
-                    logger.info("    -> Treino padrão OK.")
-                except Exception as e_fall: logger.error(f"    Erro treino fallback: {e_fall}", exc_info=True); continue;
-            else: # Se CV funcionou, re-treina o melhor pipeline em todos os dados de treino+CV
-                logger.info(f"  Re-ajustando MELHOR pipeline encontrado pela CV em TODO X_train_cv...")
-                try:
-                    final_pipeline_trained = clone(best_pipeline_object) # Clona o melhor da CV
-                    final_pipeline_trained.fit(X_train_cv_m, y_train_cv) # Re-treina
-                    model_trained = final_pipeline_trained.named_steps['classifier'] # Modelo final
-                    # best_params já foi definido pela CV
-                    logger.info("  -> Re-ajuste final OK.")
-                except Exception as e_refit: logger.error(f"  ERRO ao re-ajustar pipeline final: {e_refit}", exc_info=True); continue;
-
-            if final_pipeline_trained is None or model_trained is None: logger.error(" Falha crítica no treino final."); continue;
-            # --- Fim Treino Final ---
-
-            # --- Previsão, Calibração e Otimização (Simplificado: no Conjunto de Teste) ---
-            # (Aviso: Avaliação será otimista, pois calibração/limiares usam dados de teste)
-            y_proba_test_raw_full, y_proba_test_raw_draw = None, None
-            if hasattr(final_pipeline_trained, "predict_proba"):
-                 try:
-                     y_proba_test_raw_full = final_pipeline_trained.predict_proba(X_test_m) # Usa pipeline final treinado
-                     if y_proba_test_raw_full.shape[1] >= 2: y_proba_test_raw_draw = y_proba_test_raw_full[:, 1]
-                 except Exception as e_pred_test: logger.error(f"  Erro predict_proba teste final: {e_pred_test}")
-
-            # Calibrar no Teste
-            calibrator = None; y_proba_test_calib = None
-            if y_proba_test_raw_draw is not None:
-                if progress_callback_stages: progress_callback_stages(i, "Calibrando (Teste)...");
-                logger.warning(f"  AVISO: Calibrando probs ({calibration_method}) no CONJUNTO DE TESTE (avaliação otimista)...");
-                try:
-                    if calibration_method == 'isotonic': calibrator = IsotonicRegression(out_of_bounds='clip')
-                    else: logger.warning(f"Método calibração '{calibration_method}' não suportado. Usando Isotonic."); calibrator = IsotonicRegression(out_of_bounds='clip')
-                    # Fit calibrator on test set predictions and labels
-                    calibrator.fit(y_proba_test_raw_draw, y_test)
-                    y_proba_test_calib = calibrator.predict(y_proba_test_raw_draw)
-                    logger.info("  -> Calibrador treinado (no Teste).")
-                except ValueError as ve:
-                    logger.error(f"  Erro (ValueError) durante calibração (no Teste): {ve}. Usando probs brutas.")
-                    calibrator = None; y_proba_test_calib = y_proba_test_raw_draw # Fallback
-                except Exception as e_calib:
-                    logger.error(f"  Erro INESPERADO durante calibração (no Teste): {e_calib}", exc_info=True);
-                    calibrator = None; y_proba_test_calib = y_proba_test_raw_draw # Fallback
-            else: logger.warning("  Probs brutas de teste ausentes. Calibração pulada.")
-
-            # Probs a serem usadas para otimização e avaliação final
-            proba_opt_eval_test = y_proba_test_calib if calibrator and y_proba_test_calib is not None else y_proba_test_raw_draw
-            opt_eval_src_test = 'Calib(Teste)' if calibrator and y_proba_test_calib is not None else ('Raw(Teste)' if proba_opt_eval_test is not None else 'N/A')
-
-            # Otimizar Limiares no Teste
-            if proba_opt_eval_test is not None:
-                logger.warning(f"  AVISO: Otimizando limiares (F1, EV, Prec) no CONJUNTO DE TESTE (avaliação otimista)...")
-                # Otimização F1 (no Teste)
-                if optimize_f1_threshold:
-                    if progress_callback_stages: progress_callback_stages(i, f"Otimizando F1 Thr ({opt_eval_src_test})...")
-                    try:
-                        p,r,t=precision_recall_curve(y_test,proba_opt_eval_test);
-                        # Ensure p and r have the same length as t for f1 calculation
-                        min_len = min(len(p), len(r))
-                        p, r = p[:min_len], r[:min_len]
-                        f1 = np.divide(2*p*r, p+r+FEATURE_EPSILON, where=(p+r)>0, out=np.zeros_like(p+r))
-                        # Find threshold corresponding to max f1 (need to handle threshold array length)
-                        if len(t) == len(f1): # Standard case
-                           idx=np.argmax(f1); best_test_f1=f1[idx]; current_optimal_f1_threshold=t[idx];
-                        elif len(t) == len(f1) - 1: # Sometimes thresholds array is one shorter
-                           idx=np.argmax(f1[:-1]); best_test_f1=f1[idx]; current_optimal_f1_threshold=t[idx];
-                        else: # Unexpected length difference
-                            logger.warning(f"Otim F1: Tamanho t ({len(t)}) vs f1 ({len(f1)}) incompatível. Usando F1 máximo.")
-                            idx=np.argmax(f1); best_test_f1=f1[idx];
-                            # Cannot reliably get threshold, use default or midpoint? Let's use default.
-                            current_optimal_f1_threshold=DEFAULT_F1_THRESHOLD
-                        logger.info(f"    Limiar F1 ótimo(Teste): {current_optimal_f1_threshold:.4f} (F1={best_test_f1:.4f})")
-                    except Exception as e_f1: logger.error(f"  Erro otim F1 (Teste): {e_f1}"); current_optimal_f1_threshold=DEFAULT_F1_THRESHOLD
-
-                # Otimização EV (no Teste)
-                if optimize_ev_threshold and X_test_odds is not None:
-                    if progress_callback_stages: progress_callback_stages(i, f"Otimizando EV Thr ({opt_eval_src_test})...")
-                    try:
-                        best_test_roi_ev=-np.inf; ev_ths=np.linspace(0.0,0.20,21);
-                        for ev_th in ev_ths:
-                           test_roi,_,_=calculate_metrics_with_ev(y_test, proba_opt_eval_test, ev_th, X_test_odds, odd_draw_col_name);
-                           if test_roi is not None and test_roi>best_test_roi_ev: best_test_roi_ev=test_roi; current_optimal_ev_threshold=ev_th;
-                        if best_test_roi_ev > -np.inf: logger.info(f"    Limiar EV ótimo(Teste): {current_optimal_ev_threshold:.3f} (ROI={best_test_roi_ev:.2f}%)")
-                        else: logger.warning("    ROI Teste inválido/negativo em otimização EV."); current_optimal_ev_threshold = DEFAULT_EV_THRESHOLD;
-                    except Exception as e_ev: logger.error(f"  Erro otim EV (Teste): {e_ev}"); current_optimal_ev_threshold = DEFAULT_EV_THRESHOLD;
-                elif optimize_ev_threshold: logger.warning(f"  Otim EV (Teste) pulada (sem odds Teste).")
-
-                # Otimização Precision (no Teste)
-                if optimize_precision_threshold:
-                    if progress_callback_stages: progress_callback_stages(i, f"Otimizando Prec Thr ({opt_eval_src_test})...")
-                    logger.info(f"  Otimizando Precision (Teste Probs {opt_eval_src_test}, Recall Mín: {min_recall_target:.1%})...");
-                    try:
-                        best_test_precision=-1.0; found_prec_thr_test=False;
-                        # Use thresholds from precision_recall_curve if available, else linspace
-                        if 'p' in locals() and 't' in locals() and len(p) == len(t) + 1:
-                           thresholds_test = t
-                        else:
-                           thresholds_test=np.linspace(np.min(proba_opt_eval_test)+1e-4,np.min([np.max(proba_opt_eval_test)-1e-4,0.99]),100)
-
-                        current_optimal_precision_threshold = 0.5 # Reset default before searching
-                        for t in thresholds_test:
-                            y_pred_v=(proba_opt_eval_test>=t).astype(int);
-                            prec=precision_score(y_test,y_pred_v,pos_label=1,zero_division=0);
-                            rec=recall_score(y_test,y_pred_v,pos_label=1,zero_division=0);
-                            if rec >= min_recall_target and prec >= best_test_precision:
-                                if prec > best_test_precision or t > current_optimal_precision_threshold:
-                                    best_test_precision=prec; current_optimal_precision_threshold=t; found_prec_thr_test=True;
-                        if found_prec_thr_test:
-                            final_rec_test=recall_score(y_test,(proba_opt_eval_test>=current_optimal_precision_threshold).astype(int),pos_label=1,zero_division=0);
-                            logger.info(f"    Limiar Prec ótimo(Teste): {current_optimal_precision_threshold:.4f} (Prec={best_test_precision:.4f}, Rec={final_rec_test:.4f})")
-                        else:
-                            logger.warning(f"    Não encontrou limiar p/ Recall Mín {min_recall_target:.1%} no Teste. Usando default 0.5");
-                            current_optimal_precision_threshold=0.5
-                    except Exception as e_prec:
-                        logger.error(f"  Erro otim Precision (Teste): {e_prec}");
-                        current_optimal_precision_threshold=0.5
-                elif optimize_precision_threshold:
-                     logger.warning(f"  Otim Prec (Teste) pulada (sem probs Teste).")
-                     current_optimal_precision_threshold=0.5
-            else:
-                logger.warning("  Otimização de limiares pulada (sem probs de teste).")
-                # Use default thresholds if probs aren't available
-                current_optimal_f1_threshold = DEFAULT_F1_THRESHOLD
-                current_optimal_ev_threshold = DEFAULT_EV_THRESHOLD
-                current_optimal_precision_threshold = 0.5
-            # --- Fim Otimização ---
-
-            # --- Avaliação Final no Teste ---
-            if progress_callback_stages: progress_callback_stages(i, f"Avaliando (Final)..."); logger.info(f"  Avaliando Modelo FINAL no Teste...")
-            metrics = {
-                'optimal_f1_threshold': current_optimal_f1_threshold,
-                'optimal_ev_threshold': current_optimal_ev_threshold,
-                'optimal_precision_threshold': current_optimal_precision_threshold,
-                'model_name': model_name # Add model name here for clarity in results dict
-            }
-            eval_src_test = 'Calib(Teste)' if calibrator and y_proba_test_calib is not None else ('Raw(Teste)' if y_proba_test_raw_draw is not None else 'N/A')
-            logger.info(f"  Calculando métricas teste final (probs: {eval_src_test})")
-
-            # Métricas @ Thr 0.5 (usando predict do pipeline final)
+        if model_requires_scaling:
+            if progress_callback_stages:
+                progress_callback_stages(model_idx, f"Mod {model_idx+1}/{len(available_model_configs)} ({current_model_name}): Scaling...")
             try:
-                y_pred05 = final_pipeline_trained.predict(X_test_m);
-                metrics.update({
-                    'accuracy_thr05':accuracy_score(y_test,y_pred05),
-                    'precision_draw_thr05':precision_score(y_test,y_pred05,pos_label=1,zero_division=0),
-                    'recall_draw_thr05':recall_score(y_test,y_pred05,pos_label=1,zero_division=0),
-                    'f1_score_draw_thr05':f1_score(y_test,y_pred05,pos_label=1,zero_division=0)
-                });
-                logger.info(f"    -> Métricas @ Thr 0.5: F1={metrics['f1_score_draw_thr05']:.4f}, P={metrics['precision_draw_thr05']:.4f}, R={metrics['recall_draw_thr05']:.4f}")
-            except Exception as e: logger.error(f"  Erro métricas @ 0.5 (Final): {e}")
+                X_train_cv_for_this_model, _, X_test_for_this_model, fitted_scaler_for_this_model = \
+                    scale_features(X_train_cv_for_this_model, None, X_test_for_this_model, scaler_type)
+                if fitted_scaler_for_this_model is None: raise ValueError("Scaler não foi ajustado/retornado.")
+                logger.info(f"{log_prefix} Scaling OK.")
+            except Exception as e: logger.error(f"{log_prefix} ERRO scaling: {e}", exc_info=True); continue
 
-            if proba_opt_eval_test is not None:
-                 # Métricas @ Thr F1 (Otimizado no Teste)
-                 try:
-                     y_predF1=(proba_opt_eval_test>=current_optimal_f1_threshold).astype(int);
-                     metrics.update({
-                         'accuracy_thrF1':accuracy_score(y_test,y_predF1),
-                         'precision_draw_thrF1':precision_score(y_test,y_predF1,pos_label=1,zero_division=0),
-                         'recall_draw_thrF1':recall_score(y_test,y_predF1,pos_label=1,zero_division=0),
-                         'f1_score_draw':f1_score(y_test,y_predF1,pos_label=1,zero_division=0) # Chave principal
-                         });
-                     logger.info(f"    -> Métricas @ Thr F1 ({current_optimal_f1_threshold:.4f}): F1={metrics['f1_score_draw']:.4f}, P={metrics['precision_draw_thrF1']:.4f}, R={metrics['recall_draw_thrF1']:.4f}")
-                 except Exception as e: logger.error(f"  Erro métricas @ Thr F1 (Final): {e}"); metrics['f1_score_draw']=metrics.get('f1_score_draw_thr05',-1.0);
+        # b. Busca de Hiperparâmetros
+        if progress_callback_stages: 
+            progress_callback_stages(model_idx, f"Mod {model_idx+1}/{len(available_model_configs)} ({current_model_name}): Otim. Hiperparams...")
+        best_cv_pipeline, best_cv_params = _perform_hyperparameter_search(
+            base_model_pipeline, X_train_cv_for_this_model, y_train_cv_data, current_model_config,
+            cv_temporal_splitter, cv_scoring_metric_config, bayes_opt_n_iter_config, current_model_name
+        ) 
 
-                 # Métricas @ Thr Prec (Otimizado no Teste)
-                 try:
-                     y_predPrec=(proba_opt_eval_test>=current_optimal_precision_threshold).astype(int);
-                     metrics.update({
-                         'accuracy_thrPrec':accuracy_score(y_test,y_predPrec),
-                         'precision_draw_thrPrec':precision_score(y_test,y_predPrec,pos_label=1,zero_division=0),
-                         'recall_draw_thrPrec':recall_score(y_test,y_predPrec,pos_label=1,zero_division=0),
-                         'f1_score_draw_thrPrec':f1_score(y_test,y_predPrec,pos_label=1,zero_division=0)
-                     });
-                     logger.info(f"    -> Métricas @ Thr Prec ({current_optimal_precision_threshold:.4f}): F1={metrics['f1_score_draw_thrPrec']:.4f}, P={metrics['precision_draw_thrPrec']:.4f}, R={metrics['recall_draw_thrPrec']:.4f}")
-                 except Exception as e: logger.error(f"  Erro métricas @ Thr Prec (Final): {e}")
+        # c. Treino Final do Pipeline
+        if progress_callback_stages: progress_callback_stages(model_idx, f"{log_prefix}: Treino Final...")
+        final_trained_pipeline, final_classifier_instance, effective_final_params = _train_final_pipeline(
+            base_model_pipeline, best_cv_pipeline, X_train_cv_for_this_model, y_train_cv_data,
+            current_model_config.get('fit_params', {}), current_model_name
+        )
+        if not final_trained_pipeline or not final_classifier_instance:
+            logger.error(f"{log_prefix} Falha crítica no treino final. Pulando."); continue
 
-                 # Métricas Probabilísticas Finais
-                 logloss,auc,brier=None,None,None;
-                 try: logloss=log_loss(y_test,y_proba_test_raw_full) if y_proba_test_raw_full is not None else None
-                 except Exception as e: logger.warning(f"Erro LogLoss: {e}")
-                 try: auc=roc_auc_score(y_test,proba_opt_eval_test) if len(np.unique(y_test))>1 else 0.5 # Use 0.5 if only one class in test
-                 except Exception as e: logger.warning(f"Erro AUC: {e}")
-                 try: brier=brier_score_loss(y_test,proba_opt_eval_test)
-                 except Exception as e: logger.warning(f"Erro Brier: {e}")
-                 metrics.update({'log_loss':logloss,'roc_auc':auc,'brier_score':brier});
-                 logger.info(f"    -> AUC({eval_src_test})={auc:.4f}, Brier({eval_src_test})={brier:.4f}" if auc is not None and brier is not None else f"    -> AUC/Brier({eval_src_test})=N/A")
+        # d. Previsão de Probabilidades no Teste
+        raw_test_probas_full, raw_test_probas_draw = None, None
+        if hasattr(final_trained_pipeline, "predict_proba"):
+            try:
+                raw_test_probas_full = final_trained_pipeline.predict_proba(X_test_for_this_model) 
+                if raw_test_probas_full.shape[1] >= 2: raw_test_probas_draw = raw_test_probas_full[:, 1]
+            except Exception as e: logger.error(f"{log_prefix} Erro predict_proba teste: {e}")
+        else: logger.warning(f"{log_prefix} Pipeline final sem predict_proba.")
 
-                 # Métricas EV/ROI Finais (com limiar EV otimizado no teste)
-                 roi_ev,bets_ev,profit_ev = calculate_metrics_with_ev(y_test,proba_opt_eval_test,current_optimal_ev_threshold,X_test_odds,odd_draw_col_name) if X_test_odds is not None else (None,0,None);
-                 metrics.update({'roi':roi_ev,'num_bets':bets_ev,'profit':profit_ev});
-                 roi_str_final = f"{roi_ev:.2f}%" if roi_ev is not None and np.isfinite(roi_ev) else "N/A"
-                 logger.info(f"    -> ROI @ Thr EV ({current_optimal_ev_threshold:.3f}) = {roi_str_final} ({bets_ev} bets)")
+        # e. Calibração e Otimização de Limiares (no teste)
+        logger.warning(f"{log_prefix} AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE (avaliação otimista).")
+        calibrator, probas_calib_draw_test, f1_thr, ev_thr, prec_thr = _calibrate_and_optimize_thresholds(
+            y_test_data, raw_test_probas_draw, X_test_odds_data_aligned, odd_draw_col_name, calibration_method,
+            optimize_f1_threshold_flag, optimize_ev_threshold_flag, optimize_precision_threshold_flag,
+            min_recall_target_for_prec_opt, current_model_name, progress_callback_stages, model_idx
+        )
+        final_probas_for_eval = probas_calib_draw_test if calibrator and probas_calib_draw_test is not None else raw_test_probas_draw
 
-            else: # Fallback se não houver probs
-                 metrics['f1_score_draw']=metrics.get('f1_score_draw_thr05',-1.0); logger.info(" Usando métricas @ 0.5 como F1 final (sem probs).")
-                 metrics.update({'log_loss':None,'roc_auc':None,'brier_score':None, 'roi':None,'num_bets':0,'profit':None})
+        # f. Avaliação Final no Teste
+        if progress_callback_stages: progress_callback_stages(model_idx, f"{log_prefix}: Avaliando...")
+        model_metrics = _evaluate_model_on_test_set(
+            final_trained_pipeline, X_test_for_this_model, y_test_data, raw_test_probas_full,
+            final_probas_for_eval, f1_thr, ev_thr, prec_thr,
+            X_test_odds_data_aligned, odd_draw_col_name, current_model_name
+        )
+        model_metrics['train_set_size'] = len(y_train_cv_data)
 
-            # Add dataset sizes to metrics
-            metrics.update({'train_set_size':len(y_train_cv),'test_set_size':len(y_test)});
+        all_individual_model_results.append({
+            'model_name': current_model_name, 'model_object': final_classifier_instance,
+            'pipeline_object': final_trained_pipeline, 'scaler': fitted_scaler_for_this_model,
+            'calibrator': calibrator, 'params': effective_final_params, 
+            'metrics': model_metrics
+        })
+        if progress_callback_stages: progress_callback_stages(model_idx + 1, f"{current_model_name} OK.")
+        logger.info(f"{log_prefix} Concluído. Tempo: {time.time() - current_model_start_time:.2f}s")
+    # --- Fim Loop Modelos Individuais ---
 
-            # --- Guarda resultado FINAL ---
-            all_results.append({
-                'model_name': model_name,
-                'model_object': model_trained, # O classificador final treinado
-                'pipeline_object': final_pipeline_trained, # O pipeline final treinado
-                'scaler': current_scaler,
-                'calibrator': calibrator, # Calibrador ajustado no teste
-                'params': best_params, # Melhores params da CV temporal
-                'metrics': metrics, # Métricas FINAIS avaliadas no teste
-                # Os limiares ótimos (calculados no teste) já estão DENTRO de 'metrics'
-                'optimal_f1_threshold': current_optimal_f1_threshold, # Redundante, mas ok
-                'optimal_ev_threshold': current_optimal_ev_threshold, # Redundante, mas ok
-            })
+    # 5. Lógica do Ensemble 
+    if len(all_individual_model_results) >= 2 and n_ensemble_models_config > 0:
+        if progress_callback_stages: progress_callback_stages(len(available_model_configs), "Construindo Ensemble...")
+        logger.info(f"\n--- Construindo Ensemble com Top {n_ensemble_models_config} Modelos ---")
+        
+        # Ordena por F1 (chave principal) para selecionar os melhores para o ensemble
+        all_individual_model_results.sort(key=lambda r: r['metrics'].get(BEST_MODEL_METRIC, -1.0), reverse=True)
+        top_n_for_ensemble = all_individual_model_results[:n_ensemble_models_config]
+        
+        ensemble_estimators_list = []
+        ensemble_needs_scaling_flags = [] # Para verificar se o ensemble precisa de dados escalados
+        
+        for i_ens, res_ens in enumerate(top_n_for_ensemble):
+            estimator_for_ensemble = res_ens.get('pipeline_object')
+            if estimator_for_ensemble is None:
+                logger.warning(f"Modelo base {res_ens.get('model_name')} sem pipeline_object. Usando model_object (pode faltar sampler).")
+                estimator_for_ensemble = res_ens.get('model_object')
 
-            if progress_callback_stages: progress_callback_stages(i + 1, f"Modelo {model_name} OK");
-            logger.info(f"    ==> Resultado FINAL {model_name} adicionado.")
-
-        except Exception as e_outer: logger.error(f"Erro GERAL loop {model_name}: {e_outer}", exc_info=True); continue # Pula modelo se erro grave
-        logger.info(f"  Tempo p/ {model_name}: {time.time() - start_time_model:.2f} seg.")
-    # --- Fim do Loop for ---
-
-    if len(all_results) >= 2: # Precisa de pelo menos 2 modelos
-        # Ordena resultados individuais por F1 (calculado no teste) para pegar os melhores
-        # Filtra para garantir que só modelos com objeto real sejam considerados
-        valid_results_for_ensemble = [r for r in all_results if r.get('pipeline_object') or r.get('model_object')]
-        if len(valid_results_for_ensemble) < 2:
-             logger.warning("Modelos individuais válidos insuficientes para ensemble (<2).")
-        else:
-            valid_results_for_ensemble.sort(key=lambda r: r['metrics'].get('f1_score_draw', -1.0), reverse=True)
-            top_n_results = valid_results_for_ensemble[:n_ensemble_models]
-            top_n_model_names = [r['model_name'] for r in top_n_results]
-            logger.info(f"\n--- Criando Ensemble com Top {len(top_n_results)} Modelos (por F1 no Teste): {top_n_model_names} ---")
-
-            ensemble_estimators = []
-            for result_idx, result in enumerate(top_n_results):
-                model_name = result['model_name']
-                # Prioriza pegar o pipeline final treinado (que inclui sampler)
-                pipeline_to_use = result.get('pipeline_object')
-                if pipeline_to_use is None:
-                     # Fallback para pegar apenas o model_object se o pipeline não foi salvo (menos ideal)
-                     pipeline_to_use = result.get('model_object')
-                     if pipeline_to_use is None:
-                         logger.warning(f"Pipeline/Modelo treinado não encontrado para {model_name} no índice {result_idx}. Pulando para ensemble.")
-                         continue
-                     else:
-                          logger.warning(f"Usando apenas model_object para {model_name} no ensemble (sampler pode estar faltando).")
+            if estimator_for_ensemble:
+                unique_estimator_name = f"{res_ens.get('model_name', f'model{i_ens}')}_{i_ens}"
+                ensemble_estimators_list.append((unique_estimator_name, clone(estimator_for_ensemble)))
+                
+                if res_ens.get('scaler') is not None:
+                    ensemble_needs_scaling_flags.append(True)
                 else:
-                     logger.info(f"  Usando pipeline_object para {model_name} no ensemble.")
-
-
-                # Usa um ID único incluindo o índice original do all_results para evitar conflitos
-                # Precisa encontrar o índice original em all_results para garantir unicidade se houver modelos iguais
-                original_index = next((idx for idx, r in enumerate(all_results) if r['model_name'] == model_name and r['metrics'] == result['metrics']), f"fallback{result_idx}") # Fallback ID if exact match fails
-
-                model_id = f"{model_name}_{original_index}"
-
-                # Clona o pipeline/modelo FINAL treinado para o ensemble
-                estimator_clone = clone(pipeline_to_use)
-                ensemble_estimators.append((model_id, estimator_clone))
-                # logger.info(f"  Adicionando '{model_name}' (ID: {model_id}) ao ensemble.") # Log mais detalhado opcional
-
-            if not ensemble_estimators:
-                logger.error("ENSEMBLE: Nenhum estimador válido clonado para criar ensemble.")
+                    ensemble_needs_scaling_flags.append(False)
             else:
-                # Cria o Voting Classifier
-                voting_clf = VotingClassifier(estimators=ensemble_estimators, voting='soft', n_jobs=N_JOBS_GRIDSEARCH, verbose=False)
+                logger.warning(f"Estimador base {res_ens.get('model_name')} não pôde ser adicionado ao ensemble (objeto ausente).")
 
-                # <<< CORREÇÃO AQUI: Chamar fit() no VotingClassifier >>>
-                logger.info("  Ajustando o wrapper VotingClassifier (não re-treina bases)...")
-                try:
-                    
-                    if 'X_train_cv_m' not in locals() or 'y_train_cv' not in locals():
-                         
-                         logger.warning("X_train_cv_m não encontrado no escopo local para fit do VotingClassifier, tentando usar X_train_cv original.")
-                         
-                         if 'X_train_cv_m' not in locals(): raise NameError("X_train_cv_m não está definido para fit do VotingClassifier")
+        if ensemble_estimators_list:
+            voting_clf_ensemble = VotingClassifier(estimators=ensemble_estimators_list, voting='soft', n_jobs=N_JOBS_GRIDSEARCH, verbose=False)
+            
+            X_train_cv_for_ensemble = X_train_cv_data.copy()
+            X_test_for_ensemble_eval = X_test_data.copy()
+            scaler_for_ensemble = None
 
-                    voting_clf.fit(X_train_cv_m, y_train_cv)
-                    logger.info("  Wrapper VotingClassifier ajustado.")
-                except Exception as e_vc_fit:
-                     logger.error(f"Erro ao ajustar o wrapper VotingClassifier: {e_vc_fit}", exc_info=True)
-                     voting_clf = None # Marca como falho
+            if any(ensemble_needs_scaling_flags):
+                logger.info("Ensemble: Pelo menos um modelo base requer scaling. Aplicando scaling aos dados para o ensemble.")
+                first_scaled_model_res = next((r for i, r in enumerate(top_n_for_ensemble) if ensemble_needs_scaling_flags[i]), None)
+                if first_scaled_model_res and first_scaled_model_res.get('scaler'):
+                    scaler_for_ensemble = clone(first_scaled_model_res.get('scaler')) 
+                    X_train_cv_for_ensemble, _, X_test_for_ensemble_eval, _ = scale_features(
+                        X_train_cv_data, None, X_test_data, scaler_type 
+                    ) 
+                else:
+                    logger.warning("Ensemble: Modelos base precisam de scaling, mas nenhum scaler encontrado. Tentando sem scaling (pode falhar).")
 
-                # --- Avaliação do Ensemble (só continua se voting_clf foi ajustado) ---
-                if voting_clf:
-                    logger.info("  Avaliando VotingClassifier (ajustado) no Teste...")
+            logger.info("  Ajustando o wrapper VotingClassifier...")
+            try:
+                voting_clf_ensemble.fit(X_train_cv_for_ensemble, y_train_cv_data) 
+                logger.info("  -> Wrapper VotingClassifier ajustado.")
+
+                # Avaliação do Ensemble
+                raw_probas_ensemble_full, raw_probas_ensemble_draw = None, None
+                if hasattr(voting_clf_ensemble, "predict_proba"):
                     try:
-                        # Usa X_test_m (dados de teste, potencialmente escalados)
-                        y_pred_ensemble_05 = voting_clf.predict(X_test_m)
-                        y_proba_ensemble_full = voting_clf.predict_proba(X_test_m)
-                        ensemble_metrics = {'model_name': 'VotingEnsemble'}
+                        raw_probas_ensemble_full = voting_clf_ensemble.predict_proba(X_test_for_ensemble_eval) 
+                        if raw_probas_ensemble_full.shape[1] >=2: raw_probas_ensemble_draw = raw_probas_ensemble_full[:,1]
+                    except Exception as e_ens_pred: logger.error(f"Erro predict_proba Ensemble: {e_ens_pred}")
+                
+                logger.warning("Ensemble: AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE.")
+                ens_calib, ens_probas_calib_draw, ens_f1_thr, ens_ev_thr, ens_prec_thr = _calibrate_and_optimize_thresholds(
+                    y_test_data, raw_probas_ensemble_draw, X_test_odds_data_aligned, odd_draw_col_name, calibration_method,
+                    optimize_f1_threshold_flag, optimize_ev_threshold_flag, optimize_precision_threshold_flag,
+                    min_recall_target_for_prec_opt, "VotingEnsemble", progress_callback_stages, len(available_model_configs) # Progresso para ensemble
+                )
+                ens_final_probas_eval = ens_probas_calib_draw if ens_calib and ens_probas_calib_draw is not None else raw_probas_ensemble_draw
 
-                        if y_proba_ensemble_full.shape[1] >= 2:
-                            y_proba_ensemble_draw = y_proba_ensemble_full[:, 1]
+                ensemble_metrics = _evaluate_model_on_test_set(
+                    voting_clf_ensemble, X_test_for_ensemble_eval, y_test_data, raw_probas_ensemble_full,
+                    ens_final_probas_eval, ens_f1_thr, ens_ev_thr, ens_prec_thr,
+                    X_test_odds_data_aligned, odd_draw_col_name, "VotingEnsemble"
+                )
+                ensemble_metrics['train_set_size'] = len(y_train_cv_data)
 
-                            # Calibração e Otimização de Limiares para o ENSEMBLE (no Teste)
-                            logger.info("  Calibrando/Otimizando limiares p/ Ensemble (no Teste)...")
-                            try:
-                                ens_calibrator = IsotonicRegression(out_of_bounds='clip').fit(y_proba_ensemble_draw, y_test)
-                                y_proba_ens_calib = ens_calibrator.predict(y_proba_ensemble_draw)
-                            except Exception as e_ens_calib:
-                                logger.error(f"Erro ao calibrar Ensemble: {e_ens_calib}")
-                                ens_calibrator = None
-                                y_proba_ens_calib = y_proba_ensemble_draw # Fallback para raw
+                all_individual_model_results.append({ 
+                    'model_name': 'VotingEnsemble', 'model_object': voting_clf_ensemble,
+                    'pipeline_object': None, 
+                    'scaler': scaler_for_ensemble, 
+                    'calibrator': ens_calib, 'params': {'estimators': [e[0] for e in ensemble_estimators_list], 'voting':'soft'},
+                    'metrics': ensemble_metrics
+                })
+                logger.info("  -> Ensemble avaliado e adicionado aos resultados.")
+            except Exception as e_ens_fit_eval: logger.error(f"Erro ao treinar/avaliar Ensemble: {e_ens_fit_eval}", exc_info=True)
+        else: logger.warning("Nenhum estimador válido para o ensemble.")
+    # --- Fim Lógica Ensemble ---
 
-                            proba_opt_eval_ens = y_proba_ens_calib if ens_calibrator else y_proba_ensemble_draw
-                            opt_eval_src_ens = 'Calib(Teste)' if ens_calibrator else 'Raw(Teste)'
-
-                            ens_f1_thr, ens_ev_thr, ens_prec_thr = DEFAULT_F1_THRESHOLD, DEFAULT_EV_THRESHOLD, 0.5 # Defaults
-
-                            # Otim F1 Ensemble
-                            if optimize_f1_threshold and proba_opt_eval_ens is not None:
-                                try:
-                                    p, r, t = precision_recall_curve(y_test, proba_opt_eval_ens)
-                                    min_len=min(len(p),len(r)); p,r=p[:min_len],r[:min_len]
-                                    f1=np.divide(2*p*r,p+r+FEATURE_EPSILON,where=(p+r)>0,out=np.zeros_like(p+r))
-                                    valid_f1_indices = np.where(np.isfinite(f1))[0] # Ignora NaN/inf em f1
-                                    if len(valid_f1_indices)>0:
-                                         f1_valid = f1[valid_f1_indices]
-                                         idx = valid_f1_indices[np.argmax(f1_valid)]
-                                         # Ajusta índice para threshold t (que pode ser menor)
-                                         thr_idx = min(idx, len(t)-1) if len(t)>0 else 0
-                                         if len(t)>0 : ens_f1_thr = t[thr_idx]
-                                         else: logger.warning("Array de thresholds vazio na otim F1 Ensemble.")
-                                    else: logger.warning("Nenhum valor F1 válido encontrado para otimização Ensemble.")
-                                except Exception as e_f1_ens: logger.error(f"Erro Otim F1 Ensemble: {e_f1_ens}")
-
-                            # Otim EV Ensemble
-                            if optimize_ev_threshold and proba_opt_eval_ens is not None and X_test_odds is not None:
-                                try:
-                                    best_roi_ens=-np.inf; ev_ths=np.linspace(0.0,0.2,21);
-                                    for ev_th in ev_ths:
-                                        val_roi,_,_=calculate_metrics_with_ev(y_test,proba_opt_eval_ens,ev_th,X_test_odds,odd_draw_col_name);
-                                        if val_roi is not None and np.isfinite(val_roi) and val_roi>best_roi_ens: best_roi_ens=val_roi; ens_ev_thr=ev_th;
-                                except Exception as e_ev_ens: logger.error(f"Erro Otim EV Ensemble: {e_ev_ens}")
-
-                            # Otim Prec Ensemble
-                            if optimize_precision_threshold and proba_opt_eval_ens is not None:
-                                try:
-                                    best_prec_ens=-1.0; found_prec_ens=False;
-                                    thresholds_test_ens=np.linspace(np.min(proba_opt_eval_ens)+1e-4,np.min([np.max(proba_opt_eval_ens)-1e-4,0.99]),100);
-                                    ens_prec_thr=0.5
-                                    for t_ens in thresholds_test_ens:
-                                        y_pred_v_ens=(proba_opt_eval_ens>=t_ens).astype(int); prec_ens=precision_score(y_test,y_pred_v_ens,pos_label=1,zero_division=0); rec_ens=recall_score(y_test,y_pred_v_ens,pos_label=1,zero_division=0);
-                                        if rec_ens>=min_recall_target and prec_ens>=best_prec_ens:
-                                            if prec_ens>best_prec_ens or t_ens>ens_prec_thr: best_prec_ens=prec_ens; ens_prec_thr=t_ens; found_prec_ens=True;
-                                    if not found_prec_ens: ens_prec_thr = 0.5 # Fallback if no suitable threshold found
-                                except Exception as e_prec_ens: logger.error(f"Erro Otim Prec Ensemble: {e_prec_ens}"); ens_prec_thr = 0.5
-
-
-                            # Calcula Métricas Ensemble
-                            y_pred_ens_f1=(proba_opt_eval_ens >= ens_f1_thr).astype(int) if proba_opt_eval_ens is not None else y_pred_ensemble_05
-                            y_pred_ens_prec=(proba_opt_eval_ens >= ens_prec_thr).astype(int) if proba_opt_eval_ens is not None else y_pred_ensemble_05
-                            ensemble_metrics.update({
-                                'optimal_f1_threshold':ens_f1_thr, 'optimal_ev_threshold':ens_ev_thr, 'optimal_precision_threshold':ens_prec_thr,
-                                'accuracy_thr05':accuracy_score(y_test,y_pred_ensemble_05),'precision_draw_thr05':precision_score(y_test,y_pred_ensemble_05,pos_label=1,zero_division=0),'recall_draw_thr05':recall_score(y_test,y_pred_ensemble_05,pos_label=1,zero_division=0),'f1_score_draw_thr05':f1_score(y_test,y_pred_ensemble_05,pos_label=1,zero_division=0),
-                                'accuracy_thrF1':accuracy_score(y_test,y_pred_ens_f1),'precision_draw_thrF1':precision_score(y_test,y_pred_ens_f1,pos_label=1,zero_division=0),'recall_draw_thrF1':recall_score(y_test,y_pred_ens_f1,pos_label=1,zero_division=0),'f1_score_draw':f1_score(y_test,y_pred_ens_f1,pos_label=1,zero_division=0),
-                                'accuracy_thrPrec':accuracy_score(y_test,y_pred_ens_prec),'precision_draw_thrPrec':precision_score(y_test,y_pred_ens_prec,pos_label=1,zero_division=0),'recall_draw_thrPrec':recall_score(y_test,y_pred_ens_prec,pos_label=1,zero_division=0),'f1_score_draw_thrPrec':f1_score(y_test,y_pred_ens_prec,pos_label=1,zero_division=0),
-                            })
-                            # Métricas Prob Ensemble
-                            if proba_opt_eval_ens is not None:
-                                try: ensemble_metrics['roc_auc']=roc_auc_score(y_test,proba_opt_eval_ens) if len(np.unique(y_test))>1 else 0.5
-                                except: ensemble_metrics['roc_auc']=None
-                                try: ensemble_metrics['brier_score']=brier_score_loss(y_test,proba_opt_eval_ens)
-                                except: ensemble_metrics['brier_score']=None
-                            if y_proba_ensemble_full is not None:
-                                try: ensemble_metrics['log_loss']=log_loss(y_test,y_proba_ensemble_full)
-                                except: ensemble_metrics['log_loss']=None
-                            # Métricas EV Ensemble
-                            ens_roi,ens_bets,ens_prof = calculate_metrics_with_ev(y_test,proba_opt_eval_ens,ens_ev_thr,X_test_odds,odd_draw_col_name) if proba_opt_eval_ens is not None and X_test_odds is not None else (None, 0, None)
-                            ensemble_metrics.update({'roi':ens_roi,'num_bets':ens_bets,'profit':ens_prof})
-
-                            # Log Métricas Ensemble
-                            logger.info("  --- Métricas Ensemble (Teste) ---")
-                            logger.info(f"    F1 @ThrF1({ens_f1_thr:.4f}) = {ensemble_metrics.get('f1_score_draw',np.nan):.4f}")
-                            logger.info(f"    Prec @ThrPrec({ens_prec_thr:.4f}) = {ensemble_metrics.get('precision_draw_thrPrec',np.nan):.4f} (Recall: {ensemble_metrics.get('recall_draw_thrPrec',np.nan):.4f})")
-                            logger.info(f"    AUC = {ensemble_metrics.get('roc_auc',np.nan):.4f}, Brier = {ensemble_metrics.get('brier_score',np.nan):.4f}")
-                            roi_ens_log = ensemble_metrics.get('roi', np.nan); roi_str = f"{roi_ens_log:.2f}%" if pd.notna(roi_ens_log) and np.isfinite(roi_ens_log) else "N/A"
-                            logger.info(f"    ROI @ThrEV({ens_ev_thr:.3f}) = {roi_str} ({ensemble_metrics.get('num_bets')} bets)")
-                            logger.info("  ---------------------------------")
-
-                            # Adiciona resultado do ensemble à lista geral
-                            all_results.append({
-                                'model_name': 'VotingEnsemble',
-                                'model_object': voting_clf, # Salva o objeto VotingClassifier ajustado
-                                'pipeline_object': None, # Não há um pipeline único para o ensemble
-                                'scaler': None,
-                                'calibrator': ens_calibrator, # Calibrador do ensemble
-                                'params': {'estimators': top_n_model_names, 'voting': 'soft'},
-                                'metrics': ensemble_metrics,
-                                'optimal_f1_threshold': ens_f1_thr,
-                                'optimal_ev_threshold': ens_ev_thr
-                            })
-                        else: logger.warning(" Ensemble predict_proba não retornou 2 colunas.")
-                    except Exception as e_ens_eval:
-                        logger.error(f"Erro avaliar Voting Ensemble: {e_ens_eval}", exc_info=True)
-            # --- Fim Avaliação Ensemble ---
-    else:
-        logger.warning("Modelos individuais válidos insuficientes para ensemble (<2).")
-
-    # --- Seleção e Salvamento Final ---
-    if progress_callback_stages: progress_callback_stages(len(available_models), "Selecionando/Salvando...") # Ajusta índice
-    end_time_total=time.time(); logger.info(f"--- Treino concluído ({end_time_total-start_time_total:.2f} seg) ---")
-    if not all_results: logger.error("SELEÇÃO: Nenhum resultado válido para avaliar."); return False
+    # 6. Seleção Final e Salvamento
+    if progress_callback_stages: progress_callback_stages(num_total_models_expected, "Selecionando/Salvando Melhores...")
+    logger.info(f"--- Treinamento Global Concluído ({time.time() - total_training_start_time:.2f} seg) ---")
+    if not all_individual_model_results: logger.error("SELEÇÃO FINAL: Nenhum resultado válido."); return False
 
     try:
-        # Cria DataFrame com TODOS os resultados (individuais + ensemble se existiu)
-        results_df = pd.DataFrame(all_results)
-        # Extrai métricas para o DataFrame
-        for thr_type in ['thr05', 'thrF1', 'thrPrec']:
-             results_df[f'precision_draw_{thr_type}'] = results_df['metrics'].apply(lambda m: m.get(f'precision_draw_{thr_type}', 0.0))
-             results_df[f'recall_draw_{thr_type}'] = results_df['metrics'].apply(lambda m: m.get(f'recall_draw_{thr_type}', 0.0))
-             results_df[f'f1_score_draw_{thr_type}'] = results_df['metrics'].apply(lambda m: m.get(f'f1_score_draw_{thr_type}', -1.0))
-        results_df['f1_score_draw']=results_df['metrics'].apply(lambda m: m.get('f1_score_draw', -1.0)) # F1 principal (do thr F1 otimizado no teste)
-        results_df['roi']=results_df['metrics'].apply(lambda m: m.get('roi', -np.inf));
-        results_df['num_bets']=results_df['metrics'].apply(lambda m: m.get('num_bets', 0));
-        results_df['auc']=results_df['metrics'].apply(lambda m: m.get('roc_auc', 0.0));
-        results_df['brier']=results_df['metrics'].apply(lambda m: m.get('brier_score', 1.0))
-        results_df['optimal_f1_threshold'] = results_df['metrics'].apply(lambda m: m.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD))
-        results_df['optimal_ev_threshold'] = results_df['metrics'].apply(lambda m: m.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD))
-        results_df['optimal_precision_threshold'] = results_df['metrics'].apply(lambda m: m.get('optimal_precision_threshold', 0.5))
-
-        # Conversão numérica e fillna
-        cols_num = ['f1_score_draw','precision_draw_thrF1','recall_draw_thrF1','precision_draw_thrPrec','recall_draw_thrPrec','f1_score_draw_thrPrec','f1_score_draw_thr05', 'roi','num_bets','auc','brier','optimal_f1_threshold','optimal_ev_threshold','optimal_precision_threshold']
-        for col in cols_num: results_df[col]=pd.to_numeric(results_df[col],errors='coerce')
-        results_df.fillna({'f1_score_draw': -1.0, 'precision_draw_thrF1': 0.0, 'recall_draw_thrF1': 0.0, 'precision_draw_thrPrec': 0.0, 'recall_draw_thrPrec': 0.0, 'f1_score_draw_thrPrec': -1.0, 'f1_score_draw_thr05': -1.0, 'optimal_precision_threshold': 0.5, 'roi': -np.inf, 'num_bets': 0, 'auc': 0.0, 'brier': 1.0, 'optimal_f1_threshold': DEFAULT_F1_THRESHOLD, 'optimal_ev_threshold': DEFAULT_EV_THRESHOLD}, inplace=True)
-
-        # Exibe Comparativo
-        logger.info("--- Comparativo Desempenho Modelos (Teste Final) ---");
-        display_cols = ['model_name','f1_score_draw','precision_draw_thrF1','recall_draw_thrF1','precision_draw_thrPrec','recall_draw_thrPrec','f1_score_draw_thrPrec','auc','brier','roi','num_bets','optimal_f1_threshold','optimal_ev_threshold','optimal_precision_threshold']
-        display_cols_exist=[col for col in display_cols if col in results_df.columns]
-        # Arredonda colunas para exibição
-        results_df_display=results_df[display_cols_exist].copy()
-        float_cols = results_df_display.select_dtypes(include=['float']).columns
-        results_df_display[float_cols] = results_df_display[float_cols].round(4)
-        if 'num_bets' in results_df_display.columns: results_df_display['num_bets']=results_df_display['num_bets'].astype(int)
-        if 'roi' in results_df_display.columns:
-            results_df_display['roi'] = results_df_display['roi'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and np.isfinite(x) else "N/A")
-
-        try: logger.info("\n"+results_df_display.sort_values(by=BEST_MODEL_METRIC,ascending=False).to_markdown(index=False))
-        except ImportError: logger.info("\n"+results_df_display.sort_values(by=BEST_MODEL_METRIC,ascending=False).to_string(index=False))
+        results_df = pd.DataFrame(all_individual_model_results)
+        results_df['f1_score_draw_metric'] = results_df['metrics'].apply(lambda m: m.get(BEST_MODEL_METRIC, -1.0)) 
+        results_df['roi_metric'] = results_df['metrics'].apply(lambda m: m.get(BEST_MODEL_METRIC_ROI, -np.inf))
+        
+        # Log do comparativo
+        display_cols_log = ['model_name','f1_score_draw_metric','roi_metric'] 
+        results_df_log_display = results_df[display_cols_log].copy()
+        results_df_log_display['f1_score_draw_metric'] = results_df_log_display['f1_score_draw_metric'].round(4)
+        results_df_log_display['roi_metric'] = results_df_log_display['roi_metric'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and np.isfinite(x) else "N/A")
+        logger.info("--- Comparativo Desempenho Modelos (Métrica Principal Teste) ---")
+        try: logger.info("\n" + results_df_log_display.sort_values(by='f1_score_draw_metric', ascending=False).to_markdown(index=False))
+        except ImportError: logger.info("\n" + results_df_log_display.sort_values(by='f1_score_draw_metric', ascending=False).to_string(index=False))
         logger.info("-" * 80)
 
-        # Seleção e Salvamento (Melhor F1 e Melhor ROI - pode ser o mesmo modelo)
-        # Usa o DataFrame original `results_df` que contém os objetos
-        results_df_sorted_f1=results_df.sort_values(by=BEST_MODEL_METRIC, ascending=False).reset_index(drop=True)
-        best_f1_result_dict = results_df_sorted_f1.iloc[0].to_dict() if not results_df_sorted_f1.empty else None
+        # Salvar Melhor F1
+        results_df_sorted_f1 = results_df.sort_values(by='f1_score_draw_metric', ascending=False).reset_index(drop=True)
+        best_f1_dict = results_df_sorted_f1.iloc[0].to_dict() if not results_df_sorted_f1.empty else None
+        if best_f1_dict:
+            logger.info(f"Salvando Melhor por F1: {best_f1_dict.get('model_name', 'N/A')}")
+            _save_model_object(best_f1_dict, original_feature_names, BEST_F1_MODEL_SAVE_PATH)
+        else: logger.error("Nenhum modelo para salvar como Melhor F1."); return False
 
-        best_roi_result_dict = None
-        # Ordena por ROI, mas desconsidera infinitos ou NaNs
-        results_df_valid_roi = results_df[results_df['roi'].notna() & np.isfinite(results_df['roi'])]
+        # Salvar Melhor por ROI (ou 2o melhor F1)
+        model_for_roi_slot = None
+        results_df_valid_roi = results_df[results_df['roi_metric'].notna() & np.isfinite(results_df['roi_metric']) & (results_df['roi_metric'] > -np.inf)] # Garante ROI > -inf
         if not results_df_valid_roi.empty:
-            results_df_sorted_roi = results_df_valid_roi.sort_values(by=BEST_MODEL_METRIC_ROI, ascending=False).reset_index(drop=True)
-            best_roi_result_dict = results_df_sorted_roi.iloc[0].to_dict()
-            logger.info(f"SELEÇÃO: Melhor ROI Válido: {best_roi_result_dict.get('model_name')} (ROI={best_roi_result_dict['metrics'].get('roi'):.2f}%)")
-        else:
-            logger.warning("SELEÇÃO: Nenhum ROI finito/válido encontrado.")
+            best_roi_dict = results_df_valid_roi.sort_values(by='roi_metric', ascending=False).iloc[0].to_dict()
+            if best_f1_dict and (best_roi_dict.get('model_name') != best_f1_dict.get('model_name') or len(results_df_sorted_f1) == 1) :
+                model_for_roi_slot = best_roi_dict
+            elif len(results_df_sorted_f1) > 1: 
+                model_for_roi_slot = results_df_sorted_f1.iloc[1].to_dict() 
+            else: 
+                model_for_roi_slot = best_f1_dict
+        elif best_f1_dict: 
+            model_for_roi_slot = best_f1_dict
+            logger.warning("Nenhum ROI válido encontrado. Usando melhor F1 para o slot de 'Melhor ROI'.")
+        
+        if model_for_roi_slot:
+            logger.info(f"Salvando para Slot Melhor ROI/2nd F1: {model_for_roi_slot.get('model_name', 'N/A')}")
+            _save_model_object(model_for_roi_slot, original_feature_names, BEST_ROI_MODEL_SAVE_PATH)
+        else: logger.warning("Nenhum modelo determinado para o slot de 'Melhor ROI'.")
 
-        if best_f1_result_dict:
-             logger.info(f"Salvando Melhor F1 ({best_f1_result_dict.get('model_name','ERRO')})...");
-             _save_model_object(best_f1_result_dict, feature_names, BEST_F1_MODEL_SAVE_PATH)
-        else: logger.error("ERRO SALVAR: Nenhum modelo encontrado como melhor F1."); return False
+    except Exception as e: logger.error(f"Erro GERAL seleção/salvamento final: {e}", exc_info=True); return False
 
-        # Decide o que salvar como "Melhor ROI"
-        model_to_save_roi = None
-        if best_roi_result_dict:
-            # Se o melhor ROI é DIFERENTE do melhor F1, salva o melhor ROI
-            if best_f1_result_dict and best_roi_result_dict.get('model_name') != best_f1_result_dict.get('model_name'):
-                model_to_save_roi = best_roi_result_dict
-                logger.info(f"  -> Usando Melhor ROI ({model_to_save_roi.get('model_name')}) p/ slot ROI.")
-            # Se o melhor ROI é o MESMO que o melhor F1, tenta pegar o SEGUNDO melhor F1
-            elif len(results_df_sorted_f1) > 1:
-                 model_to_save_roi = results_df_sorted_f1.iloc[1].to_dict()
-                 logger.info(f"  -> Melhor ROI é igual ao Melhor F1. Usando 2º Melhor F1 ({model_to_save_roi.get('model_name')}) p/ slot ROI.")
-            # Se só há 1 modelo, usa o melhor F1 para ambos os slots
-            else:
-                 model_to_save_roi = best_f1_result_dict
-                 logger.warning("  -> Apenas 1 modelo avaliado. Usando Melhor F1 para ambos os slots (F1 e ROI).")
-        # Se NÃO houve resultado válido de ROI, usa o melhor F1 para ambos
-        elif best_f1_result_dict:
-             model_to_save_roi = best_f1_result_dict
-             logger.warning(f"  -> Nenhum ROI válido. Usando Melhor F1 ({model_to_save_roi.get('model_name')}) p/ slot ROI.")
+    logger.info("--- Processo de Treinamento Global Concluído com Sucesso ---")
+    return True
 
-        if model_to_save_roi:
-            logger.info(f"Salvando Melhor ROI/2nd F1 ({model_to_save_roi.get('model_name','ERRO')})...");
-            _save_model_object(model_to_save_roi, feature_names, BEST_ROI_MODEL_SAVE_PATH)
-        else:
-            # Este caso só ocorreria se best_f1_result_dict também fosse None, o que já retornaria False antes.
-            logger.error("ERRO SALVAR: Não foi possível determinar modelo para slot ROI."); return False
-
-    except Exception as e_select_save: logger.error(f"Erro GERAL seleção/salvamento: {e_select_save}", exc_info=True); return False;
-
-    logger.info("--- Processo Completo ---"); return True
-
-# --- Função _save_model_object (Sem alterações, já salva o necessário) ---
-def _save_model_object(model_result_dict: Dict, feature_names: List[str], file_path: str) -> None:
-    if not isinstance(model_result_dict, dict): logger.error(f"Salvar: Dados inválidos p/ {file_path}"); return
-    try:
-        model_to_save = model_result_dict.get('model_object')
-        if model_to_save is None: logger.error(f"Salvar: Modelo ausente p/ {file_path}"); return
-        metrics_dict = model_result_dict.get('metrics', {})
-        optimal_precision_thr = metrics_dict.get('optimal_precision_threshold', 0.5) # Fallback 0.5
-        save_obj = {
-            'model': model_to_save, 'scaler': model_result_dict.get('scaler'), 'calibrator': model_result_dict.get('calibrator'),
-            'feature_names': feature_names, 'best_params': model_result_dict.get('params'), 'eval_metrics': metrics_dict,
-            'optimal_ev_threshold': model_result_dict.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD),
-            'optimal_f1_threshold': model_result_dict.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD),
-            'optimal_precision_threshold': optimal_precision_thr, # <<< SALVO AQUI
-            'save_timestamp': datetime.datetime.now().isoformat(), 'model_class_name': model_to_save.__class__.__name__ }
-        joblib.dump(save_obj, file_path)
-        logger.info(f"  -> Objeto salvo: '{save_obj['model_class_name']}' (F1 Thr={save_obj['optimal_f1_threshold']:.4f}, EV Thr={save_obj['optimal_ev_threshold']:.3f}, Prec Thr={save_obj['optimal_precision_threshold']:.4f}) em {os.path.basename(file_path)}.")
-    except Exception as e: logger.error(f"  -> Erro GRAVE ao salvar objeto em {file_path}: {e}", exc_info=True)
-
-
-# --- Funções Remanescentes (analyze_features, optimize_single_model) ---
-# (Mantidas como estavam no seu código original - Copie as definições completas aqui)
 def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFrame, pd.DataFrame]]:
     """ Analisa features: importância (RF rápido) e correlação. Retorna DFs ou (None, None). """
     logger.info("--- ANÁLISE FEATURES (model_trainer): Iniciando ---")
     imp_df = None
-    corr_df = None # Use corr_df instead of corr_matrix to be consistent
+    corr_df = None 
 
     # --- Input Validation ---
     if X is None or y is None:
@@ -999,7 +860,7 @@ def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFra
          logger.error("ANÁLISE FEATURES: Input X ou y não é do tipo esperado (DataFrame, Series).")
          return None, None
 
-    # --- Alignment (Crucial!) ---
+    # --- Alignment ---
     if not X.index.equals(y.index):
         logger.warning("ANÁLISE FEATURES: Índices X/y não idênticos. Tentando alinhar...")
         try:
@@ -1024,19 +885,15 @@ def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFra
     # --- 1. Calcular Importância (RF) ---
     logger.info("ANÁLISE FEATURES: Calculando importância RF...")
     try:
-        # Check for NaNs/Infs *before* fitting RF
-        X_rf = X.copy() # Trabalha em uma cópia
+        X_rf = X.copy() 
         y_rf = y.copy()
 
-        # Substitui Inf por NaN
         X_rf = X_rf.replace([np.inf, -np.inf], np.nan)
 
-        # Verifica NaNs e imputa se necessário (embora dropna deva ter ocorrido antes)
         if X_rf.isnull().values.any():
              nan_cols = X_rf.columns[X_rf.isnull().any()].tolist()
              logger.warning(f"ANÁLISE FEATURES (RF): NaNs encontrados em X (colunas: {nan_cols}) antes do fit RF. Imputando com mediana.")
              X_rf.fillna(X_rf.median(), inplace=True)
-             # Verifica novamente se ainda há NaNs (coluna inteira era NaN?)
              if X_rf.isnull().values.any():
                  raise ValueError("NaNs persistentes em X após imputação para RF.")
 
@@ -1044,12 +901,11 @@ def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFra
              logger.error("ANÁLISE FEATURES (RF): NaNs encontrados em y! Não pode treinar RF.")
              raise ValueError("Target variable (y) contains NaNs for RF importance.")
 
-        # Ensure y is integer type for classification
         y_rf = y_rf.astype(int)
 
         rf_analyzer = RandomForestClassifier(n_estimators=50, max_depth=15, n_jobs=-1, min_samples_leaf=3, random_state=RANDOM_STATE)
         logger.info(f"    -> Fitting RF (X shape: {X_rf.shape}, y shape: {y_rf.shape})")
-        rf_analyzer.fit(X_rf, y_rf) # Usa dados limpos/imputados
+        rf_analyzer.fit(X_rf, y_rf) 
         logger.info("    -> Fit RF concluído.")
 
         importances = rf_analyzer.feature_importances_
@@ -1059,20 +915,17 @@ def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFra
 
     except Exception as e:
         logger.error(f"ANÁLISE FEATURES: Erro GRAVE ao calcular importância RF: {e}", exc_info=True)
-        imp_df = None # Set to None on failure
+        imp_df = None 
 
     # --- 2. Calcular Correlação ---
     logger.info("ANÁLISE FEATURES: Calculando correlação...")
     try:
-        df_temp = X.copy() # Start with the aligned X
-        df_temp['target_IsDraw'] = y # Add the aligned y
+        df_temp = X.copy() 
+        df_temp['target_IsDraw'] = y 
 
-        # Select only numeric columns for correlation calculation
-        # Garante que o alvo (mesmo que não numérico inicialmente) seja incluído se possível
         cols_for_corr = df_temp.select_dtypes(include=np.number).columns.tolist()
         if 'target_IsDraw' not in cols_for_corr and 'target_IsDraw' in df_temp.columns:
             try:
-                # Tenta converter o alvo para numérico para correlação
                 df_temp['target_IsDraw'] = pd.to_numeric(df_temp['target_IsDraw'], errors='raise')
                 cols_for_corr.append('target_IsDraw')
             except (ValueError, TypeError):
@@ -1080,32 +933,26 @@ def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFra
 
         df_numeric_temp = df_temp[cols_for_corr].copy()
 
-
-        # Check and handle infinities *before* calculating correlation
         if df_numeric_temp.isin([np.inf, -np.inf]).values.any():
             inf_cols = df_numeric_temp.columns[df_numeric_temp.isin([np.inf, -np.inf]).any()].tolist()
             logger.warning(f"ANÁLISE FEATURES (Corr): Valores infinitos encontrados antes de .corr() (colunas: {inf_cols}). Substituindo por NaN.")
             df_numeric_temp.replace([np.inf, -np.inf], np.nan, inplace=True)
 
-        # Check for columns with all NaNs after handling inf (corr fails on these)
         all_nan_cols = df_numeric_temp.columns[df_numeric_temp.isnull().all()].tolist()
         if all_nan_cols:
              logger.warning(f"ANÁLISE FEATURES (Corr): Colunas inteiras com NaN encontradas: {all_nan_cols}. Serão excluídas da correlação.")
              df_numeric_temp.drop(columns=all_nan_cols, inplace=True)
              if 'target_IsDraw' not in df_numeric_temp.columns and 'target_IsDraw' in all_nan_cols:
                   logger.error("ANÁLISE FEATURES (Corr): Coluna alvo foi removida (toda NaN?). Não é possível calcular correlação com o alvo.")
-                  corr_df = None # Set corr_df to None explicitly
+                  corr_df = None 
 
 
         if not df_numeric_temp.empty and 'target_IsDraw' in df_numeric_temp.columns:
             logger.info(f"    -> Calculando corr() em df_numeric_temp (shape: {df_numeric_temp.shape})")
-            # Calculate correlation only on the numeric (and finite) data
-            corr_matrix = df_numeric_temp.corr(method='pearson') # Ou 'spearman'
+            corr_matrix = df_numeric_temp.corr(method='pearson') 
 
-            # Extract only the correlation with the target variable
             if 'target_IsDraw' in corr_matrix.columns:
                 corr_df = corr_matrix[['target_IsDraw']].sort_values(by='target_IsDraw', ascending=False)
-                # Remove a própria correlação do alvo consigo mesmo (que é 1.0)
                 corr_df = corr_df.drop('target_IsDraw', errors='ignore')
                 logger.info(f"ANÁLISE FEATURES: Correlação com o alvo calculada OK. Shape: {corr_df.shape}")
             else:
@@ -1114,17 +961,17 @@ def analyze_features(X: pd.DataFrame, y: pd.Series) -> Optional[Tuple[pd.DataFra
         elif df_numeric_temp.empty:
              logger.error("ANÁLISE FEATURES (Corr): DataFrame numérico vazio após tratamento de NaN/Inf.")
              corr_df = None
-        else: # target_IsDraw não está nas colunas para correlação
+        else: 
              logger.warning("ANÁLISE FEATURES (Corr): Coluna alvo não disponível para correlação.")
              corr_df = None
 
 
     except Exception as e:
         logger.error(f"ANÁLISE FEATURES: Erro GRAVE ao calcular correlação: {e}", exc_info=True)
-        corr_df = None # Set to None on failure
+        corr_df = None 
 
     logger.info("--- ANÁLISE FEATURES (model_trainer): Concluída ---")
-    return imp_df, corr_df # Return results (can be None)
+    return imp_df, corr_df 
 
 
 def optimize_single_model(*args, **kwargs) -> Optional[Tuple[str, Dict, Dict]]:

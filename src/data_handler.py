@@ -249,81 +249,103 @@ def _apply_column_mapping_and_league_logic(
     df = df_input.copy()
     internal_league_col_name = 'League' 
 
-    # Garante colunas de stats básicas (presentes em EXPECTED_STAT_CSV_COLS)
-    for col in EXPECTED_STAT_CSV_COLS:
-        if col not in df.columns:
-            df[col] = np.nan # Adiciona como NaN se não existir
+    raw_goal_col_home = None
+    raw_goal_col_away = None
+    for k_csv, v_internal in csv_to_internal_col_map.items():
+        if v_internal == GOALS_COLS.get('home') and k_csv in df.columns:
+            raw_goal_col_home = k_csv
+        if v_internal == GOALS_COLS.get('away') and k_csv in df.columns:
+            raw_goal_col_away = k_csv
 
-    # --- ETAPA A: Mapeamento e Identificação da Coluna League ---
+    # Garante colunas de stats básicas e colunas de GOLS (seus nomes originais do arquivo)
+    cols_to_ensure_exist_initially = list(EXPECTED_STAT_CSV_COLS)
+    if raw_goal_col_home: cols_to_ensure_exist_initially.append(raw_goal_col_home)
+    if raw_goal_col_away: cols_to_ensure_exist_initially.append(raw_goal_col_away)
+
+    for col in cols_to_ensure_exist_initially:
+        if col not in df.columns:
+            if col not in [raw_goal_col_home, raw_goal_col_away]:
+                 df[col] = np.nan
+
+    # --- ETAPA A: Mapeamento de Liga ---
     original_league_col_name_from_csv_map = None
-    # Encontra o nome original da coluna que deve ser mapeada para 'League' via CSV_HIST_COL_MAP
     for csv_col, internal_col in csv_to_internal_col_map.items():
         if internal_col == internal_league_col_name and csv_col in df.columns:
             original_league_col_name_from_csv_map = csv_col
             break
 
-    if not original_league_col_name_from_csv_map:
-        logger.warning(f"({base_filename}) Coluna original para '{internal_league_col_name}' não encontrada/mapeada via CSV_HIST_COL_MAP. Pulando mapeamento de liga específico e filtro.")
-        # Prepara para mapeamento geral de colunas SEM a coluna 'League' sendo tratada especialmente
-        cols_to_map_general = {k: v for k, v in csv_to_internal_col_map.items() if k in df.columns}
-        # Colunas a manter: as que serão renomeadas + as de stats que existem
-        cols_to_keep = list(cols_to_map_general.keys()) + [c for c in EXPECTED_STAT_CSV_COLS if c in df.columns]
-        cols_to_keep = list(set(c for c in cols_to_keep if c in df.columns)) # Garante unicidade e existência
+    df_post_league_map = df.copy() 
 
-        df_processed = df[cols_to_keep].copy()
-        df_processed.rename(columns=cols_to_map_general, inplace=True)
-        # Adiciona coluna 'League' com valor placeholder, já que não pôde ser mapeada
-        if internal_league_col_name not in df_processed.columns:
-            df_processed[internal_league_col_name] = 'UNMAPPED_LEAGUE'
-        logger.debug(f"({base_filename}) Colunas após mapeamento geral (sem liga específica): {list(df_processed.columns)}")
-    else:
-        logger.info(f"({base_filename}) Mapeando coluna de liga '{original_league_col_name_from_csv_map}' para ID Interno usando mapa específico do arquivo...")
-        df[original_league_col_name_from_csv_map] = df[original_league_col_name_from_csv_map].astype(str).str.strip()
-
-        # Aplica o mapeamento de liga específico do arquivo (specific_league_map) para criar uma coluna temporária de ID interno
-        df['_InternalLeagueID_Temp'] = df[original_league_col_name_from_csv_map].map(specific_league_map)
-
-        unmapped_mask = df['_InternalLeagueID_Temp'].isnull()
-        original_unmapped_names = df.loc[unmapped_mask, original_league_col_name_from_csv_map].unique()
+    if original_league_col_name_from_csv_map:
+        logger.info(f"({base_filename}) Mapeando coluna de liga '{original_league_col_name_from_csv_map}'...")
+        df_post_league_map[original_league_col_name_from_csv_map] = df_post_league_map[original_league_col_name_from_csv_map].astype(str).str.strip()
+        df_post_league_map['_InternalLeagueID_Temp'] = df_post_league_map[original_league_col_name_from_csv_map].map(specific_league_map)
+        unmapped_mask = df_post_league_map['_InternalLeagueID_Temp'].isnull()
+        original_unmapped_names = df_post_league_map.loc[unmapped_mask, original_league_col_name_from_csv_map].unique()
         if len(original_unmapped_names) > 0:
             logger.warning(f"  ({base_filename}) Ligas NÃO mapeadas para ID Interno: {list(original_unmapped_names)}")
-        df['_InternalLeagueID_Temp'].fillna('OTHER_LEAGUE_ID', inplace=True) 
+        df_post_league_map['_InternalLeagueID_Temp'].fillna('OTHER_LEAGUE_ID', inplace=True)
+    else:
+        logger.warning(f"({base_filename}) Coluna original para '{internal_league_col_name}' não mapeada. Criando coluna de Liga placeholder.")
+        df_post_league_map['_InternalLeagueID_Temp'] = 'UNMAPPED_LEAGUE' 
 
-        # --- ETAPA B: Filtragem CONDICIONAL por Liga ---
-        df_to_process_further = df 
-        if apply_league_filter_flag:
-            logger.info(f"  ({base_filename}) APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...")
-            initial_count_filter = len(df)
-            # Filtra usando a coluna temporária '_InternalLeagueID_Temp'
-            df_to_process_further = df[df['_InternalLeagueID_Temp'].isin(target_internal_league_ids)].copy()
-            logger.info(f"    -> Filtro de Liga: {len(df_to_process_further)}/{initial_count_filter} jogos restantes.")
-            if df_to_process_further.empty:
-                logger.warning(f"  ({base_filename}) Nenhum jogo restante após filtro de liga.")
-                return pd.DataFrame() 
-        else:
-            logger.info(f"  ({base_filename}) Filtro de Liga DESATIVADO para dados históricos.")
+    # --- ETAPA B: Filtragem Condicional por Liga ---
+    df_to_process_further = df_post_league_map
+    if apply_league_filter_flag and '_InternalLeagueID_Temp' in df_to_process_further.columns:
+        logger.info(f"  ({base_filename}) APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...")
+        initial_count_filter = len(df_to_process_further)
+        df_to_process_further = df_to_process_further[df_to_process_further['_InternalLeagueID_Temp'].isin(target_internal_league_ids)].copy()
+        logger.info(f"    -> Filtro de Liga: {len(df_to_process_further)}/{initial_count_filter} jogos restantes.")
+        if df_to_process_further.empty:
+            logger.warning(f"  ({base_filename}) Nenhum jogo restante após filtro de liga.")
+            return pd.DataFrame()
+    elif apply_league_filter_flag:
+        logger.warning(f"  ({base_filename}) Filtro de Liga ATIVO, mas coluna _InternalLeagueID_Temp não encontrada. Filtro não aplicado.")
 
-        # --- ETAPA C: Mapeamento Geral de Colunas e Seleção Final ---
-        logger.info(f"  ({base_filename}) Aplicando mapeamento geral de colunas (CSV_HIST_COL_MAP)...")
-        # Mapeia todas as colunas DEFINIDAS em csv_to_internal_col_map que existem no df_to_process_further
-        # EXCETO a coluna original da liga (original_league_col_name_from_csv_map), que já foi tratada
-        cols_to_map_general = {
-            k: v for k, v in csv_to_internal_col_map.items()
-            if k in df_to_process_further.columns and k != original_league_col_name_from_csv_map
-        }
 
-        # Colunas a manter: as que serão renomeadas + a coluna de ID interno (_InternalLeagueID_Temp) + stats extras
-        cols_to_keep_final = list(cols_to_map_general.keys()) + ['_InternalLeagueID_Temp']
-        cols_to_keep_final.extend([c for c in EXPECTED_STAT_CSV_COLS if c in df_to_process_further.columns])
-        cols_to_keep_final = list(set(c for c in cols_to_keep_final if c in df_to_process_further.columns)) 
+    # --- ETAPA C: Mapeamento Geral de Colunas e Seleção Final ---
+    cols_to_rename_dict = {
+        k_csv: v_internal for k_csv, v_internal in csv_to_internal_col_map.items()
+        if k_csv in df_to_process_further.columns
+    }
+    # Nomes das colunas originais que serão mantidas (seja para renomear ou porque o nome interno é o mesmo)
+    original_cols_to_keep = list(cols_to_rename_dict.keys())
 
-        df_processed = df_to_process_further[cols_to_keep_final].copy()
+    # Adiciona colunas de stats que podem não estar no CSV_HIST_COL_MAP mas queremos manter
+    for stat_col in EXPECTED_STAT_CSV_COLS:
+        if stat_col in df_to_process_further.columns and stat_col not in original_cols_to_keep:
+            original_cols_to_keep.append(stat_col)
 
-        # Renomeia colunas gerais
-        df_processed.rename(columns=cols_to_map_general, inplace=True)
-        # Renomeia a coluna temporária de ID interno para o nome interno padrão 'League'
-        df_processed.rename(columns={'_InternalLeagueID_Temp': internal_league_col_name}, inplace=True)
-        logger.debug(f"({base_filename}) Colunas após mapeamento final e rename de liga: {list(df_processed.columns)}")
+    # Adiciona a coluna de ID de liga temporária
+    if '_InternalLeagueID_Temp' in df_to_process_further.columns:
+        if '_InternalLeagueID_Temp' not in original_cols_to_keep: 
+             original_cols_to_keep.append('_InternalLeagueID_Temp')
+        cols_to_rename_dict['_InternalLeagueID_Temp'] = internal_league_col_name
+    else: 
+        if internal_league_col_name not in cols_to_rename_dict.values():
+            if internal_league_col_name not in df_to_process_further.columns and \
+               not any(v == internal_league_col_name for v in cols_to_rename_dict.values()):
+                df_to_process_further[internal_league_col_name] = 'UNMAPPED_LEAGUE_FINAL'
+                if internal_league_col_name not in original_cols_to_keep:
+                     original_cols_to_keep.append(internal_league_col_name)
+
+
+    # Garante que todas as colunas em original_cols_to_keep realmente existem
+    final_original_cols_to_select = [col for col in original_cols_to_keep if col in df_to_process_further.columns]
+    final_original_cols_to_select = list(dict.fromkeys(final_original_cols_to_select)) # Mantém ordem e remove duplicatas
+
+    if not final_original_cols_to_select:
+        logger.warning(f"({base_filename}) Nenhuma coluna selecionada para manter. Retornando DataFrame vazio.")
+        return pd.DataFrame()
+
+    df_selected = df_to_process_further[final_original_cols_to_select].copy()
+
+    # Renomeia as colunas
+    # Filtra cols_to_rename_dict para conter apenas as colunas que realmente estão em df_selected
+    actual_rename_map = {k: v for k, v in cols_to_rename_dict.items() if k in df_selected.columns}
+    df_processed = df_selected.rename(columns=actual_rename_map)
+
+    logger.debug(f"({base_filename}) Colunas após seleção e rename final: {list(df_processed.columns)}")
 
     if df_processed.empty:
         logger.warning(f"({base_filename}) DataFrame processado resultou vazio.")
@@ -955,57 +977,52 @@ def calculate_pi_ratings(df: pd.DataFrame) -> pd.DataFrame:
     logger.debug(f"NaNs PiRating/Momentum:\n{nan_counts_new[nan_counts_new > 0]}")
     return df_out
 
-def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
-    """Calcula stats intermediárias."""
-    df_calc = df.copy()
-    logger.info("Calculando stats intermediárias...")
-    epsilon = FEATURE_EPSILON 
-
-    gh = GOALS_COLS.get('home', 'Goals_H_FT'); 
-    ga = GOALS_COLS.get('away', 'Goals_A_FT')
-    if gh in df_calc.columns and ga in df_calc.columns:
-        h_g = pd.to_numeric(df_calc[gh], errors='coerce'); 
-        a_g = pd.to_numeric(df_calc[ga], errors='coerce')
-        condlist = [h_g > a_g, h_g == a_g, h_g < a_g]; 
-        choicelist_res = ["H", "D", "A"]
-        df_calc['FT_Result'] = np.select(condlist, choicelist_res, default=pd.NA)
-        condlist_pts_h = [df_calc['FT_Result']=='H', df_calc['FT_Result']=='D', df_calc['FT_Result']=='A'];
-        choicelist_pts_h = [3, 1, 0]
-        df_calc['Ptos_H'] = np.select(condlist_pts_h, choicelist_pts_h, default=np.nan)
-        condlist_pts_a = [df_calc['FT_Result']=='A', df_calc['FT_Result']=='D', df_calc['FT_Result']=='H']; 
-        choicelist_pts_a = [3, 1, 0]
-        df_calc['Ptos_A'] = np.select(condlist_pts_a, choicelist_pts_a, default=np.nan)
-        df_calc['IsDraw'] = (df_calc['FT_Result'] == 'D').astype('Int64'); 
-        df_calc.loc[df_calc['FT_Result'].isna(), 'IsDraw'] = pd.NA
-        logger.info("->Result/IsDraw/Ptos OK.")
-    else: 
-        logger.warning(f"->Gols'{gh}'/'{ga}'ausentes."); 
-    df_calc[['FT_Result', 'IsDraw', 'Ptos_H', 'Ptos_A']] = pd.NA
-
-    req_odds = list(ODDS_COLS.values())
-    if not all(p in df_calc.columns for p in ['p_H', 'p_D', 'p_A']):
-        if all(c in df_calc.columns for c in req_odds): 
-            logger.info("->Calculando p_H/D/A..."); 
-            df_calc = calculate_probabilities(df_calc)
-        else: 
-            logger.warning("->Odds 1x2 ausentes p/ Probs."); 
-        df_calc[['p_H', 'p_D', 'p_A']] = np.nan
-
-    prob_n = ['p_H', 'p_A']; goal_n = [gh, ga]
-    if all(c in df_calc.columns for c in prob_n + goal_n):
-        h_g = pd.to_numeric(df_calc[gh], errors='coerce')
-        a_g = pd.to_numeric(df_calc[ga], errors='coerce')
-        p_H = pd.to_numeric(df_calc['p_H'], errors='coerce')
-        p_A = pd.to_numeric(df_calc['p_A'], errors='coerce')
-        df_calc['VG_H_raw'] = h_g * p_A; df_calc['VG_A_raw'] = a_g * p_H
-        df_calc['CG_H_raw'] = np.where((h_g > epsilon) & p_H.notna(), p_H / h_g, np.nan) 
-        df_calc['CG_A_raw'] = np.where((a_g > epsilon) & p_A.notna(), p_A / a_g, np.nan)
-        logger.info("->VG/CG Raw OK.")
-    else: 
-        logger.warning(f"->Inputs VG/CG Raw ausentes."); 
+def calculate_raw_value_cost_goals(df: pd.DataFrame) -> pd.DataFrame:
+    df_calc = df.copy(); logger.info("Calculando VG_raw e CG_raw...")
+    epsilon = FEATURE_EPSILON; gh = GOALS_COLS.get('home'); ga = GOALS_COLS.get('away')
+    required_for_vcg = ['p_H', 'p_A', gh, ga]
+    missing = [col for col in required_for_vcg if col not in df_calc.columns or df_calc[col].isnull().all()]
+    if missing:
+        logger.warning(f"Inputs para VG/CG Raw ausentes ou todos NaN: {missing}. Colunas VG/CG serão NaN.")
         df_calc[['VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw']] = np.nan
+        return df_calc
+    h_g = pd.to_numeric(df_calc[gh], errors='coerce'); a_g = pd.to_numeric(df_calc[ga], errors='coerce')
+    p_H = pd.to_numeric(df_calc['p_H'], errors='coerce'); p_A = pd.to_numeric(df_calc['p_A'], errors='coerce')
+    df_calc['VG_H_raw'] = h_g * p_A; df_calc['VG_A_raw'] = a_g * p_H
+    df_calc['CG_H_raw'] = np.where((h_g.notna() & (h_g > epsilon)) & p_H.notna(), p_H / h_g, np.nan)
+    df_calc['CG_A_raw'] = np.where((a_g.notna() & (a_g > epsilon)) & p_A.notna(), p_A / a_g, np.nan)
+    logger.info("-> VG_raw e CG_raw calculados.")
+    return df_calc
 
-    logger.info("Cálculo Intermediárias concluído.")
+def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
+    df_calc = df.copy()
+    logger.info("Calculando stats intermediárias (Result, IsDraw, Ptos)...")
+    gh = GOALS_COLS.get('home'); ga = GOALS_COLS.get('away')
+    logger.debug(f"calculate_historical_intermediate: Colunas em df_calc: {df_calc.columns.tolist()}")
+    logger.debug(f"calculate_historical_intermediate: Verificando '{gh}' e '{ga}'...")
+    if gh in df_calc.columns and ga in df_calc.columns:
+        logger.info(f"-> Colunas de Gols encontradas: '{gh}' e '{ga}'.")
+        logger.debug(f"  Conteúdo inicial '{gh}' (5): {df_calc[gh].head().tolist()}, dtype: {df_calc[gh].dtype}, NaNs: {df_calc[gh].isnull().sum()}/{len(df_calc)}")
+        logger.debug(f"  Conteúdo inicial '{ga}' (5): {df_calc[ga].head().tolist()}, dtype: {df_calc[ga].dtype}, NaNs: {df_calc[ga].isnull().sum()}/{len(df_calc)}")
+        h_g = pd.to_numeric(df_calc[gh], errors='coerce'); a_g = pd.to_numeric(df_calc[ga], errors='coerce')
+        logger.debug(f"  h_g (pós-numérico) (5): {h_g.head().tolist()}, NaNs: {h_g.isnull().sum()}/{len(h_g)}")
+        logger.debug(f"  a_g (pós-numérico) (5): {a_g.head().tolist()}, NaNs: {a_g.isnull().sum()}/{len(a_g)}")
+        condlist = [h_g > a_g, h_g == a_g, h_g < a_g]; choicelist_res = ["H", "D", "A"]
+        df_calc['FT_Result'] = np.select(condlist, choicelist_res, default=pd.NA)
+        logger.debug(f"  Contagem 'FT_Result': \n{df_calc['FT_Result'].value_counts(dropna=False)}")
+        df_calc['IsDraw'] = pd.NA; valid_ft_mask = df_calc['FT_Result'].notna()
+        df_calc.loc[valid_ft_mask, 'IsDraw'] = (df_calc.loc[valid_ft_mask, 'FT_Result'] == 'D').astype('Int64')
+        logger.debug(f"  Contagem 'IsDraw': \n{df_calc['IsDraw'].value_counts(dropna=False)}")
+        if df_calc['IsDraw'].isnull().all(): logger.error("ALERTA CRÍTICO (calc_hist_intermed): 'IsDraw' é todo NaN/NA!")
+        cl_pts_h = [df_calc['FT_Result']=='H', df_calc['FT_Result']=='D', df_calc['FT_Result']=='A']; ch_pts_h = [3,1,0]
+        df_calc['Ptos_H'] = np.select(cl_pts_h, ch_pts_h, default=np.nan)
+        cl_pts_a = [df_calc['FT_Result']=='A', df_calc['FT_Result']=='D', df_calc['FT_Result']=='H']; ch_pts_a = [3,1,0]
+        df_calc['Ptos_A'] = np.select(cl_pts_a, ch_pts_a, default=np.nan)
+        logger.info("->Result/IsDraw/Ptos OK.")
+    else:
+        logger.warning(f"->Gols '{gh}'/'{ga}' ausentes. Colunas de resultado serão NA.")
+        df_calc[['FT_Result', 'IsDraw', 'Ptos_H', 'Ptos_A']] = pd.NA
+    logger.info("Cálculo Intermediárias (Result/IsDraw/Ptos) concluído.")
     return df_calc
 
 def calculate_rolling_goal_stats(
@@ -1543,106 +1560,56 @@ def _select_and_clean_final_features(
 
 
 def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.Series, List[str]]]:
-    """
-    Orquestra o pipeline completo de pré-processamento e engenharia de features
-    para dados históricos, e depois seleciona e limpa as features finais.
-    """
-    if df_loaded is None or df_loaded.empty:
-        logger.error("Pré-processamento: DataFrame de entrada inválido (None ou vazio).")
-        return None
+    if df_loaded is None or df_loaded.empty: logger.error("Pré-proc: DF entrada inválido."); return None
+    logger.info("--- Iniciando Pipeline Pré-proc e Feature Eng (Histórico) ---"); df_processed = df_loaded.copy()
+    gh_col=GOALS_COLS.get('home'); ga_col=GOALS_COLS.get('away')
+    avg_h_lg = np.nanmean(df_processed[gh_col]) if gh_col in df_processed and df_processed[gh_col].notna().any() else 1.0
+    avg_a_lg = np.nanmean(df_processed[ga_col]) if ga_col in df_processed and df_processed[ga_col].notna().any() else 1.0
+    avg_h_lg_safe = max(1.0 if pd.isna(avg_h_lg) else avg_h_lg, FEATURE_EPSILON)
+    avg_a_lg_safe = max(1.0 if pd.isna(avg_a_lg) else avg_a_lg, FEATURE_EPSILON)
+    logger.info(f"Médias Liga (FA/FD, Poisson): Casa={avg_h_lg_safe:.3f}, Fora={avg_a_lg_safe:.3f}")
 
-    logger.info("--- Iniciando Pipeline de Pré-processamento e Engenharia de Features (Histórico) ---")
-    df_processed = df_loaded.copy() 
-
-    goals_h_col = GOALS_COLS.get('home')
-    goals_a_col = GOALS_COLS.get('away')
-
-    avg_h_league = np.nanmean(df_processed[goals_h_col]) if goals_h_col in df_processed and pd.notna(df_processed[goals_h_col]).any() else 1.0
-    avg_a_league = np.nanmean(df_processed[goals_a_col]) if goals_a_col in df_processed and pd.notna(df_processed[goals_a_col]).any() else 1.0
-    avg_h_league = 1.0 if pd.isna(avg_h_league) else avg_h_league
-    avg_a_league = 1.0 if pd.isna(avg_a_league) else avg_a_league
-
-    avg_h_league_safe = max(avg_h_league, FEATURE_EPSILON) 
-    avg_a_league_safe = max(avg_a_league, FEATURE_EPSILON)
-    logger.info(f"Médias da Liga (para FA/FD, Poisson): Casa={avg_h_league_safe:.3f}, Fora={avg_a_league_safe:.3f}")
-
-    logger.info("=== ETAPA 1: Cálculo de Features Intermediárias e Probabilidades ===")
-    df_processed = calculate_historical_intermediate(df_processed)
-    if 'IsDraw' not in df_processed.columns or df_processed['IsDraw'].isnull().all():
-        logger.error("Alvo 'IsDraw' ausente ou todos NaNs após cálculo de stats intermediárias.")
-        return None
+    logger.info("=== ETAPA 1: Intermediárias e Probs ===")
+    df_processed = calculate_historical_intermediate(df_processed) # IsDraw, Ptos
+    if TARGET_COLUMN not in df_processed.columns or df_processed[TARGET_COLUMN].isnull().all():
+        logger.error(f"Alvo '{TARGET_COLUMN}' ausente ou todos NaNs após stats intermediárias."); return None
     df_processed = calculate_probabilities(df_processed)
     df_processed = calculate_normalized_probabilities(df_processed)
+    logger.info("=== ETAPA 1.5: VG_raw e CG_raw ===") # <<< NOVA ORDEM
+    df_processed = calculate_raw_value_cost_goals(df_processed) # <<< CHAMADA AQUI
 
-    logger.info("=== ETAPA 2: Cálculo de PiRatings e Momentum ===")
-    df_processed = calculate_pi_ratings(df_processed) 
+    logger.info("=== ETAPA 2: PiRatings ===")
+    df_processed = calculate_pi_ratings(df_processed)
+    logger.info("=== ETAPA 3: Rolling Stats ===")
+    valid_roll_cfg = [c for c in STATS_ROLLING_CONFIG if (c.get('base_col_h') and c['base_col_h'] in df_processed.columns and df_processed[c['base_col_h']].notna().any()) or (c.get('base_col_a') and c['base_col_a'] in df_processed.columns and df_processed[c['base_col_a']].notna().any())]
+    if valid_roll_cfg: df_processed = calculate_general_rolling_stats(df_processed, valid_roll_cfg, ROLLING_WINDOW)
+    else: logger.warning("Nenhuma config rolling válida/colunas base são NaN. Stats rolling não calculadas.")
+    logger.info("=== ETAPA 4: EWMA Stats ===")
+    valid_ewma_cfg = [c for c in STATS_EWMA_CONFIG if (c.get('base_col_h') and c['base_col_h'] in df_processed.columns and df_processed[c['base_col_h']].notna().any()) or (c.get('base_col_a') and c['base_col_a'] in df_processed.columns and df_processed[c['base_col_a']].notna().any())]
+    if valid_ewma_cfg: df_processed = calculate_ewma_stats(df_processed, valid_ewma_cfg) # default_span do config
+    else: logger.warning("Nenhuma config EWMA válida/colunas base são NaN. EWMA stats não calculadas.")
 
-    logger.info("=== ETAPA 3: Cálculo de Estatísticas Rolling (Médias e Desvios Padrão) ===")
-    valid_rolling_configs = [
-        cfg for cfg in STATS_ROLLING_CONFIG 
-        if (cfg.get('base_col_h') and cfg['base_col_h'] in df_processed.columns) or \
-           (cfg.get('base_col_a') and cfg['base_col_a'] in df_processed.columns)
-    ]
-    if valid_rolling_configs:
-        df_processed = calculate_general_rolling_stats(df_processed, valid_rolling_configs, default_window=ROLLING_WINDOW)
-    else:
-        logger.warning("Nenhuma configuração de rolling stats válida (colunas base ausentes). Stats rolling não calculadas.")
+    logger.info("=== ETAPA 5: FA/FD ===")
+    mh_fd = EWMA_GolsMarc_H_LONG if EWMA_GolsMarc_H_LONG in df_processed.columns and df_processed[EWMA_GolsMarc_H_LONG].notna().any() else 'Media_GolsMarcados_H'
+    sa_fd = EWMA_GolsSofr_A_LONG if EWMA_GolsSofr_A_LONG in df_processed.columns and df_processed[EWMA_GolsSofr_A_LONG].notna().any() else 'Media_GolsSofridos_A'
+    ma_fd = EWMA_GolsMarc_A_LONG if EWMA_GolsMarc_A_LONG in df_processed.columns and df_processed[EWMA_GolsMarc_A_LONG].notna().any() else 'Media_GolsMarcados_A'
+    sh_fd = EWMA_GolsSofr_H_LONG if EWMA_GolsSofr_H_LONG in df_processed.columns and df_processed[EWMA_GolsSofr_H_LONG].notna().any() else 'Media_GolsSofridos_H'
+    if mh_fd in df_processed.columns and df_processed[mh_fd].notna().any(): df_processed['FA_H'] = df_processed[mh_fd]/avg_h_lg_safe
+    else: df_processed['FA_H']=np.nan; logger.warning(f"FA_H não calc (base '{mh_fd}' ausente/NaN).")
+    if sa_fd in df_processed.columns and df_processed[sa_fd].notna().any(): df_processed['FD_A'] = df_processed[sa_fd]/avg_h_lg_safe
+    else: df_processed['FD_A']=np.nan; logger.warning(f"FD_A não calc (base '{sa_fd}' ausente/NaN).")
+    if ma_fd in df_processed.columns and df_processed[ma_fd].notna().any(): df_processed['FA_A'] = df_processed[ma_fd]/avg_a_lg_safe
+    else: df_processed['FA_A']=np.nan; logger.warning(f"FA_A não calc (base '{ma_fd}' ausente/NaN).")
+    if sh_fd in df_processed.columns and df_processed[sh_fd].notna().any(): df_processed['FD_H'] = df_processed[sh_fd]/avg_a_lg_safe
+    else: df_processed['FD_H']=np.nan; logger.warning(f"FD_H não calc (base '{sh_fd}' ausente/NaN).")
 
-    logger.info("=== ETAPA 4: Cálculo de Estatísticas EWMA ===")
-    valid_ewma_configs = [
-        cfg for cfg in STATS_EWMA_CONFIG 
-        if (cfg.get('base_col_h') and cfg['base_col_h'] in df_processed.columns) or \
-           (cfg.get('base_col_a') and cfg['base_col_a'] in df_processed.columns)
-    ]
-    if valid_ewma_configs:
-        df_processed = calculate_ewma_stats(df_processed, valid_ewma_configs) # default_span é pego do config se não especificado
-    else:
-        logger.warning("Nenhuma configuração de EWMA stats válida (colunas base ausentes). EWMA stats não calculadas.")
-    
-    logger.info("=== ETAPA 5: Cálculo de Força de Ataque/Defesa (FA/FD) ===")
-    marc_h_fd_col = EWMA_GolsMarc_H_LONG if EWMA_GolsMarc_H_LONG in df_processed.columns else 'Media_GolsMarcados_H'
-    sofr_a_fd_col = EWMA_GolsSofr_A_LONG if EWMA_GolsSofr_A_LONG in df_processed.columns else 'Media_GolsSofridos_A' # Para FD_A, usa gols sofridos pelo Away
-    marc_a_fd_col = EWMA_GolsMarc_A_LONG if EWMA_GolsMarc_A_LONG in df_processed.columns else 'Media_GolsMarcados_A'
-    sofr_h_fd_col = EWMA_GolsSofr_H_LONG if EWMA_GolsSofr_H_LONG in df_processed.columns else 'Media_GolsSofridos_H' # Para FD_H, usa gols sofridos pelo Home
+    logger.info("=== ETAPA 6: Poisson, Binned, Derivadas ===")
+    df_processed = calculate_poisson_draw_prob(df_processed, avg_h_lg_safe, avg_a_lg_safe)
+    df_processed = calculate_binned_features(df_processed)
+    df_processed = calculate_derived_features(df_processed)
+    logger.info("=== FIM PIPELINE FEATURE ENG (HISTÓRICO) ===")
+    return _select_and_clean_final_features(df_processed, FEATURE_COLUMNS, TARGET_COLUMN)
 
-    if marc_h_fd_col in df_processed.columns: 
-        df_processed['FA_H'] = df_processed[marc_h_fd_col] / avg_h_league_safe
-    else: 
-        df_processed['FA_H'] = np.nan; 
-        logger.warning(f"FA_H não calculada (coluna base '{marc_h_fd_col}' ausente).")
-
-    if sofr_a_fd_col in df_processed.columns: 
-        df_processed['FD_A'] = df_processed[sofr_a_fd_col] / avg_h_league_safe 
-    else: 
-        df_processed['FD_A'] = np.nan; 
-        logger.warning(f"FD_A não calculada (coluna base '{sofr_a_fd_col}' ausente).")
-
-    if marc_a_fd_col in df_processed.columns: 
-        df_processed['FA_A'] = df_processed[marc_a_fd_col] / avg_a_league_safe
-    else: 
-        df_processed['FA_A'] = np.nan; 
-        logger.warning(f"FA_A não calculada (coluna base '{marc_a_fd_col}' ausente).")
-
-    if sofr_h_fd_col in df_processed.columns: 
-        df_processed['FD_H'] = df_processed[sofr_h_fd_col] / avg_a_league_safe 
-    else: 
-        df_processed['FD_H'] = np.nan; 
-        logger.warning(f"FD_H não calculada (coluna base '{sofr_h_fd_col}' ausente).")
-
-
-    logger.info("=== ETAPA 6: Cálculo de Poisson, Features Binadas e Derivadas/Interações ===")
-    df_processed = calculate_poisson_draw_prob(df_processed, avg_h_league_safe, avg_a_league_safe, max_goals=6)
-    df_processed = calculate_binned_features(df_processed) 
-    df_processed = calculate_derived_features(df_processed) 
-
-    logger.info("=== FIM DO PIPELINE DE ENGENHARIA DE FEATURES (HISTÓRICO) ===")
-
-    # --- ETAPA FINAL: Selecionar features configuradas e limpar NaNs ---
-    return _select_and_clean_final_features(
-        df_processed,
-        FEATURE_COLUMNS, 
-        TARGET_COLUMN    
-    )
 
 def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
     if FIXTURE_FETCH_DAY == "tomorrow":

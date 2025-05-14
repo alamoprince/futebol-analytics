@@ -1,5 +1,3 @@
-# --- src/predictor.py ---
-# ATUALIZADO para Calibrador e Limiar
 
 import pandas as pd
 import joblib
@@ -7,8 +5,12 @@ import os
 import datetime
 import numpy as np  # Necessário para isnan
 import traceback
+from sklearn.exceptions import NotFittedError
 from config import CLASS_NAMES, ODDS_COLS, DEFAULT_EV_THRESHOLD, DEFAULT_F1_THRESHOLD
 from typing import Optional, Any, List, Dict, Tuple
+from calibrator import BaseCalibrator
+from sklearn.linear_model import LogisticRegression
+from sklearn.isotonic import IsotonicRegression
 from logger_config import setup_logger
 
 logger = setup_logger("PredictorApp")
@@ -43,14 +45,13 @@ def load_model_scaler_features(model_path: str) -> Optional[Tuple[Any, Optional[
 def make_predictions(
     model: Any,
     scaler: Optional[Any],
-    calibrator: Optional[Any],
+    calibrator: Optional[BaseCalibrator],
     feature_names: List[str],
     X_fixture_prepared: pd.DataFrame,
     fixture_info: pd.DataFrame,
     odd_draw_col_name: str = ODDS_COLS.get('draw', 'Odd_D_FT')
     ) -> Optional[pd.DataFrame]:
 
-    # ... (Checks iniciais e de índice como antes) ...
     if model is None or X_fixture_prepared is None or feature_names is None or fixture_info is None: logger.error("Erro make_preds: Args ausentes."); return None
     if X_fixture_prepared.empty or fixture_info.empty : logger.warning("make_preds: Input vazio."); return pd.DataFrame()
     if not set(feature_names).issubset(X_fixture_prepared.columns): missing = list(set(feature_names)-set(X_fixture_prepared.columns)); logger.error(f"Erro: Cols faltando X_prep: {missing}"); return None
@@ -87,42 +88,41 @@ def make_predictions(
         df_predictions[prob_col_calib_draw] = np.nan
         df_predictions[prob_col_calib_other] = np.nan
 
-        if calibrator and prob_col_raw_draw in df_predictions.columns: # Verifica se prob bruta existe
-            logger.info(f"  Aplicando calibrador na coluna '{prob_col_raw_draw}'...")
+        if calibrator and prob_col_raw_draw in df_predictions.columns:
+            logger.info(f"  Aplicando calibrador ({calibrator.__class__.__name__}) na coluna '{prob_col_raw_draw}'...")
             try:
-                proba_draw_raw_values = df_predictions[prob_col_raw_draw].values
-                # Verifica se há NaNs ANTES de passar para o calibrador
-                if np.isnan(proba_draw_raw_values).any():
-                     logger.warning(f"  AVISO: NaNs encontrados em '{prob_col_raw_draw}' ANTES da calibração!")
-                     # Opção: preencher NaNs antes de calibrar? Ou deixar o calibrador lidar?
-                     # Por ora, vamos passar adiante, IsotonicRegression pode lidar com isso.
+                proba_draw_raw_values = df_predictions[prob_col_raw_draw].values # 1D array
+                # A mágica da POO: chamamos o mesmo método, a implementação correta é executada
+                proba_draw_calibrated_array = None
 
-                logger.debug(f" Predictor: Amostra Probs Raw (para calib):\n{proba_draw_raw_values[:10]}")
+                if isinstance(calibrator, IsotonicRegression): 
+                   proba_draw_calibrated_array = calibrator.predict(proba_draw_raw_values)
+                elif isinstance(calibrator, LogisticRegression): 
+                   proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values.reshape(-1, 1))[:, 1]
+               # Adicione mais elif para outros tipos de calibradores se necessário
+                else:
+                   logger.warning(f"  Tipo de calibrador não tratado explicitamente: {calibrator.__class__.__name__}. Tentando .predict_proba() se existir, senão .predict().")
+                   if hasattr(calibrator, 'predict_proba'):
+                       try:
+                           # Tenta com reshape, pois muitos classificadores sklearn esperam 2D
+                           proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values.reshape(-1, 1))[:, 1]
+                       except ValueError as ve_pp:
+                           if "Expected 2D array" in str(ve_pp) and proba_draw_raw_values.ndim == 1: # Típico
+                               proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values.reshape(-1,1))[:,1]
+                           else: # Tenta sem reshape como último recurso para predict_proba
+                               proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values)[:,1]
+                   elif hasattr(calibrator, 'predict'):
+                       proba_draw_calibrated_array = calibrator.predict(proba_draw_raw_values)
+                   else:
+                       logger.error("  Calibrador não tem método predict_proba nem predict.")
 
-                proba_draw_calibrated_array = calibrator.predict(proba_draw_raw_values)
-                logger.debug(f" Predictor: Amostra Probs Calib (array retornado):\n{proba_draw_calibrated_array[:10]}")
-
-                proba_draw_calibrated_series = pd.Series(proba_draw_calibrated_array, index=df_predictions.index)
-
-                # Atribui APENAS a probabilidade calibrada da classe de empate à coluna correta
-                df_predictions[prob_col_calib_draw] = proba_draw_calibrated_series
-                # NÃO definir a outra coluna calibrada por subtração (1.0 - proba)
-
-                # Log de confirmação
-                logger.info(f"  -> Coluna '{prob_col_calib_draw}' (Calibrada) preenchida.")
-                logger.debug(f"  -> Amostra coluna '{prob_col_calib_draw}' após calib:\n{df_predictions[prob_col_calib_draw].head()}")
-
-
-            except ValueError as ve:
-                 # Captura erro comum se houver NaNs ou Infs que IsotonicRegression não lida
-                 logger.error(f"  Erro (ValueError) ao aplicar calibrador em '{prob_col_raw_draw}': {ve}. Coluna '{prob_col_calib_draw}' terá NaN.", exc_info=True)
-            except Exception as e_calib_pred:
-                 logger.error(f"  Erro INESPERADO ao aplicar calibrador: {e_calib_pred}. Coluna '{prob_col_calib_draw}' terá NaN.", exc_info=True)
-                 # NaN já foi atribuído no início
-        else:
-            if not calibrator: logger.info("  Calibrador não fornecido.")
-            elif prob_col_raw_draw not in df_predictions.columns: logger.warning(f"  Coluna prob bruta '{prob_col_raw_draw}' não encontrada para calibração.")
-            logger.info(f"  Coluna '{prob_col_calib_draw}' (Calibrada) permanecerá NaN.")
+                if proba_draw_calibrated_array is not None:
+                        proba_draw_calibrated_array = np.clip(proba_draw_calibrated_array, 0.0, 1.0)
+                        proba_draw_calibrated_series = pd.Series(proba_draw_calibrated_array, index=df_predictions.index)
+                        df_predictions[prob_col_calib_draw] = proba_draw_calibrated_series
+                        logger.info(f"  -> Coluna '{prob_col_calib_draw}' (Calibrada) preenchida.")
+            except NotFittedError as nfe:
+                logger.error(f"  Calibrador não ajustado: {nfe}")
 
 
         # --- Cálculo de EV ---

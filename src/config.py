@@ -272,8 +272,8 @@ SCRAPER_TO_INTERNAL_LEAGUE_MAP = {
 
 APPLY_LEAGUE_FILTER_ON_HISTORICAL = True
 
-SCRAPER_SLEEP_BETWEEN_GAMES = 10
-SCRAPER_SLEEP_AFTER_NAV = 10
+SCRAPER_SLEEP_BETWEEN_GAMES = 15
+SCRAPER_SLEEP_AFTER_NAV = 15
 
 # --- Arquivos dos Modelos Salvos ---
 BEST_F1_MODEL_FILENAME = f"best_model{MODEL_SUFFIX_F1}.joblib"
@@ -409,10 +409,8 @@ NEW_FEATURE_COLUMNS = [
     'abs_ProbDiff_Norm',
     'Odd_Over25_FT', 
     'CV_HDA',
-    PIRATING_MOMENTUM_DIFF,
     'Media_CG_H',
-    'Std_CG_A',
-
+    'Media_VG_A',
 ]   
 
 FEATURE_COLUMNS = NEW_FEATURE_COLUMNS
@@ -424,13 +422,13 @@ BEST_MODEL_METRIC_ROI = 'roi' # ROI (Expected Value) - Para o modelo de ROI
 # --- Métrica Principal e Limiares Default ---
 BEST_MODEL_METRIC = 'f1_score_draw'
 BEST_MODEL_METRIC_ROI = 'roi'
-DEFAULT_F1_THRESHOLD = 0.7
+DEFAULT_F1_THRESHOLD = 0.5
 DEFAULT_EV_THRESHOLD = 0.1
-MIN_RECALL_FOR_PRECISION_OPT = 0.30
-MIN_PROB_THRESHOLD_FOR_HIGHLIGHT = 0.28
+MIN_RECALL_FOR_PRECISION_OPT = 0.25
+MIN_PROB_THRESHOLD_FOR_HIGHLIGHT = 0.2
 
 # --- Configuração Otimização Bayesiana/GridSearch ---
-BAYESIAN_OPT_N_ITER = 100 # Mantido
+BAYESIAN_OPT_N_ITER = 50 # Mantido
 
 categorical_feature_names = ['Odd_D_Cat']
 categorical_features_indices = [
@@ -542,12 +540,9 @@ if SKOPT_AVAILABLE_CONFIG: # Só adiciona se skopt estiver disponível (para Bay
             'search_spaces': catboost_search_spaces, 'param_grid': None, 'needs_scaling': False,
             #'fit_params': {'classifier__early_stopping_rounds': 100}
         }
-else: # Fallback para GridSearchCV se skopt não estiver disponível
-      # Adapte os param_grid se necessário (não definidos aqui, requereria conversão dos search_spaces)
+else: 
     logger.warning("Usando GridSearchCV como fallback. Defina 'param_grid' em MODEL_CONFIG se necessário.")
-    # Exemplo (precisaria definir os grids):
-    # MODEL_CONFIG['RandomForestClassifier'] = { 'model_kwargs': {...}, 'search_spaces': None, 'param_grid': rf_param_grid, 'needs_scaling': False }
-
+   
 # Adiciona GaussianNB (que sempre usa GridSearchCV ou nenhum param)
 MODEL_CONFIG['GaussianNB'] = {
     'model_kwargs': {},

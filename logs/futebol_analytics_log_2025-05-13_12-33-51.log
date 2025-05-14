@@ -1,0 +1,12 @@
+2025-05-13 12:33:51 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-13 12:33:51 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-13 12:33:51 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics
+2025-05-13 12:33:51 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-13 12:33:54 - MainApp - CRITICAL - Erro fatal durante imports iniciais: name 'setup_logger' is not defined
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\app_launcher.py", line 26, in <module>
+    from scraper_tab import ScraperUploadTab
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\scraper_tab.py", line 24, in <module>
+    logger = setup_logger("ScraperUploadTab")
+             ^^^^^^^^^^^^
+NameError: name 'setup_logger' is not defined

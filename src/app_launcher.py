@@ -10,9 +10,9 @@ import datetime # Não sobrescreve time
 logger = setup_logger("MainApp")
 
 # --- Path Setup ---
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.join(APP_DIR, 'src')
-BASE_DIR = APP_DIR
+APP_DIR = os.path.dirname(os.path.abspath(__file__)) # Este é o diretório 'src'
+SRC_DIR = APP_DIR
+BASE_DIR = os.path.dirname(SRC_DIR)
 if BASE_DIR not in sys.path: sys.path.insert(0, BASE_DIR)
 if SRC_DIR not in sys.path: sys.path.insert(0, SRC_DIR)
 logger.info(f"APP_DIR (launcher): {APP_DIR}")
@@ -26,7 +26,7 @@ try:
     from scraper_tab import ScraperUploadTab
     from main import FootballPredictorDashboard
     from feature_analyzer_tab import FeatureAnalyzerApp
-    from model_interpreter_tab import ModelInterpreterApp # <<< NOVA IMPORTAÇÃO
+    from model_interpreter_tab import ModelInterpreterApp 
 
 except ImportError as e:
     logger.error(f"Erro ao importar classes da GUI: {e}", exc_info=True)

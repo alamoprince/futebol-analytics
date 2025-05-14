@@ -1,0 +1,186 @@
+2025-05-13 21:28:36 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-13 21:28:36 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-05-13 21:28:36 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics
+2025-05-13 21:28:36 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-05-13 21:28:40 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-05-13 21:28:42 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-05-13 21:28:43 - MainApp - INFO - DPI Awareness set.
+2025-05-13 21:28:43 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-05-13 21:28:43 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-13 19:01:25)
+2025-05-13 21:28:43 - PredictorApp - INFO -   Tipo: LogisticRegression | Calib: Sim | F1 Thr: 0.2674 | EV Thr: 0.2300
+2025-05-13 21:28:43 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-13 19:01:25)
+2025-05-13 21:28:43 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2525 | EV Thr: 0.2500
+2025-05-13 21:28:43 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-05-13 21:28:43 - DataHandler - INFO - -- Processando arquivo: dados_combinados_2019_2025.xlsx --
+2025-05-13 21:28:43 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx (formato: .xlsx)...
+2025-05-13 21:29:22 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-05-13 21:29:22 - DataHandler - INFO - (dados_combinados_2019_2025.xlsx) Mapeando coluna de liga 'League'...
+2025-05-13 21:29:22 - DataHandler - WARNING -   (dados_combinados_2019_2025.xlsx) Ligas NÃO mapeadas para ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-05-13 21:29:22 - DataHandler - INFO -   (dados_combinados_2019_2025.xlsx) APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-05-13 21:29:22 - DataHandler - INFO -     -> Filtro de Liga: 18177/97670 jogos restantes.
+2025-05-13 21:29:22 - DataHandler - INFO -   -> Arquivo dados_combinados_2019_2025.xlsx processado com sucesso (Shape: (18177, 20)).
+2025-05-13 21:29:22 - DataHandler - INFO - Concatenando 1 DataFrames processados...
+2025-05-13 21:29:22 - DataHandler - INFO - DataFrame histórico combinado antes do pós-processamento: (18177, 20)
+2025-05-13 21:29:22 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-05-13 21:29:23 - DataHandler - INFO -   -> Conversão de 'Date' concluída. 0 NaNs restantes em Date (deveria ser 0).
+2025-05-13 21:29:23 - DataHandler - INFO -   Verificando NaNs essenciais em: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-13 21:29:23 - DataHandler - INFO -   Removidas 239 linhas devido a NaNs em colunas essenciais.
+2025-05-13 21:29:23 - DataHandler - INFO -   DataFrame histórico ordenado por data.
+2025-05-13 21:29:23 - DataHandler - INFO -   Calculando Pi-Ratings finais...
+2025-05-13 21:29:23 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-05-13 21:29:24 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-05-13 21:29:24 - DataHandler - INFO - Processamento pós-concatenação concluído.
+2025-05-13 21:29:24 - DataHandler - INFO - Carregamento e processamento de dados históricos concluídos (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS). Shape Final: (17938, 27)
+2025-05-13 21:29:24 - DataHandler - INFO - Contagem de NaNs finais (em colunas com algum NaN):
+Odd_Over25_FT      156
+Odd_Under25_FT     156
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-05-13 21:29:24 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-05-13 21:29:24 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-05-13 21:29:24 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-05-13 21:29:33 - DataHandler - INFO - Buscando jogos de today (2025-05-13): https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/main/data/raw_scraped/scraped_fixtures_2025-05-13.csv
+2025-05-13 21:29:33 - DataHandler - INFO - Arquivo futuro encontrado. Tentando ler...
+2025-05-13 21:29:33 - DataHandler - INFO - Lido com sucesso como CSV.
+2025-05-13 21:29:33 - DataHandler - INFO - Arquivo futuro baixado e lido. Shape: (86, 15)
+2025-05-13 21:29:33 - DataHandler - INFO - Processando arquivo de jogos futuros...
+2025-05-13 21:29:33 - DataHandler - INFO - Filtro de liga DESATIVADO para arquivo de jogos futuros.
+2025-05-13 21:29:33 - DataHandler - INFO - Processamento jogos futuros OK. Shape final: (86, 14)
+2025-05-13 21:29:33 - DataHandler - INFO - Verificando NaNs essenciais (Futuro): ['League', 'Time_Str', 'Home', 'Away', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-05-13 21:29:33 - DataHandler - INFO - Futuro: Removidas 12 linhas com NaNs essenciais.
+2025-05-13 21:29:33 - DataHandler - INFO - Processamento jogos futuros OK. Shape final: (74, 14)
+2025-05-13 21:29:33 - DataHandler - INFO - --- Iniciando Preparação de Features para Jogos Futuros ---
+2025-05-13 21:29:33 - DataHandler - INFO - Usando Médias da Liga (Histórico): Casa=1.353, Fora=1.045
+2025-05-13 21:29:33 - DataHandler - INFO - ETAPA 2: Identificando Configs de Stats Rolling/EWMA Necessárias...
+2025-05-13 21:29:33 - DataHandler - WARNING - Rolling Config 'Media_VG' ignorada para futuro: colunas base ausentes no histórico (VG_H_raw, VG_A_raw).
+2025-05-13 21:29:33 - DataHandler - WARNING - Rolling Config 'Media_CG' ignorada para futuro: colunas base ausentes no histórico (CG_H_raw, CG_A_raw).
+2025-05-13 21:29:33 - DataHandler - INFO - Configs rolling necessárias para futuro: ['Media_GolsMarcados', 'Media_GolsSofridos']
+2025-05-13 21:29:33 - DataHandler - INFO - Configs EWMA necessárias para futuro: ['EWMA_GolsMarc', 'EWMA_GolsSofr']
+2025-05-13 21:29:33 - DataHandler - INFO - Construindo estado final histórico...
+2025-05-13 21:29:34 - DataHandler - INFO - Estado histórico final construído para 242 times.
+2025-05-13 21:29:34 - DataHandler - INFO - ETAPA 4: Calculando features rolling/EWMA para jogos futuros...
+2025-05-13 21:29:34 - DataHandler - INFO - Features Rolling/EWMA adicionadas/atualizadas. Shape atual: (74, 22)
+2025-05-13 21:29:34 - DataHandler - INFO - ETAPA 5: Calculando Pi-Ratings atuais...
+2025-05-13 21:29:35 - DataHandler - INFO - ETAPA 6: Calculando features restantes (Probs, FA/FD, Poisson, Binned, Derivadas)...
+2025-05-13 21:29:35 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-05-13 21:29:35 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-05-13 21:29:35 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-05-13 21:29:35 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_goals=6)...
+2025-05-13 21:29:35 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-05-13 21:29:35 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...
+2025-05-13 21:29:35 - DataHandler - WARNING - Médias CG ausentes p/ Diff_Media_CG.
+2025-05-13 21:29:35 - DataHandler - INFO - Features de interação calculadas (incluindo novas).
+2025-05-13 21:29:35 - DataHandler - INFO - ETAPA 7: Selecionando features FINAIS (['Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'Odd_Over25_FT', 'CV_HDA', 'Media_CG_H', 'Media_VG_A']) para predição...
+2025-05-13 21:29:35 - DataHandler - WARNING - Feature esperada pelo modelo 'Media_CG_H' ausente no DF de fixtures processado. Preenchendo com 0.
+2025-05-13 21:29:35 - DataHandler - WARNING - Feature esperada pelo modelo 'Media_VG_A' ausente no DF de fixtures processado. Preenchendo com 0.
+2025-05-13 21:29:35 - DataHandler - INFO - Shape X_fix_prep_final (antes da limpeza final): (74, 6)
+2025-05-13 21:29:35 - DataHandler - WARNING - 4 NaNs restantes nas features de predição. Preenchendo com 0.
+2025-05-13 21:29:35 - DataHandler - INFO - --- Preparação de Features para Jogos Futuros Concluída. Shape Final Retornado: (74, 6) ---
+2025-05-13 21:29:35 - PredictorApp - INFO - Realizando previsões (Pipeline) para 74 jogos...
+2025-05-13 21:29:35 - PredictorApp - INFO -   Aplicando scaler...
+2025-05-13 21:29:35 - PredictorApp - INFO -   Calculando probs brutas...
+2025-05-13 21:29:35 - PredictorApp - INFO -   Aplicando calibrador (LogisticRegression) na coluna 'ProbRaw_Empate'...
+2025-05-13 21:29:35 - PredictorApp - ERROR -   Erro INESPERADO ao aplicar calibrador (LogisticRegression): Expected 2D array, got 1D array instead:
+array=[0.45852567 0.41941904 0.52663275 0.41130595 0.51028569 0.3465011
+ 0.4139754  0.51990083 0.45280591 0.43613209 0.40040347 0.44367031
+ 0.36250047 0.42065778 0.28864126 0.40801526 0.38954429 0.46415549
+ 0.54939513 0.31970237 0.50476953 0.55254403 0.40071698 0.54199451
+ 0.46470882 0.54134392 0.50117046 0.34115835 0.34100353 0.37208474
+ 0.31748876 0.52347053 0.46667269 0.30643064 0.52019801 0.34999338
+ 0.43301277 0.49969528 0.40303164 0.52032475 0.51866196 0.51443317
+ 0.48433694 0.41827421 0.4787706  0.50586295 0.37269761 0.5340499
+ 0.47188351 0.49134688 0.43523277 0.45030548 0.51483759 0.47273451
+ 0.48009213 0.49070665 0.46978432 0.37162646 0.38319647 0.46067112
+ 0.36020336 0.48163475 0.53840267 0.39200012 0.47522571 0.49082176
+ 0.41497942 0.46119093 0.33825279 0.40689038 0.33638151 0.47547347
+ 0.44818692 0.46667331].
+Reshape your data either using array.reshape(-1, 1) if your data has a single feature or array.reshape(1, -1) if it contains a single sample.. Coluna 'Prob_Empate' terá NaN.
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\predictor.py", line 96, in make_predictions
+    proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\linear_model\_logistic.py", line 1428, in predict_proba
+    return super()._predict_proba_lr(X)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\linear_model\_base.py", line 389, in _predict_proba_lr
+    prob = self.decision_function(X)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\linear_model\_base.py", line 351, in decision_function
+    X = validate_data(self, X, accept_sparse="csr", reset=False)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\utils\validation.py", line 2944, in validate_data
+    out = check_array(X, input_name="X", **check_params)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\utils\validation.py", line 1093, in check_array
+    raise ValueError(msg)
+ValueError: Expected 2D array, got 1D array instead:
+array=[0.45852567 0.41941904 0.52663275 0.41130595 0.51028569 0.3465011
+ 0.4139754  0.51990083 0.45280591 0.43613209 0.40040347 0.44367031
+ 0.36250047 0.42065778 0.28864126 0.40801526 0.38954429 0.46415549
+ 0.54939513 0.31970237 0.50476953 0.55254403 0.40071698 0.54199451
+ 0.46470882 0.54134392 0.50117046 0.34115835 0.34100353 0.37208474
+ 0.31748876 0.52347053 0.46667269 0.30643064 0.52019801 0.34999338
+ 0.43301277 0.49969528 0.40303164 0.52032475 0.51866196 0.51443317
+ 0.48433694 0.41827421 0.4787706  0.50586295 0.37269761 0.5340499
+ 0.47188351 0.49134688 0.43523277 0.45030548 0.51483759 0.47273451
+ 0.48009213 0.49070665 0.46978432 0.37162646 0.38319647 0.46067112
+ 0.36020336 0.48163475 0.53840267 0.39200012 0.47522571 0.49082176
+ 0.41497942 0.46119093 0.33825279 0.40689038 0.33638151 0.47547347
+ 0.44818692 0.46667331].
+Reshape your data either using array.reshape(-1, 1) if your data has a single feature or array.reshape(1, -1) if it contains a single sample.
+2025-05-13 21:29:35 - PredictorApp - INFO -   Calculando EV usando probs brutas...
+2025-05-13 21:29:35 - PredictorApp - INFO -   -> EV_Empate calculado para 74 jogos.
+2025-05-13 21:29:35 - PredictorApp - INFO - Previsões (com EV e probs Raw/Calib) geradas.
+2025-05-13 21:29:35 - PredictorApp - INFO - Realizando previsões (Pipeline) para 74 jogos...
+2025-05-13 21:29:35 - PredictorApp - INFO -   Aplicando scaler...
+2025-05-13 21:29:35 - PredictorApp - INFO -   Calculando probs brutas...
+2025-05-13 21:29:35 - PredictorApp - INFO -   Aplicando calibrador (LogisticRegression) na coluna 'ProbRaw_Empate'...
+2025-05-13 21:29:35 - PredictorApp - ERROR -   Erro INESPERADO ao aplicar calibrador (LogisticRegression): Expected 2D array, got 1D array instead:
+array=[0.45852567 0.41941904 0.52663275 0.41130595 0.51028569 0.3465011
+ 0.4139754  0.51990083 0.45280591 0.43613209 0.40040347 0.44367031
+ 0.36250047 0.42065778 0.28864126 0.40801526 0.38954429 0.46415549
+ 0.54939513 0.31970237 0.50476953 0.55254403 0.40071698 0.54199451
+ 0.46470882 0.54134392 0.50117046 0.34115835 0.34100353 0.37208474
+ 0.31748876 0.52347053 0.46667269 0.30643064 0.52019801 0.34999338
+ 0.43301277 0.49969528 0.40303164 0.52032475 0.51866196 0.51443317
+ 0.48433694 0.41827421 0.4787706  0.50586295 0.37269761 0.5340499
+ 0.47188351 0.49134688 0.43523277 0.45030548 0.51483759 0.47273451
+ 0.48009213 0.49070665 0.46978432 0.37162646 0.38319647 0.46067112
+ 0.36020336 0.48163475 0.53840267 0.39200012 0.47522571 0.49082176
+ 0.41497942 0.46119093 0.33825279 0.40689038 0.33638151 0.47547347
+ 0.44818692 0.46667331].
+Reshape your data either using array.reshape(-1, 1) if your data has a single feature or array.reshape(1, -1) if it contains a single sample.. Coluna 'Prob_Empate' terá NaN.
+Traceback (most recent call last):
+  File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\predictor.py", line 96, in make_predictions
+    proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\linear_model\_logistic.py", line 1428, in predict_proba
+    return super()._predict_proba_lr(X)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\linear_model\_base.py", line 389, in _predict_proba_lr
+    prob = self.decision_function(X)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\linear_model\_base.py", line 351, in decision_function
+    X = validate_data(self, X, accept_sparse="csr", reset=False)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\utils\validation.py", line 2944, in validate_data
+    out = check_array(X, input_name="X", **check_params)
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\sklearn\utils\validation.py", line 1093, in check_array
+    raise ValueError(msg)
+ValueError: Expected 2D array, got 1D array instead:
+array=[0.45852567 0.41941904 0.52663275 0.41130595 0.51028569 0.3465011
+ 0.4139754  0.51990083 0.45280591 0.43613209 0.40040347 0.44367031
+ 0.36250047 0.42065778 0.28864126 0.40801526 0.38954429 0.46415549
+ 0.54939513 0.31970237 0.50476953 0.55254403 0.40071698 0.54199451
+ 0.46470882 0.54134392 0.50117046 0.34115835 0.34100353 0.37208474
+ 0.31748876 0.52347053 0.46667269 0.30643064 0.52019801 0.34999338
+ 0.43301277 0.49969528 0.40303164 0.52032475 0.51866196 0.51443317
+ 0.48433694 0.41827421 0.4787706  0.50586295 0.37269761 0.5340499
+ 0.47188351 0.49134688 0.43523277 0.45030548 0.51483759 0.47273451
+ 0.48009213 0.49070665 0.46978432 0.37162646 0.38319647 0.46067112
+ 0.36020336 0.48163475 0.53840267 0.39200012 0.47522571 0.49082176
+ 0.41497942 0.46119093 0.33825279 0.40689038 0.33638151 0.47547347
+ 0.44818692 0.46667331].
+Reshape your data either using array.reshape(-1, 1) if your data has a single feature or array.reshape(1, -1) if it contains a single sample.
+2025-05-13 21:29:35 - PredictorApp - INFO -   Calculando EV usando probs brutas...
+2025-05-13 21:29:35 - PredictorApp - INFO -   -> EV_Empate calculado para 74 jogos.
+2025-05-13 21:29:35 - PredictorApp - INFO - Previsões (com EV e probs Raw/Calib) geradas.
+2025-05-13 21:35:49 - MainApp - INFO - Fechando aplicação.
+2025-05-13 21:35:49 - MainApp - INFO - Destruindo janela principal.

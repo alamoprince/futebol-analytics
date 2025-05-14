@@ -33,10 +33,8 @@ try:
         CLASS_NAMES, FIXTURE_FETCH_DAY,MODEL_CONFIG,
         MODEL_TYPE_NAME, ODDS_COLS as CONFIG_ODDS_COLS,
         BEST_F1_MODEL_SAVE_PATH, BEST_ROI_MODEL_SAVE_PATH, MODEL_ID_F1, MODEL_ID_ROI,
-        DEFAULT_F1_THRESHOLD, DEFAULT_EV_THRESHOLD # FEATURE_COLUMNS é usado no prepare_fixture_data e pipeline de treino
-        # Removido MODEL_CONFIG se optimize_single_model for removido ou não usado aqui
-        # Removido ROLLING_WINDOW se não for usado diretamente aqui (é usado em data_handler)
-    )
+        DEFAULT_F1_THRESHOLD, DEFAULT_EV_THRESHOLD, CALIBRATION_METHOD_DEFAULT )
+    
     # Imports de data_handler necessários
     from data_handler import (
         load_historical_data,
@@ -241,7 +239,7 @@ class FootballPredictorDashboard:
                 elif params and model_class_name != 'VotingEnsemble': # Evita mostrar params complexos do voting
                     stats_content += f"  Params Otimizados: {params}\n"
 
-                stats_content += f"  Calibrado (Isotonic): {'Sim' if calibrator_loaded else 'Não'}\n"
+                stats_content += f"  Calibrado ({CALIBRATION_METHOD_DEFAULT}): {'Sim' if calibrator_loaded else 'Não'}\n"
                 stats_content += f"  Arquivo: {os.path.basename(path or 'N/A')}\n"
                 stats_content += f"  Modificado: {timestamp or 'N/A'}\n"
                 if features: stats_content += f"  Features ({len(features)}): {', '.join(features)}\n"
@@ -672,26 +670,24 @@ class FootballPredictorDashboard:
                 elif "avaliando" in status_lower: stage_progress = 90
                 elif "adicionado" in status_lower: stage_progress = 99
                 current_total_progress = min(base_progress + stage_progress, total_progress_units)
-                self.gui_queue.put(("progress_update", (current_total_progress, f"Mod {model_index+1}/{num_models}: {status_text}")))
+                self.gui_queue.put(("progress_update", (current_total_progress, status_text)))
 
             self.log("Iniciando treinamento...")
-            # Atualização de progresso inicial para o treinamento
-            self.gui_queue.put(("progress_update", (int(total_progress_units*0.20 / num_models), "Iniciando Treinamento..."))) # ~20% do primeiro
+            self.gui_queue.put(("progress_update", (int(total_progress_units*0.20 / num_models), "Iniciando Treinamento..."))) 
 
             success = run_training_process(
                 X=X_processed, y=y_processed,
                 X_test_with_odds=df_full_data_aligned_for_split,
-                odd_draw_col_name=odd_draw_col_name, # Usa a variável verificada
-                progress_callback_stages=training_progress_callback_stages, # <<< PASSA O CALLBACK CORRETO
-                num_total_models=num_models,                               # <<< PASSA O NÚMERO TOTAL
-                calibration_method='isotonic',
-                optimize_ev_threshold=optimize_ev,
-                optimize_f1_threshold=optimize_f1, # Passa o flag F1
+                odd_draw_col_name=odd_draw_col_name, 
+                progress_callback_stages=training_progress_callback_stages, 
+                num_total_models_expected=num_models,                               
+                calibration_method= CALIBRATION_METHOD_DEFAULT,
+                optimize_ev_threshold_flag=optimize_ev,
+                optimize_f1_threshold_flag=optimize_f1, 
             )
 
-            final_status_msg = "Treino Concluído!" if success else "Treino Falhou."
-            self.gui_queue.put(("progress_update", (total_progress_units, final_status_msg))) # Atualiza para 100%
-
+            status_text = "Treino Concluído!" if success else "Treino Falhou."
+            self.gui_queue.put(("progress_update", (total_progress_units, status_text))) 
             if success:
                 self.log("Treino OK."); self.gui_queue.put(("training_succeeded", None)); training_successful = True
             else:
@@ -711,190 +707,124 @@ class FootballPredictorDashboard:
 
     # _run_prediction_pipeline ( para passar calibrador e usar limiar)
     def _run_prediction_pipeline(self, odd_draw_col: str):
-        prediction_successful = False
-        df_predictions_final_display = None
         try:
             self.gui_queue.put(("progress_start", (100,)))
-            self.gui_queue.put(("progress_update", (10, f"Buscando CSV...")))
+            self.gui_queue.put(("progress_update", (10, f"Buscando CSV de jogos futuros...")))
             fixture_df = fetch_and_process_fixtures()
-            if fixture_df is None:
-                raise ValueError("Falha buscar CSV.")
+
+            if fixture_df is None: # Erro na busca
+                self.log("ERRO: Falha ao buscar CSV de jogos futuros.")
+                self.gui_queue.put(("error", ("Erro de Rede", "Não foi possível buscar os jogos.")))
+                self.gui_queue.put(("prediction_complete", pd.DataFrame())) # Envia DF vazio para limpar treeview
+                return # Sai da função
             if fixture_df.empty:
-                self.log("Nenhum jogo CSV.")
-                self.gui_queue.put(("prediction_complete", None))
+                self.log("Nenhum jogo encontrado no CSV para o dia alvo.")
+                self.gui_queue.put(("prediction_complete", pd.DataFrame()))
                 return
 
-            self.gui_queue.put(("progress_update", (40, f"Preparando features...")))
+            self.gui_queue.put(("progress_update", (30, f"Preparando features para {len(fixture_df)} jogos...")))
             if not self.feature_columns or self.historical_data is None:
-                raise ValueError("Features/Histórico ausentes.")
-            X_fixtures_prepared = prepare_fixture_data(fixture_df, self.historical_data, self.feature_columns)
-            if X_fixtures_prepared is None:
-                raise ValueError("Falha preparar features.")
+                self.log("ERRO: Features do modelo ou dados históricos ausentes para preparação.")
+                raise ValueError("Features do modelo ou dados históricos não carregados.") # Levanta erro para ser pego pelo except geral
+
+            X_fixtures_prepared = prepare_fixture_data(
+                fixture_df,
+                self.historical_data,
+                self.feature_columns 
+            )
+
+            if X_fixtures_prepared is None: 
+                self.log("ERRO: Falha ao preparar features para os jogos futuros.")
+                raise ValueError("Falha ao preparar features dos jogos.")
             if X_fixtures_prepared.empty:
-                self.log("Nenhum jogo p/ prever.")
-                self.gui_queue.put(("prediction_complete", None))
+                self.log("Nenhum jogo restante para prever após preparação de features.")
+                self.gui_queue.put(("prediction_complete", pd.DataFrame()))
                 return
 
-            # --- CHAMADA make_predictions passa odd_draw_col ---
-            df_preds_with_ev = predictor.make_predictions(
-                model=self.trained_model, 
-                scaler=self.trained_scaler, calibrator=self.trained_calibrator,
-                feature_names=self.feature_columns, X_fixture_prepared=X_fixtures_prepared,
-                fixture_info=fixture_df.loc[X_fixtures_prepared.index],
-                odd_draw_col_name=odd_draw_col # Passa nome da coluna
-            )
-            if df_preds_with_ev is None: raise RuntimeError("Falha gerar previsões com EV.");
-            self.log(f"Previsões com EV geradas: {len(df_preds_with_ev)}.");
+            self.gui_queue.put(("progress_update", (60, f"Realizando previsões para {len(X_fixtures_prepared)} jogos...")))
 
-            df_predictions_final_to_display = df_preds_with_ev
-
-            # --- FILTRO AGORA É POR EV > optimal_ev_threshold ---
-            df_to_filter = df_preds_with_ev.copy()
-            ev_col_name = 'EV_Empate'  # Coluna criada pelo predictor
-            self.log(f"Aplicando filtro EV > {self.optimal_ev_threshold:.3f}...")
-
-            if ev_col_name in df_to_filter.columns:
-                # Garante que EV é numérico
-                df_to_filter[ev_col_name] = pd.to_numeric(df_to_filter[ev_col_name], errors='coerce')
-                df_to_filter.dropna(subset=[ev_col_name], inplace=True)  # Remove onde EV não pôde ser calculado
-
-                initial_rows_f = len(df_to_filter)
-                # FILTRA por EV usando o limiar da instância
-                df_filtered_f = df_to_filter[df_to_filter[ev_col_name] > self.optimal_ev_threshold].copy()
-                rows_kept_f = len(df_filtered_f)
-                self.log(f"Filtro EV: {rows_kept_f} de {initial_rows_f} jogos restantes passaram (EV > {self.optimal_ev_threshold:.3f}).")
-                df_predictions_final_filtered = df_filtered_f
-            else:
-                self.log(f"Aviso: Coluna '{ev_col_name}' não encontrada para filtro EV.")
-                df_predictions_final_filtered = pd.DataFrame()
-
-            df_preds_with_calib = predictor.make_predictions(
+            df_predictions_all_info = predictor.make_predictions(
                 model=self.trained_model,
                 scaler=self.trained_scaler,
-                calibrator=self.trained_calibrator,  # <<< PASSA O CALIBRADOR
+                calibrator=self.trained_calibrator, 
                 feature_names=self.feature_columns,
                 X_fixture_prepared=X_fixtures_prepared,
-                fixture_info=fixture_df.loc[X_fixtures_prepared.index]
+                fixture_info=fixture_df.loc[X_fixtures_prepared.index], 
+                odd_draw_col_name=odd_draw_col
             )
 
-            if df_preds_with_calib is None:
-                raise RuntimeError("Falha gerar previsões.")
-            self.log(f"Previsões (com probs calibradas se possível) geradas: {len(df_preds_with_calib)}.")
+            if df_predictions_all_info is None or df_predictions_all_info.empty:
+                self.log("Falha ao gerar previsões ou nenhuma previsão retornada de predictor.make_predictions.")
+                self.gui_queue.put(("prediction_complete", pd.DataFrame()))
+                return
 
-            # --- Filtro AGORA USA o optimal_threshold da classe ---
-            df_to_filter = df_preds_with_calib.copy()
-            self.log(f"Aplicando filtro de Limiar ({self.optimal_f1_threshold:.3f})...")
+            self.log(f"Previsões (com probs Raw/Calib e EV) geradas para {len(df_predictions_all_info)} jogos.")
 
-            # Usa a coluna de probabilidade CALIBRADA se existir, senão a bruta
-            prob_draw_col_calib = f'Prob_{CLASS_NAMES[1]}'  # Nome da coluna calibrada (sem Raw_)
-            if prob_draw_col_calib not in df_to_filter.columns:
-                # Tenta usar a bruta como fallback se a calibrada não foi gerada
-                prob_draw_col_raw = f'ProbRaw_{CLASS_NAMES[1]}'
-                if prob_draw_col_raw in df_to_filter.columns:
-                    prob_col_to_use = prob_draw_col_raw
-                    self.log(f"Aviso: Usando probs brutas ({prob_col_to_use}) para filtro (calibração falhou?).")
-                else:
-                    self.log(f"Erro: Nenhuma coluna de probabilidade ({prob_draw_col_calib} ou Raw) encontrada.")
-                    # Decide o que fazer: pular filtro ou dar erro? Vamos pular por enquanto.
-                    prob_col_to_use = None
+            # --- Opcional: Filtragem antes da exibição ---
+            # Se você quiser filtrar os jogos ANTES de mostrá-los na GUI
+            # (em vez de apenas destacá-los), você pode aplicar filtros aqui.
+            # Por exemplo, para mostrar apenas jogos com EV > X e Prob > Y:
+
+            df_for_display_and_highlight = df_predictions_all_info.copy()
+            # Você pode adicionar uma coluna de "Sinal" aqui se quiser
+            # Ex: df_for_display_and_highlight['Sinal_Aposta_EV'] = (df_for_display_and_highlight['EV_Empate'] > self.optimal_ev_threshold)
+            # Ex: df_for_display_and_highlight['Sinal_Aposta_Prob'] = (df_for_display_and_highlight[prob_col_para_usar] > self.optimal_f1_threshold)
+
+            # --- Lógica de Ordenação (Aplicada ao DataFrame que será exibido) ---
+            prob_draw_calib_col_display = f'Prob_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'Prob_Empate'
+            df_sorted_for_display = df_for_display_and_highlight.copy()
+
+            # Tenta ordenar pela probabilidade calibrada de empate (se existir e tiver valores)
+            if prob_draw_calib_col_display in df_sorted_for_display.columns and \
+               df_sorted_for_display[prob_draw_calib_col_display].notna().any():
+                self.log(f"Ordenando previsões por '{prob_draw_calib_col_display}' (calibrada) descendente...")
+                try:
+                    df_sorted_for_display[prob_draw_calib_col_display] = pd.to_numeric(df_sorted_for_display[prob_draw_calib_col_display], errors='coerce')
+                    df_sorted_for_display = df_sorted_for_display.sort_values(by=prob_draw_calib_col_display, ascending=False, na_position='last').reset_index(drop=True)
+                except Exception as e_sort:
+                    self.log(f"Aviso: Erro ao ordenar por prob calibrada: {e_sort}")
             else:
-                prob_col_to_use = prob_draw_col_calib  # Usa a calibrada!
-
-            df_predictions_final_filtered = df_to_filter  # Default se não puder filtrar
-            if prob_col_to_use:
-                # Garante que a coluna é numérica
-                df_to_filter[prob_col_to_use] = pd.to_numeric(df_to_filter[prob_col_to_use], errors='coerce')
-                df_to_filter.dropna(subset=[prob_col_to_use], inplace=True)
-
-                initial_rows_f = len(df_to_filter)
-                # FILTRA usando o limiar da instância (self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD;)
-                df_filtered_f = df_to_filter[df_to_filter[prob_col_to_use] > self.optimal_f1_threshold].copy()
-                rows_kept_f = len(df_filtered_f)
-                self.log(f"Filtro Limiar: {rows_kept_f} de {initial_rows_f} jogos restantes passaram (P > {self.optimal_f1_threshold:.3f}).")
-                df_predictions_final_filtered = df_filtered_f
-            else:
-                self.log("Filtro de probabilidade não aplicado (coluna não encontrada).")
-
-            # --- Fim do Filtro ---
-
-            prob_draw_calib_col = f'Prob_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'Prob_Empate'
-
-            if df_predictions_final_to_display is not None and not df_predictions_final_to_display.empty:
-                if prob_draw_calib_col in df_predictions_final_to_display.columns:
-                    self.log(f"Ordenando previsões por '{prob_draw_calib_col}' descendente...")
+                prob_draw_raw_col_display = f'ProbRaw_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'ProbRaw_Empate'
+                if prob_draw_raw_col_display in df_sorted_for_display.columns and \
+                   df_sorted_for_display[prob_draw_raw_col_display].notna().any():
+                    self.log(f"Aviso: Prob calibrada ausente/NaN. Ordenando por prob bruta '{prob_draw_raw_col_display}'...")
                     try:
-                        # Garante que a coluna é numérica antes de ordenar
-                        df_predictions_final_to_display[prob_draw_calib_col] = pd.to_numeric(
-                            df_predictions_final_to_display[prob_draw_calib_col], errors='coerce'
-                        )
-                        # Opcional: Remover linhas onde a probabilidade não pôde ser convertida
-                        df_predictions_final_to_display.dropna(subset=[prob_draw_calib_col], inplace=True)
-
-                        # Ordena o DataFrame
-                        df_predictions_final_to_display = df_predictions_final_to_display.sort_values(
-                            by=prob_draw_calib_col, ascending=False
-                        ).reset_index(drop=True) # reset_index para manter a ordem na exibição
-
-                    except KeyError:
-                        self.log(f"Aviso: Coluna '{prob_draw_calib_col}' não encontrada para ordenação (KeyError).")
-                        logger.warning(f"Coluna de ordenação '{prob_draw_calib_col}' não encontrada no DataFrame final (KeyError).")
-                    except Exception as e_sort:
-                        self.log(f"Aviso: Erro ao ordenar por probabilidade de empate: {e_sort}")
-                        logger.warning(f"Falha ao ordenar previsões por {prob_draw_calib_col}: {e_sort}", exc_info=True)
+                        df_sorted_for_display[prob_draw_raw_col_display] = pd.to_numeric(df_sorted_for_display[prob_draw_raw_col_display], errors='coerce')
+                        df_sorted_for_display = df_sorted_for_display.sort_values(by=prob_draw_raw_col_display, ascending=False, na_position='last').reset_index(drop=True)
+                    except Exception as e_sort_raw:
+                        self.log(f"Aviso: Erro ao ordenar por prob bruta: {e_sort_raw}")
                 else:
-                    # Tenta ordenar pela probabilidade bruta como fallback, se a calibrada não existir
-                    prob_draw_raw_col = f'ProbRaw_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'ProbRaw_Empate'
-                    if prob_draw_raw_col in df_predictions_final_to_display.columns:
-                        self.log(f"Aviso: Coluna calibrada '{prob_draw_calib_col}' não encontrada. Ordenando por probabilidade bruta '{prob_draw_raw_col}'...")
-                        logger.warning(f"Coluna calibrada '{prob_draw_calib_col}' não encontrada. Tentando ordenar por bruta '{prob_draw_raw_col}'.")
-                        try:
-                            df_predictions_final_to_display[prob_draw_raw_col] = pd.to_numeric(
-                                df_predictions_final_to_display[prob_draw_raw_col], errors='coerce'
-                            )
-                            df_predictions_final_to_display.dropna(subset=[prob_draw_raw_col], inplace=True)
-                            df_predictions_final_to_display = df_predictions_final_to_display.sort_values(
-                                by=prob_draw_raw_col, ascending=False
-                            ).reset_index(drop=True)
-                        except Exception as e_sort_raw:
-                            self.log(f"Aviso: Erro ao ordenar por probabilidade bruta: {e_sort_raw}")
-                            logger.warning(f"Falha ao ordenar previsões por probabilidade bruta {prob_draw_raw_col}: {e_sort_raw}")
-                    else:
-                        self.log(f"Aviso: Colunas de probabilidade ('{prob_draw_calib_col}' ou '{prob_draw_raw_col}') não encontradas para ordenação.")
-                        logger.warning(f"Colunas de probabilidade ('{prob_draw_calib_col}' ou '{prob_draw_raw_col}') não encontradas para ordenação.")
+                    self.log(f"Aviso: Nenhuma coluna de probabilidade (calibrada ou bruta) válida para ordenação.")
 
-            # --- Fim do Bloco de Ordenação ---
-
-            # Envia resultado (agora ordenado, se possível) para GUI
+            # --- Envio para GUI ---
             self.gui_queue.put(("progress_update", (95, "Preparando Exibição...")))
-            if df_predictions_final_to_display is not None and not df_predictions_final_to_display.empty:
-                # Log indica se foi ordenado (baseado na presença da coluna calibrada)
-                sort_status = "ORDENADAS" if prob_draw_calib_col in df_predictions_final_to_display.columns else "NÃO ORDENADAS por Prob"
-                self.log(f"Enviando {len(df_predictions_final_to_display)} previsões {sort_status} para exibição.")
-                self.gui_queue.put(("prediction_complete", df_predictions_final_to_display)) # Passa o DF ORDENADO (ou original se falhou)
+            if not df_sorted_for_display.empty:
+                self.log(f"Enviando {len(df_sorted_for_display)} previsões para exibição.")
+                self.gui_queue.put(("prediction_complete", df_sorted_for_display))
+                prediction_successful = True 
             else:
-                self.log("Nenhuma previsão gerada ou DataFrame vazio.")
-                self.gui_queue.put(("prediction_complete", None))  # Passa None para limpar
+                self.log("Nenhuma previsão para exibir após processamento/ordenação.")
+                self.gui_queue.put(("prediction_complete", pd.DataFrame()))
 
-            # Envia resultado para GUI
-            self.gui_queue.put(("progress_update", (95, "Preparando Exibição...")))
-            if df_predictions_final_to_display is not None and not df_predictions_final_to_display.empty:
-                 self.log(f"Enviando {len(df_predictions_final_to_display)} previsões para exibição (sem filtro).") # Log atualizado
-                 self.gui_queue.put(("prediction_complete", df_predictions_final_to_display)) # Passa o DF COMPLETO
-            else:
-                 self.log("Nenhuma previsão gerada ou DataFrame vazio.")
-                 self.gui_queue.put(("prediction_complete", None))  # Passa None para limpar
-
-        except Exception as e:
-            error_msg = f"Erro Pipeline Previsão: {e}"
-            self.log(f"ERRO: {error_msg}") # Loga a mensagem curta para a GUI
+        except ValueError as ve: 
+            error_msg = f"Erro de Valor no Pipeline de Previsão: {ve}"
+            self.log(f"ERRO: {error_msg}")
+            logger.error(f"Erro de Valor no pipeline de previsão: {ve}", exc_info=False) 
+            self.gui_queue.put(("error", ("Erro de Dados", error_msg)))
+            self.gui_queue.put(("prediction_complete", pd.DataFrame()))
+        except Exception as e: 
+            error_msg = f"Erro Inesperado no Pipeline de Previsão: {e}"
+            self.log(f"ERRO CRÍTICO: {error_msg}")
             logger.error(f"Erro completo no pipeline de previsão: {e}", exc_info=True)
-            self.gui_queue.put(("error", ("Erro Previsão", error_msg)))
-            self.gui_queue.put(("prediction_complete", None))
+            self.gui_queue.put(("error", ("Erro Crítico na Previsão", error_msg)))
+            self.gui_queue.put(("prediction_complete", pd.DataFrame())) 
         finally:
             self.gui_queue.put(("progress_end", None))
-            self.set_button_state(self.load_train_button, tk.NORMAL)
-            if self.trained_model and self.selected_model_id:
+            self.set_button_state(self.load_train_button, tk.NORMAL) 
+            if self.selected_model_id and self.trained_model:
                 self.set_button_state(self.predict_button, tk.NORMAL)
+            else:
+                self.set_button_state(self.predict_button, tk.DISABLED)
 
 
     # --- Carregamento Inicial de Modelos  ---
@@ -910,7 +840,6 @@ class FootballPredictorDashboard:
 
         for model_id, model_path in model_paths_to_try.items():
             self.log(f"Tentando carregar: {model_id}...")
-            # load_model_scaler_features AGORA retorna mais itens
             load_result = predictor.load_model_scaler_features(model_path) # Função atualizada
 
             if load_result:
@@ -922,9 +851,9 @@ class FootballPredictorDashboard:
                     self.loaded_models_data[model_id] = {
                         'model': model, 
                         'scaler': scaler, 
-                        'calibrator': calibrator, # Armazena calibrador
-                        'optimal_ev_threshold': ev_threshold, # Armazena limiar
-                        'optimal_f1_threshold': f1_thr, # Armazena limiar F1
+                        'calibrator': calibrator, 
+                        'optimal_ev_threshold': ev_threshold, 
+                        'optimal_f1_threshold': f1_thr, 
                         'features': features, 
                         'params': params, 
                         'metrics': metrics,
@@ -942,7 +871,7 @@ class FootballPredictorDashboard:
                 if self.available_model_ids:
                     final_selection = default_selection if default_selection in self.available_model_ids else self.available_model_ids[0]
                     self.selected_model_var.set(final_selection)
-                    self.on_model_select() # Dispara atualização da GUI com dados do modelo selecionado
+                    self.on_model_select() 
                     self.log(f"Modelos disponíveis: {self.available_model_ids}. Selecionado: {final_selection}")
                 else:
                     self.selected_model_var.set(""); self.on_model_select(); self.log("Nenhum modelo válido encontrado.")
