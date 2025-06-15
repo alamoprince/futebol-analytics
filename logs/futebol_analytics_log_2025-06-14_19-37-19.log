@@ -1,0 +1,325 @@
+2025-06-14 19:37:19 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-06-14 19:37:19 - MainApp - INFO - SRC_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src
+2025-06-14 19:37:19 - MainApp - INFO - BASE_DIR: c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics
+2025-06-14 19:37:19 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-06-14 19:37:21 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-06-14 19:37:22 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-06-14 19:37:23 - MainApp - INFO - DPI Awareness set.
+2025-06-14 19:37:23 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-06-14 19:37:23 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-05-13 19:01:25)
+2025-06-14 19:37:23 - PredictorApp - INFO -   Tipo: LogisticRegression | Calib: Sim | F1 Thr: 0.2674 | EV Thr: 0.2300
+2025-06-14 19:37:23 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-05-13 19:01:25)
+2025-06-14 19:37:23 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2525 | EV Thr: 0.2500
+2025-06-14 19:37:23 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-06-14 19:37:23 - DataHandler - INFO - -- Processando arquivo: dados_combinados_2019_2025.xlsx --
+2025-06-14 19:37:23 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx (formato: .xlsx)...
+2025-06-14 19:38:03 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-06-14 19:38:04 - DataHandler - INFO - (dados_combinados_2019_2025.xlsx) Mapeando coluna de liga 'League'...
+2025-06-14 19:38:04 - DataHandler - WARNING -   (dados_combinados_2019_2025.xlsx) Ligas NÃO mapeadas para ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-06-14 19:38:04 - DataHandler - INFO -   (dados_combinados_2019_2025.xlsx) APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-06-14 19:38:04 - DataHandler - INFO -     -> Filtro de Liga: 18177/97670 jogos restantes.
+2025-06-14 19:38:04 - DataHandler - INFO -   -> Arquivo dados_combinados_2019_2025.xlsx processado com sucesso (Shape: (18177, 20)).
+2025-06-14 19:38:04 - DataHandler - INFO - Concatenando 1 DataFrames processados...
+2025-06-14 19:38:04 - DataHandler - INFO - DataFrame histórico combinado antes do pós-processamento: (18177, 20)
+2025-06-14 19:38:04 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-06-14 19:38:04 - DataHandler - INFO -   -> Conversão de 'Date' concluída. 0 NaNs restantes em Date (deveria ser 0).
+2025-06-14 19:38:04 - DataHandler - INFO -   Verificando NaNs essenciais em: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-06-14 19:38:04 - DataHandler - INFO -   Removidas 239 linhas devido a NaNs em colunas essenciais.
+2025-06-14 19:38:04 - DataHandler - INFO -   DataFrame histórico ordenado por data.
+2025-06-14 19:38:04 - DataHandler - INFO -   Calculando Pi-Ratings finais...
+2025-06-14 19:38:04 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-06-14 19:38:05 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-06-14 19:38:05 - DataHandler - INFO - Processamento pós-concatenação concluído.
+2025-06-14 19:38:05 - DataHandler - INFO - Carregamento e processamento de dados históricos concluídos (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS). Shape Final: (17938, 27)
+2025-06-14 19:38:05 - DataHandler - INFO - Contagem de NaNs finais (em colunas com algum NaN):
+Odd_Over25_FT      156
+Odd_Under25_FT     156
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-06-14 19:38:05 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-06-14 19:38:05 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-06-14 19:38:05 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-06-14 19:40:34 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-06-14 19:40:34 - DataHandler - INFO - -- Processando arquivo: dados_combinados_2019_2025.xlsx --
+2025-06-14 19:40:34 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx (formato: .xlsx)...
+2025-06-14 19:41:15 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-06-14 19:41:15 - DataHandler - INFO - (dados_combinados_2019_2025.xlsx) Mapeando coluna de liga 'League'...
+2025-06-14 19:41:15 - DataHandler - WARNING -   (dados_combinados_2019_2025.xlsx) Ligas NÃO mapeadas para ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-06-14 19:41:15 - DataHandler - INFO -   (dados_combinados_2019_2025.xlsx) APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-06-14 19:41:15 - DataHandler - INFO -     -> Filtro de Liga: 18177/97670 jogos restantes.
+2025-06-14 19:41:15 - DataHandler - INFO -   -> Arquivo dados_combinados_2019_2025.xlsx processado com sucesso (Shape: (18177, 20)).
+2025-06-14 19:41:15 - DataHandler - INFO - Concatenando 1 DataFrames processados...
+2025-06-14 19:41:15 - DataHandler - INFO - DataFrame histórico combinado antes do pós-processamento: (18177, 20)
+2025-06-14 19:41:15 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-06-14 19:41:16 - DataHandler - INFO -   -> Conversão de 'Date' concluída. 0 NaNs restantes em Date (deveria ser 0).
+2025-06-14 19:41:16 - DataHandler - INFO -   Verificando NaNs essenciais em: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-06-14 19:41:16 - DataHandler - INFO -   Removidas 239 linhas devido a NaNs em colunas essenciais.
+2025-06-14 19:41:16 - DataHandler - INFO -   DataFrame histórico ordenado por data.
+2025-06-14 19:41:16 - DataHandler - INFO -   Calculando Pi-Ratings finais...
+2025-06-14 19:41:16 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-06-14 19:41:17 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-06-14 19:41:17 - DataHandler - INFO - Processamento pós-concatenação concluído.
+2025-06-14 19:41:17 - DataHandler - INFO - Carregamento e processamento de dados históricos concluídos (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS). Shape Final: (17938, 27)
+2025-06-14 19:41:17 - DataHandler - INFO - Contagem de NaNs finais (em colunas com algum NaN):
+Odd_Over25_FT      156
+Odd_Under25_FT     156
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-06-14 19:41:17 - DataHandler - INFO - --- Iniciando Pipeline Pré-proc e Feature Eng (Histórico) ---
+2025-06-14 19:41:17 - DataHandler - INFO - Médias Liga (FA/FD, Poisson): Casa=1.353, Fora=1.045
+2025-06-14 19:41:17 - DataHandler - INFO - === ETAPA 1: Intermediárias e Probs ===
+2025-06-14 19:41:17 - DataHandler - INFO - Calculando stats intermediárias (Result, IsDraw, Ptos)...
+2025-06-14 19:41:17 - DataHandler - INFO - -> Colunas de Gols encontradas: 'Goals_H_FT' e 'Goals_A_FT'.
+2025-06-14 19:41:17 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-06-14 19:41:17 - DataHandler - INFO - Cálculo Intermediárias (Result/IsDraw/Ptos) concluído.
+2025-06-14 19:41:17 - DataHandler - INFO - Probabilidades Implícitas (p_H, p_D, p_A) calculadas.
+2025-06-14 19:41:17 - DataHandler - INFO - Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.
+2025-06-14 19:41:17 - DataHandler - INFO - === ETAPA 1.5: VG_raw e CG_raw ===
+2025-06-14 19:41:17 - DataHandler - INFO - Calculando VG_raw e CG_raw...
+2025-06-14 19:41:17 - DataHandler - INFO - -> VG_raw e CG_raw calculados.
+2025-06-14 19:41:17 - DataHandler - INFO - === ETAPA 2: PiRatings ===
+2025-06-14 19:41:17 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-06-14 19:41:19 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-06-14 19:41:19 - DataHandler - INFO - === ETAPA 3: Rolling Stats ===
+2025-06-14 19:41:19 - DataHandler - INFO - Calculando 8 métricas rolling (Janela Padrão=5)...
+2025-06-14 19:41:31 - DataHandler - INFO - Métricas rolling calculadas. Shape: (17938, 16).
+2025-06-14 19:41:31 - DataHandler - INFO - === ETAPA 4: EWMA Stats ===
+2025-06-14 19:41:31 - DataHandler - INFO - Calculando 4 métricas EWMA (Span Padrão=5)...
+2025-06-14 19:41:58 - DataHandler - INFO - Métricas EWMA calculadas. Shape: (17938, 8).
+2025-06-14 19:41:58 - DataHandler - INFO - === ETAPA 5: FA/FD ===
+2025-06-14 19:41:58 - DataHandler - INFO - === ETAPA 6: Poisson, Binned, Derivadas ===
+2025-06-14 19:41:58 - DataHandler - INFO - Calculando Prob Empate (Poisson Refinado, max_goals=6)...
+2025-06-14 19:41:58 - DataHandler - INFO - Prob_Empate_Poisson (Refinado) calculado.
+2025-06-14 19:41:58 - DataHandler - INFO - Binning ('Odd_D_Cat') calculado a partir de 'Odd_D_FT'.
+2025-06-14 19:41:58 - DataHandler - INFO - Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...
+2025-06-14 19:41:58 - DataHandler - INFO - Features de interação calculadas (incluindo novas).
+2025-06-14 19:41:58 - DataHandler - INFO - === FIM PIPELINE FEATURE ENG (HISTÓRICO) ===
+2025-06-14 19:41:58 - DataHandler - INFO - --- Selecionando e Limpando Features Finais ---
+2025-06-14 19:41:58 - DataHandler - INFO - Features finais a serem usadas para o modelo: ['Prob_Empate_Poisson', 'abs_ProbDiff_Norm', 'Odd_Over25_FT', 'CV_HDA', 'PiR_Mom_5G_A', 'Media_VG_H', 'Media_VG_A']
+2025-06-14 19:41:58 - DataHandler - INFO - DataFrame selecionado com features e alvo (antes do dropna): (17938, 8)
+2025-06-14 19:41:58 - DataHandler - WARNING - NaNs ANTES do dropna final nas features selecionadas:
+Odd_Over25_FT    156
+PiR_Mom_5G_A     616
+Media_VG_H       107
+Media_VG_A       135
+dtype: int64
+2025-06-14 19:41:58 - DataHandler - INFO - Removidas 791 linhas contendo NaNs/Infs nas features finais ou no alvo.
+2025-06-14 19:41:58 - DataHandler - INFO - --- Seleção e Limpeza de Features Finais Concluída --- Shape X: (17147, 7), Shape y: (17147,).
+2025-06-14 19:41:58 - DataHandler - INFO - Calculando stats intermediárias (Result, IsDraw, Ptos)...
+2025-06-14 19:41:58 - DataHandler - INFO - -> Colunas de Gols encontradas: 'Goals_H_FT' e 'Goals_A_FT'.
+2025-06-14 19:41:58 - DataHandler - INFO - ->Result/IsDraw/Ptos OK.
+2025-06-14 19:41:58 - DataHandler - INFO - Cálculo Intermediárias (Result/IsDraw/Ptos) concluído.
+2025-06-14 19:41:58 - Main2 - INFO - DEBUG Main: df_full_data_aligned_for_split (17147, 31)
+2025-06-14 19:41:58 - ModelTrainerApp - INFO - --- Iniciando Treinamento Otimizado para 7 Modelos Individuais ---
+2025-06-14 19:41:58 - ModelTrainerApp - INFO - Dividindo dados temporalmente (Treino+CV / Teste Final)...
+2025-06-14 19:41:58 - ModelTrainerApp - INFO - Split Temporal: T+CV=13718 (80.0%), Teste=3429 (20.0%)
+2025-06-14 19:41:58 - ModelTrainerApp - INFO - Odds alinhadas com o conjunto de teste: 3429 jogos.
+2025-06-14 19:41:58 - ModelTrainerApp - INFO - 
+--- Mod 1/7 (RandomForestClassifier): Iniciando ---
+2025-06-14 19:41:58 - ModelTrainerApp - INFO -   Pipeline base criado (Sampler: SMOTE, Classifier: RandomForestClassifier)
+2025-06-14 19:41:58 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV para RandomForestClassifier (Score: f1, CV: Temporal)...
+2025-06-14 19:48:32 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4199. Params: {'bootstrap': True, 'class_weight': None, 'max_depth': 5, 'max_features': 'sqrt', 'min_samples_leaf': 6, 'min_samples_split': 62, 'n_estimators': 232}
+2025-06-14 19:48:32 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline (da CV) para RandomForestClassifier em todos os dados de treino+CV...
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -   -> Treino final do pipeline para RandomForestClassifier OK.
+2025-06-14 19:48:33 - ModelTrainerApp - WARNING - Mod 1/7 (RandomForestClassifier) AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE (avaliação otimista).
+2025-06-14 19:48:33 - Calibrators - INFO - SigmoidCalibrator (Platt) inicializado.
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -   Calibrando probs (sigmoid) para RandomForestClassifier...
+2025-06-14 19:48:33 - Calibrators - INFO - SigmoidCalibrator ajustado com sucesso.
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -   -> Calibrador (sigmoid) ajustado e probabilidades previstas para RandomForestClassifier.
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -     Limiar F1 (sigmoid): 0.2085 (F1=0.4666)
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -     Limiar EV (sigmoid): 0.396 (ROI=37.74%)
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -     Limiar Prec (sigmoid): 0.3335 (P=0.3519, R=0.2527)
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL (RandomForestClassifier) no Teste...
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -     Métricas @0.5: F1=0.4393, P=0.3291, R=0.6605
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -     Métricas @F1Opt(0.2085): F1=0.4666, P=0.3064, R=0.9785
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -     Métricas @PrecOpt(0.3335): F1=0.2942, P=0.3519, R=0.2527
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -     AUC(Calib)=0.5535, Brier(Calib)=0.2077, LogLoss(Raw)=0.6838
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -     ROI @EVOpt(0.396) = 37.74% (19 bets)
+2025-06-14 19:48:33 - ModelTrainerApp - INFO - Mod 1/7 (RandomForestClassifier) Concluído. Tempo: 395.74s
+2025-06-14 19:48:33 - ModelTrainerApp - INFO - 
+--- Mod 2/7 (LogisticRegression): Iniciando ---
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -   Pipeline base criado (Sampler: SMOTE, Classifier: LogisticRegression)
+2025-06-14 19:48:33 - ModelTrainerApp - INFO - Mod 2/7 (LogisticRegression) Scaling OK.
+2025-06-14 19:48:33 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV para LogisticRegression (Score: f1, CV: Temporal)...
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4313. Params: {'C': 0.006208392592554931, 'class_weight': None, 'max_iter': 6708, 'penalty': 'l1', 'solver': 'liblinear'}
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline (da CV) para LogisticRegression em todos os dados de treino+CV...
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -   -> Treino final do pipeline para LogisticRegression OK.
+2025-06-14 19:49:32 - ModelTrainerApp - WARNING - Mod 2/7 (LogisticRegression) AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE (avaliação otimista).
+2025-06-14 19:49:32 - Calibrators - INFO - SigmoidCalibrator (Platt) inicializado.
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -   Calibrando probs (sigmoid) para LogisticRegression...
+2025-06-14 19:49:32 - Calibrators - INFO - SigmoidCalibrator ajustado com sucesso.
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -   -> Calibrador (sigmoid) ajustado e probabilidades previstas para LogisticRegression.
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     Limiar F1 (sigmoid): 0.2478 (F1=0.4681)
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     Limiar EV (sigmoid): 0.384 (ROI=77.10%)
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     Limiar Prec (sigmoid): 0.3032 (P=0.3435, R=0.5620)
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL (LogisticRegression) no Teste...
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     Métricas @0.5: F1=0.4394, P=0.3364, R=0.6332
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     Métricas @F1Opt(0.2478): F1=0.4681, P=0.3165, R=0.8985
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     Métricas @PrecOpt(0.3032): F1=0.4264, P=0.3435, R=0.5620
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     AUC(Calib)=0.5607, Brier(Calib)=0.2074, LogLoss(Raw)=0.6910
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -     ROI @EVOpt(0.384) = 77.10% (30 bets)
+2025-06-14 19:49:32 - ModelTrainerApp - INFO - Mod 2/7 (LogisticRegression) Concluído. Tempo: 58.28s
+2025-06-14 19:49:32 - ModelTrainerApp - INFO - 
+--- Mod 3/7 (LGBMClassifier): Iniciando ---
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -   Pipeline base criado (Sampler: SMOTE, Classifier: LGBMClassifier)
+2025-06-14 19:49:32 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV para LGBMClassifier (Score: f1, CV: Temporal)...
+2025-06-14 19:59:27 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4246. Params: {'boosting_type': 'dart', 'colsample_bytree': 0.8733692729875093, 'learning_rate': 0.012589592525732203, 'max_depth': 3, 'n_estimators': 252, 'num_leaves': 10, 'reg_alpha': 3.090506962680484, 'reg_lambda': 4.999999999999999, 'subsample': 0.6308459153391484}
+2025-06-14 19:59:27 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline (da CV) para LGBMClassifier em todos os dados de treino+CV...
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -   -> Treino final do pipeline para LGBMClassifier OK.
+2025-06-14 19:59:28 - ModelTrainerApp - WARNING - Mod 3/7 (LGBMClassifier) AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE (avaliação otimista).
+2025-06-14 19:59:28 - Calibrators - INFO - SigmoidCalibrator (Platt) inicializado.
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -   Calibrando probs (sigmoid) para LGBMClassifier...
+2025-06-14 19:59:28 - Calibrators - INFO - SigmoidCalibrator ajustado com sucesso.
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -   -> Calibrador (sigmoid) ajustado e probabilidades previstas para LGBMClassifier.
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -     Limiar F1 (sigmoid): 0.2117 (F1=0.4651)
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -     Limiar EV (sigmoid): 0.258 (ROI=46.01%)
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -     Limiar Prec (sigmoid): 0.3148 (P=0.3372, R=0.5376)
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL (LGBMClassifier) no Teste...
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -     Métricas @0.5: F1=0.4461, P=0.3250, R=0.7112
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -     Métricas @F1Opt(0.2117): F1=0.4651, P=0.3051, R=0.9776
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -     Métricas @PrecOpt(0.3148): F1=0.4144, P=0.3372, R=0.5376
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -     AUC(Calib)=0.5501, Brier(Calib)=0.2081, LogLoss(Raw)=0.6861
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -     ROI @EVOpt(0.258) = 46.01% (72 bets)
+2025-06-14 19:59:28 - ModelTrainerApp - INFO - Mod 3/7 (LGBMClassifier) Concluído. Tempo: 595.97s
+2025-06-14 19:59:28 - ModelTrainerApp - INFO - 
+--- Mod 4/7 (SVC): Iniciando ---
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -   Pipeline base criado (Sampler: SMOTE, Classifier: SVC)
+2025-06-14 19:59:28 - ModelTrainerApp - INFO - Mod 4/7 (SVC) Scaling OK.
+2025-06-14 19:59:28 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV para SVC (Score: f1, CV: Temporal)...
+2025-06-14 21:14:43 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4525. Params: {'C': 0.01, 'class_weight': 'balanced', 'gamma': 0.011623596748837063, 'kernel': 'rbf'}
+2025-06-14 21:14:43 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline (da CV) para SVC em todos os dados de treino+CV...
+2025-06-14 21:16:00 - ModelTrainerApp - INFO -   -> Treino final do pipeline para SVC OK.
+2025-06-14 21:16:05 - ModelTrainerApp - WARNING - Mod 4/7 (SVC) AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE (avaliação otimista).
+2025-06-14 21:16:05 - Calibrators - INFO - SigmoidCalibrator (Platt) inicializado.
+2025-06-14 21:16:05 - ModelTrainerApp - INFO -   Calibrando probs (sigmoid) para SVC...
+2025-06-14 21:16:05 - Calibrators - INFO - SigmoidCalibrator ajustado com sucesso.
+2025-06-14 21:16:05 - ModelTrainerApp - INFO -   -> Calibrador (sigmoid) ajustado e probabilidades previstas para SVC.
+2025-06-14 21:16:05 - ModelTrainerApp - INFO -     Limiar F1 (sigmoid): 0.2527 (F1=0.4685)
+2025-06-14 21:16:05 - ModelTrainerApp - INFO -     Limiar EV (sigmoid): 0.324 (ROI=65.17%)
+2025-06-14 21:16:05 - ModelTrainerApp - INFO -     Limiar Prec (sigmoid): 0.3396 (P=0.3386, R=0.2712)
+2025-06-14 21:16:05 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL (SVC) no Teste...
+2025-06-14 21:16:09 - ModelTrainerApp - INFO -     Métricas @0.5: F1=0.4644, P=0.3253, R=0.8117
+2025-06-14 21:16:09 - ModelTrainerApp - INFO -     Métricas @F1Opt(0.2527): F1=0.4685, P=0.3208, R=0.8683
+2025-06-14 21:16:09 - ModelTrainerApp - INFO -     Métricas @PrecOpt(0.3396): F1=0.3012, P=0.3386, R=0.2712
+2025-06-14 21:16:09 - ModelTrainerApp - INFO -     AUC(Calib)=0.5620, Brier(Calib)=0.2072, LogLoss(Raw)=0.6862
+2025-06-14 21:16:09 - ModelTrainerApp - INFO -     ROI @EVOpt(0.324) = 65.17% (35 bets)
+2025-06-14 21:16:09 - ModelTrainerApp - INFO - Mod 4/7 (SVC) Concluído. Tempo: 4601.65s
+2025-06-14 21:16:09 - ModelTrainerApp - INFO - 
+--- Mod 5/7 (KNeighborsClassifier): Iniciando ---
+2025-06-14 21:16:09 - ModelTrainerApp - INFO -   Pipeline base criado (Sampler: SMOTE, Classifier: KNeighborsClassifier)
+2025-06-14 21:16:09 - ModelTrainerApp - INFO - Mod 5/7 (KNeighborsClassifier) Scaling OK.
+2025-06-14 21:16:09 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV para KNeighborsClassifier (Score: f1, CV: Temporal)...
+2025-06-14 21:17:13 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4192. Params: {'metric': 'minkowski', 'n_neighbors': 81, 'p': 3, 'weights': 'uniform'}
+2025-06-14 21:17:13 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline (da CV) para KNeighborsClassifier em todos os dados de treino+CV...
+2025-06-14 21:17:13 - ModelTrainerApp - INFO -   -> Treino final do pipeline para KNeighborsClassifier OK.
+2025-06-14 21:17:14 - ModelTrainerApp - WARNING - Mod 5/7 (KNeighborsClassifier) AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE (avaliação otimista).
+2025-06-14 21:17:14 - Calibrators - INFO - SigmoidCalibrator (Platt) inicializado.
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -   Calibrando probs (sigmoid) para KNeighborsClassifier...
+2025-06-14 21:17:14 - Calibrators - INFO - SigmoidCalibrator ajustado com sucesso.
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -   -> Calibrador (sigmoid) ajustado e probabilidades previstas para KNeighborsClassifier.
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -     Limiar F1 (sigmoid): 0.2506 (F1=0.4634)
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -     Limiar EV (sigmoid): 0.450 (ROI=35.24%)
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -     Limiar Prec (sigmoid): 0.3228 (P=0.3340, R=0.3122)
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL (KNeighborsClassifier) no Teste...
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -     Métricas @0.5: F1=0.4276, P=0.3273, R=0.6166
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -     Métricas @F1Opt(0.2506): F1=0.4634, P=0.3076, R=0.9385
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -     Métricas @PrecOpt(0.3228): F1=0.3227, P=0.3340, R=0.3122
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -     AUC(Calib)=0.5478, Brier(Calib)=0.2083, LogLoss(Raw)=0.7092
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -     ROI @EVOpt(0.450) = 35.24% (66 bets)
+2025-06-14 21:17:14 - ModelTrainerApp - INFO - Mod 5/7 (KNeighborsClassifier) Concluído. Tempo: 64.98s
+2025-06-14 21:17:14 - ModelTrainerApp - INFO - 
+--- Mod 6/7 (CatBoostClassifier): Iniciando ---
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -   Pipeline base criado (Sampler: SMOTE, Classifier: CatBoostClassifier)
+2025-06-14 21:17:14 - ModelTrainerApp - INFO -   Iniciando BayesSearchCV para CatBoostClassifier (Score: f1, CV: Temporal)...
+2025-06-14 21:44:46 - ModelTrainerApp - INFO -     -> Busca CV (BayesSearchCV) OK. Melhor CV f1: 0.4382. Params: {'boosting_type': 'Ordered', 'border_count': 32, 'depth': 4, 'iterations': 100, 'l2_leaf_reg': 20.0, 'learning_rate': 0.008000000000000004, 'subsample': 1.0}
+2025-06-14 21:44:46 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline (da CV) para CatBoostClassifier em todos os dados de treino+CV...
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -   -> Treino final do pipeline para CatBoostClassifier OK.
+2025-06-14 21:44:47 - ModelTrainerApp - WARNING - Mod 6/7 (CatBoostClassifier) AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE (avaliação otimista).
+2025-06-14 21:44:47 - Calibrators - INFO - SigmoidCalibrator (Platt) inicializado.
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -   Calibrando probs (sigmoid) para CatBoostClassifier...
+2025-06-14 21:44:47 - Calibrators - INFO - SigmoidCalibrator ajustado com sucesso.
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -   -> Calibrador (sigmoid) ajustado e probabilidades previstas para CatBoostClassifier.
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -     Limiar F1 (sigmoid): 0.2240 (F1=0.4675)
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -     Limiar EV (sigmoid): 0.432 (ROI=58.82%)
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -     Limiar Prec (sigmoid): 0.3241 (P=0.3436, R=0.3922)
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL (CatBoostClassifier) no Teste...
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -     Métricas @0.5: F1=0.4451, P=0.3230, R=0.7151
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -     Métricas @F1Opt(0.2240): F1=0.4675, P=0.3118, R=0.9337
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -     Métricas @PrecOpt(0.3241): F1=0.3663, P=0.3436, R=0.3922
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -     AUC(Calib)=0.5535, Brier(Calib)=0.2078, LogLoss(Raw)=0.6871
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -     ROI @EVOpt(0.432) = 58.82% (33 bets)
+2025-06-14 21:44:47 - ModelTrainerApp - INFO - Mod 6/7 (CatBoostClassifier) Concluído. Tempo: 1652.62s
+2025-06-14 21:44:47 - ModelTrainerApp - INFO - 
+--- Mod 7/7 (GaussianNB): Iniciando ---
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -   Pipeline base criado (Sampler: SMOTE, Classifier: GaussianNB)
+2025-06-14 21:44:47 - ModelTrainerApp - INFO -   Iniciando GridSearchCV para GaussianNB (Score: f1, CV: Temporal)...
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     -> Busca CV (GridSearchCV) OK. Melhor CV f1: 0.4477. Params: {'var_smoothing': np.float64(2.3357214690901213e-05)}
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -   Re-ajustando MELHOR pipeline (da CV) para GaussianNB em todos os dados de treino+CV...
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -   -> Treino final do pipeline para GaussianNB OK.
+2025-06-14 21:44:48 - ModelTrainerApp - WARNING - Mod 7/7 (GaussianNB) AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE (avaliação otimista).
+2025-06-14 21:44:48 - Calibrators - INFO - SigmoidCalibrator (Platt) inicializado.
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -   Calibrando probs (sigmoid) para GaussianNB...
+2025-06-14 21:44:48 - Calibrators - INFO - SigmoidCalibrator ajustado com sucesso.
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -   -> Calibrador (sigmoid) ajustado e probabilidades previstas para GaussianNB.
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     Limiar F1 (sigmoid): 0.2704 (F1=0.4687)
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     Limiar EV (sigmoid): 0.228 (ROI=66.70%)
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     Limiar Prec (sigmoid): 0.3131 (P=0.3462, R=0.5951)
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL (GaussianNB) no Teste...
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     Métricas @0.5: F1=0.4616, P=0.3272, R=0.7834
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     Métricas @F1Opt(0.2704): F1=0.4687, P=0.3251, R=0.8390
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     Métricas @PrecOpt(0.3131): F1=0.4377, P=0.3462, R=0.5951
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     AUC(Calib)=0.5608, Brier(Calib)=0.2071, LogLoss(Raw)=0.7505
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -     ROI @EVOpt(0.228) = 66.70% (40 bets)
+2025-06-14 21:44:48 - ModelTrainerApp - INFO - Mod 7/7 (GaussianNB) Concluído. Tempo: 0.72s
+2025-06-14 21:44:48 - ModelTrainerApp - INFO - 
+--- Construindo Ensemble com Top 3 Modelos ---
+2025-06-14 21:44:48 - ModelTrainerApp - INFO - Ensemble: Pelo menos um modelo base requer scaling. Aplicando scaling aos dados para o ensemble.
+2025-06-14 21:44:48 - ModelTrainerApp - INFO -   Ajustando o wrapper VotingClassifier...
+2025-06-14 21:46:07 - ModelTrainerApp - INFO -   -> Wrapper VotingClassifier ajustado.
+2025-06-14 21:46:11 - ModelTrainerApp - WARNING - Ensemble: AVISO: Calibração e Otim. Limiares no CONJUNTO DE TESTE.
+2025-06-14 21:46:11 - Calibrators - INFO - SigmoidCalibrator (Platt) inicializado.
+2025-06-14 21:46:11 - ModelTrainerApp - INFO -   Calibrando probs (sigmoid) para VotingEnsemble...
+2025-06-14 21:46:11 - Calibrators - INFO - SigmoidCalibrator ajustado com sucesso.
+2025-06-14 21:46:11 - ModelTrainerApp - INFO -   -> Calibrador (sigmoid) ajustado e probabilidades previstas para VotingEnsemble.
+2025-06-14 21:46:11 - ModelTrainerApp - INFO -     Limiar F1 (sigmoid): 0.2308 (F1=0.4675)
+2025-06-14 21:46:11 - ModelTrainerApp - INFO -     Limiar EV (sigmoid): 0.360 (ROI=80.66%)
+2025-06-14 21:46:11 - ModelTrainerApp - INFO -     Limiar Prec (sigmoid): 0.3039 (P=0.3437, R=0.6478)
+2025-06-14 21:46:11 - ModelTrainerApp - INFO -   Avaliando Modelo FINAL (VotingEnsemble) no Teste...
+2025-06-14 21:46:16 - ModelTrainerApp - INFO -     Métricas @0.5: F1=0.4558, P=0.3353, R=0.7112
+2025-06-14 21:46:16 - ModelTrainerApp - INFO -     Métricas @F1Opt(0.2308): F1=0.4675, P=0.3134, R=0.9200
+2025-06-14 21:46:16 - ModelTrainerApp - INFO -     Métricas @PrecOpt(0.3039): F1=0.4491, P=0.3437, R=0.6478
+2025-06-14 21:46:16 - ModelTrainerApp - INFO -     AUC(Calib)=0.5589, Brier(Calib)=0.2073, LogLoss(Raw)=0.6991
+2025-06-14 21:46:16 - ModelTrainerApp - INFO -     ROI @EVOpt(0.360) = 80.66% (32 bets)
+2025-06-14 21:46:16 - ModelTrainerApp - INFO -   -> Ensemble avaliado e adicionado aos resultados.
+2025-06-14 21:46:16 - ModelTrainerApp - INFO - --- Treinamento Global Concluído (7458.16 seg) ---
+2025-06-14 21:46:16 - ModelTrainerApp - INFO - --- Comparativo Desempenho Modelos (Métrica Principal Teste) ---
+2025-06-14 21:46:16 - ModelTrainerApp - INFO - 
+            model_name  f1_score_draw_metric roi_metric
+            GaussianNB                0.4687     66.70%
+                   SVC                0.4685     65.17%
+    LogisticRegression                0.4681     77.10%
+    CatBoostClassifier                0.4675     58.82%
+        VotingEnsemble                0.4675     80.66%
+RandomForestClassifier                0.4666     37.74%
+        LGBMClassifier                0.4651     46.01%
+  KNeighborsClassifier                0.4634     35.24%
+2025-06-14 21:46:16 - ModelTrainerApp - INFO - --------------------------------------------------------------------------------
+2025-06-14 21:46:16 - ModelTrainerApp - INFO - Salvando Melhor por F1: GaussianNB
+2025-06-14 21:46:16 - ModelTrainerApp - INFO -   -> Objeto salvo: 'GaussianNB' em best_model_backdraw_best_f1.joblib.
+2025-06-14 21:46:16 - ModelTrainerApp - INFO - Salvando para Slot Melhor ROI/2nd F1: VotingEnsemble
+2025-06-14 21:46:16 - ModelTrainerApp - INFO -   -> Objeto salvo: 'VotingEnsemble' em best_model_backdraw_best_roi.joblib.
+2025-06-14 21:46:16 - ModelTrainerApp - INFO - --- Processo de Treinamento Global Concluído com Sucesso ---
+2025-06-14 21:46:16 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-06-14 21:46:16)
+2025-06-14 21:46:16 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2704 | EV Thr: 0.2280
+2025-06-14 21:46:16 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-06-14 21:46:16)
+2025-06-14 21:46:16 - PredictorApp - INFO -   Tipo: VotingEnsemble | Calib: Sim | F1 Thr: 0.2308 | EV Thr: 0.3600
+2025-06-14 21:51:08 - MainApp - INFO - Fechando aplicação.
+2025-06-14 21:51:08 - MainApp - INFO - Destruindo janela principal.

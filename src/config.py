@@ -409,7 +409,8 @@ NEW_FEATURE_COLUMNS = [
     'abs_ProbDiff_Norm',
     'Odd_Over25_FT', 
     'CV_HDA',
-    'Media_CG_H',
+    PIRATING_MOMENTUM_A,
+    'Media_VG_H',
     'Media_VG_A',
 ]   
 

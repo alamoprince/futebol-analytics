@@ -38,154 +38,209 @@ import os
 import logging
 
 logger = setup_logger('DataHandler')
+logger_dh = setup_logger('DataHandlerMetrics')
 
 # --- Funções Auxiliares ---
-def roi(y_test: pd.Series, y_pred: np.ndarray, X_test_odds_aligned: Optional[pd.DataFrame], odd_draw_col_name: str) -> Optional[float]:
-    if X_test_odds_aligned is None or odd_draw_col_name not in X_test_odds_aligned.columns:
-        return None
-    
-    try:
-        common_index = y_test.index.intersection(X_test_odds_aligned.index)
-    except AttributeError:
-        return None
-        
-    if len(common_index) != len(y_test):
-        logger.warning("ROI: Index mismatch")
-        return None
-        
-    y_test_common = y_test.loc[common_index]
-    
-    try:
-        y_pred_series = pd.Series(y_pred, index=y_test.index)
-        y_pred_common = y_pred_series.loc[common_index]
-    except:
-        return None
-        
-    predicted_draws_indices = common_index[y_pred_common == 1]
-    num_bets = len(predicted_draws_indices)
-    
-    if num_bets == 0:
-        return 0.0
-        
-    actuals = y_test_common.loc[predicted_draws_indices]
-    odds = pd.to_numeric(X_test_odds_aligned.loc[predicted_draws_indices, odd_draw_col_name], errors='coerce')
-    
-    profit = 0.0
-    valid_bets = 0
-    
-    for idx in predicted_draws_indices:
-        odd_d = odds.loc[idx]
-        if pd.notna(odd_d) and odd_d > 1:
-            profit += (odd_d - 1) if actuals.loc[idx] == 1 else -1
-            valid_bets += 1
-            
-    if valid_bets == 0:
-        return 0.0
-        
-    return (profit / valid_bets) * 100.0
+class BettingMetricsCalculator:
+    """
+    Uma classe utilitária para calcular métricas relacionadas a apostas, como ROI e EV.
+    Os métodos são estáticos, pois não dependem do estado da instância.
+    """
 
-def calculate_roi_with_threshold(y_true: pd.Series, y_proba: np.ndarray, threshold: float, odds_data: Optional[pd.DataFrame], odd_col_name: str) -> Tuple[Optional[float], int, Optional[float]]:
-    profit, roi_value, num_bets_suggested, profit_calc, valid_bets_count = None, None, 0, 0.0, 0
-    
-    if odds_data is None or odd_col_name not in odds_data.columns:
-        return roi_value, num_bets_suggested, profit
-        
-    try:
-        common_index = y_true.index.intersection(odds_data.index)
-        if len(common_index) == 0:
-            return 0.0, 0, 0.0
-            
-        if len(common_index) != len(y_true):
-            logger.warning("ROI Thr: Index mismatch.")
-            
-        y_true_common = y_true.loc[common_index]
-        odds_common = pd.to_numeric(odds_data.loc[common_index, odd_col_name], errors='coerce')
-        
+    @staticmethod
+    def roi(y_true: pd.Series,
+            y_pred_class: np.ndarray, 
+            odds_data: Optional[pd.DataFrame],
+            odd_col_name: str) -> Optional[float]:
+        """
+        Calcula o Retorno Sobre Investimento (ROI) para uma estratégia de aposta simples
+        baseada em predições de classe.
+
+        Args:
+            y_true: Série com os resultados reais (0 ou 1).
+            y_pred_class: Array NumPy com as classes preditas (0 ou 1).
+            odds_data: DataFrame contendo as odds, alinhado com y_true.
+            odd_col_name: Nome da coluna em odds_data com a odd relevante.
+
+        Returns:
+            ROI em porcentagem, ou None se não puder ser calculado.
+        """
+        if odds_data is None or odd_col_name not in odds_data.columns:
+            logger_dh.warning("ROI: Dados de odds ou nome da coluna ausentes.")
+            return None
+        if not isinstance(y_true.index, pd.Index) or not isinstance(odds_data.index, pd.Index):
+            logger_dh.warning("ROI: y_true ou odds_data não têm um índice Pandas válido.")
+            return None
+
         try:
-            y_proba_series = pd.Series(y_proba, index=y_true.index)
+            if not isinstance(y_pred_class, pd.Series) or not y_pred_class.index.equals(y_true.index):
+                if len(y_pred_class) == len(y_true):
+                    y_pred_series = pd.Series(y_pred_class, index=y_true.index)
+                else:
+                    logger_dh.error(f"ROI: y_pred_class (len {len(y_pred_class)}) não pode ser alinhado com y_true (len {len(y_true)}).")
+                    return None
+            else:
+                y_pred_series = y_pred_class
+
+            common_index = y_true.index.intersection(odds_data.index).intersection(y_pred_series.index)
+            if not common_index.any():
+                logger_dh.warning("ROI: Nenhum índice em comum entre y_true, odds_data e y_pred_series.")
+                return 0.0
+
+            y_true_common = y_true.loc[common_index]
+            y_pred_common = y_pred_series.loc[common_index]
+            odds_common = pd.to_numeric(odds_data.loc[common_index, odd_col_name], errors='coerce')
+
+            bet_indices = common_index[y_pred_common == 1]
+            if not bet_indices.any():
+                return 0.0  
+
+            actuals_on_bets = y_true_common.loc[bet_indices]
+            odds_on_bets = odds_common.loc[bet_indices]
+
+            profit = 0.0
+            valid_bets_count = 0
+            for idx in bet_indices:
+                odd_val = odds_on_bets.get(idx) 
+                actual_val = actuals_on_bets.get(idx)
+
+                if pd.notna(odd_val) and odd_val > 1 and pd.notna(actual_val):
+                    profit += (odd_val - 1) if actual_val == 1 else -1
+                    valid_bets_count += 1
+            
+            if valid_bets_count == 0:
+                return 0.0
+            return (profit / valid_bets_count) * 100.0
+
+        except AttributeError as ae: # Comum se um dos inputs não for Series/DataFrame
+            logger_dh.error(f"ROI AttributeError: {ae}. Verifique os tipos de input.", exc_info=True)
+            return None
+        except Exception as e:
+            logger_dh.error(f"ROI Erro inesperado: {e}", exc_info=True)
+            return None
+
+    @staticmethod
+    def roi_with_threshold(y_true: pd.Series,
+                               y_proba: np.ndarray, 
+                               threshold: float,
+                               odds_data: Optional[pd.DataFrame],
+                               odd_col_name: str) -> Tuple[Optional[float], int, Optional[float]]:
+        """
+        Calcula ROI, número de apostas válidas e lucro/prejuízo,
+        apostando quando a probabilidade predita > threshold.
+        """
+
+        if odds_data is None or odd_col_name not in odds_data.columns:
+            logger_dh.warning("ROI Thr: Dados de odds ou nome da coluna ausentes.")
+            return None, 0, None
+        try:
+            if not isinstance(y_proba, pd.Series) or not y_proba.index.equals(y_true.index):
+                if len(y_proba) == len(y_true):
+                    y_proba_series = pd.Series(y_proba, index=y_true.index)
+                else:
+                    logger_dh.error(f"ROI Thr: y_proba (len {len(y_proba)}) não pode ser alinhado com y_true (len {len(y_true)}).")
+                    return None, 0, None
+            else:
+                y_proba_series = y_proba
+
+            common_index = y_true.index.intersection(odds_data.index).intersection(y_proba_series.index)
+            if not common_index.any(): return 0.0, 0, 0.0
+
+            y_true_common = y_true.loc[common_index]
+            odds_common = pd.to_numeric(odds_data.loc[common_index, odd_col_name], errors='coerce')
             y_proba_common = y_proba_series.loc[common_index]
-        except Exception as e:
-            logger.error(f"ROI Thr: Erro alinhar y_proba: {e}")
-            return None, 0, None
-            
-        bet_indices = common_index[y_proba_common > threshold]
-        num_bets_suggested = len(bet_indices)
-        
-        if num_bets_suggested == 0:
-            return 0.0, num_bets_suggested, 0.0
-            
-        actuals = y_true_common.loc[bet_indices]
-        odds_selected = odds_common.loc[bet_indices]
-        
-        for idx in bet_indices:
-            odd_d = odds_selected.loc[idx]
-            if pd.notna(odd_d) and odd_d > 1:
-                profit_calc += (odd_d - 1) if actuals.loc[idx] == 1 else -1
-                valid_bets_count += 1
-                
-        profit = profit_calc
-        roi_value = (profit / valid_bets_count) * 100 if valid_bets_count > 0 else 0.0
-        return roi_value, valid_bets_count, profit  # Retorna bets válidas
-        
-    except Exception as e:
-        logger.error(f"ROI Thr: Erro - {e}", exc_info=True)
-        return None, 0, None
 
-def calculate_metrics_with_ev(y_true: pd.Series, y_proba_calibrated: np.ndarray, ev_threshold: float, odds_data: Optional[pd.DataFrame], odd_col_name: str) -> Tuple[Optional[float], int, Optional[float]]:
-    profit, roi_value, num_bets_suggested, profit_calc, valid_bets_count = None, None, 0, 0.0, 0
-    
-    if odds_data is None or odd_col_name not in odds_data.columns:
-        logger.warning(f"EV Metr: Odds ausentes.")
-        return roi_value, num_bets_suggested, profit
-        
-    try:
-        common_index = y_true.index.intersection(odds_data.index)
-        if len(common_index) == 0:
-            return 0.0, 0, 0.0
+            bet_indices = common_index[y_proba_common > threshold]
+
+            if not bet_indices.any(): return 0.0, 0, 0.0
+
+            actuals_on_bets = y_true_common.loc[bet_indices]
+            odds_on_bets = odds_common.loc[bet_indices]
+
+            profit_calc = 0.0; valid_bets_count = 0
+            for idx in bet_indices:
+                odd_val = odds_on_bets.get(idx)
+                actual_val = actuals_on_bets.get(idx)
+                if pd.notna(odd_val) and odd_val > 1 and pd.notna(actual_val):
+                    profit_calc += (odd_val - 1) if actual_val == 1 else -1
+                    valid_bets_count += 1
             
-        if len(common_index) != len(y_true):
-            logger.warning(f"EV Metr: Index mismatch.")
-            
-        y_true_common = y_true.loc[common_index]
-        odds_common = pd.to_numeric(odds_data.loc[common_index, odd_col_name], errors='coerce')
-        
-        try:
-            y_proba_common = pd.Series(y_proba_calibrated, index=y_true.index).loc[common_index]
-        except Exception as e:
-            logger.error(f"EV Metr: Erro alinhar y_proba: {e}")
+            profit = profit_calc
+            roi_value = (profit / valid_bets_count) * 100.0 if valid_bets_count > 0 else 0.0
+            return roi_value, valid_bets_count, profit
+        except AttributeError as ae:
+            logger_dh.error(f"ROI Thr AttributeError: {ae}. Verifique tipos.", exc_info=True)
             return None, 0, None
+        except Exception as e:
+            logger_dh.error(f"ROI Thr Erro Geral: {e}", exc_info=True)
+            return None, 0, None
+
+
+    @staticmethod
+    def metrics_with_ev(y_true: pd.Series,
+                            y_proba_calibrated: np.ndarray, 
+                            ev_threshold: float,
+                            odds_data: Optional[pd.DataFrame],
+                            odd_col_name: str) -> Tuple[Optional[float], int, Optional[float]]:
+        """
+        Calcula ROI, número de apostas e lucro/prejuízo,
+        apostando quando o Expected Value (EV) > ev_threshold.
+        """
+        if odds_data is None or odd_col_name not in odds_data.columns:
+            logger_dh.warning(f"EV Metr: Odds ausentes.")
+            return None, 0, None
+        try:
+            if not isinstance(y_proba_calibrated, pd.Series) or not y_proba_calibrated.index.equals(y_true.index):
+                if len(y_proba_calibrated) == len(y_true):
+                    y_proba_series = pd.Series(y_proba_calibrated, index=y_true.index)
+                else:
+                    logger_dh.error(f"EV Metr: y_proba_calibrated (len {len(y_proba_calibrated)}) não pode ser alinhado com y_true (len {len(y_true)}).")
+                    return None, 0, None
+            else:
+                y_proba_series = y_proba_calibrated
+
+            common_index = y_true.index.intersection(odds_data.index).intersection(y_proba_series.index)
+            if not common_index.any(): return 0.0, 0, 0.0
+
+            y_true_common = y_true.loc[common_index]
+            odds_common = pd.to_numeric(odds_data.loc[common_index, odd_col_name], errors='coerce')
+            y_proba_common = y_proba_series.loc[common_index]
+
+            valid_mask = odds_common.notna() & y_proba_common.notna() & (odds_common > 1)
+            ev_series = pd.Series(np.nan, index=common_index) # Renomeado para clareza
+            if valid_mask.any():
+                prob_ok = y_proba_common[valid_mask]; odds_ok = odds_common[valid_mask]
+                ev_calculated_values = (prob_ok * (odds_ok - 1)) - ((1 - prob_ok) * 1)
+                ev_series.loc[valid_mask] = ev_calculated_values
+
+            bet_indices = common_index[ev_series > ev_threshold]
+            # num_bets_suggested = len(bet_indices) # Não usado no retorno, mas útil
+
+            if not bet_indices.any(): return 0.0, 0, 0.0
+
+            actuals_on_bets = y_true_common.loc[bet_indices]
+            odds_on_bets = odds_common.loc[bet_indices]
+
+            profit_calc = 0.0; valid_bets_count = 0
+            for idx in bet_indices:
+                odd_val = odds_on_bets.get(idx)
+                actual_val = actuals_on_bets.get(idx)
+                # A condição de odd > 1 já foi verificada pelo valid_mask e pelo ev_series > ev_threshold (se ev_threshold >=0)
+                # Mas uma checagem extra não faz mal se ev_threshold puder ser negativo.
+                if pd.notna(odd_val) and odd_val > 1 and pd.notna(actual_val):
+                    profit_calc += (odd_val - 1) if actual_val == 1 else -1
+                    valid_bets_count += 1
             
-        valid_mask = odds_common.notna() & y_proba_common.notna() & (odds_common > 1)
-        ev = pd.Series(np.nan, index=common_index)
-        prob_ok = y_proba_common[valid_mask]
-        odds_ok = odds_common[valid_mask]
-        ev_calc = (prob_ok * (odds_ok - 1)) - ((1 - prob_ok) * 1)
-        ev.loc[valid_mask] = ev_calc
-        
-        bet_indices = common_index[ev > ev_threshold]
-        num_bets_suggested = len(bet_indices)
-        
-        if num_bets_suggested == 0:
-            return 0.0, num_bets_suggested, 0.0
-            
-        actuals = y_true_common.loc[bet_indices]
-        odds_selected = odds_common.loc[bet_indices]
-        
-        for idx in bet_indices:
-            odd_d = odds_selected.loc[idx]
-            if pd.notna(odd_d) and odd_d > 1:
-                profit_calc += (odd_d - 1) if actuals.loc[idx] == 1 else -1
-                valid_bets_count += 1
-                
-        profit = profit_calc
-        roi_value = (profit / valid_bets_count) * 100 if valid_bets_count > 0 else 0.0
-        
-        logger.debug(f"    -> Métricas EV (Th={ev_threshold:.3f}): ROI={roi_value:.2f}%, Bets Sug={num_bets_suggested}, Bets Vál={valid_bets_count}, Profit={profit:.2f}")
-        return roi_value, num_bets_suggested, profit
-        
-    except Exception as e:
-        logger.error(f"EV Metr: Erro - {e}", exc_info=True)
-        return None, 0, None
+            profit = profit_calc
+            roi_value = (profit / valid_bets_count) * 100.0 if valid_bets_count > 0 else 0.0
+            # logger_dh.debug(f"    -> Métricas EV (Th={ev_threshold:.3f}): ROI={roi_value:.2f}%, Bets Vál={valid_bets_count}, Profit={profit:.2f}")
+            return roi_value, valid_bets_count, profit
+        except AttributeError as ae:
+            logger_dh.error(f"EV Metr AttributeError: {ae}. Verifique tipos.", exc_info=True)
+            return None, 0, None
+        except Exception as e:
+            logger_dh.error(f"EV Metr Erro Geral - {e}", exc_info=True)
+            return None, 0, None
     
 # Função load_historical_data
 # Colunas de stats esperadas nos CSVs/Excel
