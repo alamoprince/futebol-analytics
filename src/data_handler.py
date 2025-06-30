@@ -635,33 +635,23 @@ def calculate_normalized_probabilities(df: pd.DataFrame, epsilon=1e-6) -> pd.Dat
     return df_calc.drop(columns=['Overround'], errors='ignore')
 
 def calculate_rolling_std(df: pd.DataFrame, stats_to_calc: List[str], window: int = ROLLING_WINDOW) -> pd.DataFrame:
-    """Calcula desvio padrão móvel para as estatísticas especificadas."""
+    """
+    Calcula o desvio padrão móvel de forma otimizada, integrando verificações de colunas,
+    junção otimizada e tratamento explícito de tipos de dados.
+    """
     df_calc = df.copy()
-    teams = pd.concat([df_calc['Home'], df_calc['Away']]).unique()
-    team_history: Dict[str, Dict[str, List[float]]] = {team: {stat: [] for stat in stats_to_calc} for team in teams}
-    results_list = []
-    rolling_cols_map = {}
-    cols_to_calculate = {}
+    logger.info(f"Iniciando cálculo OTIMIZADO (V6) de Desvio Padrão Rolling (Janela={window})...")
 
-    logger.info(f"Iniciando cálculo Desvio Padrão Rolling (Janela={window})...")
-    
-    # Mapeia colunas e valida configurações
+    # 1. Adicionar controle de colunas
+    potential_new_cols = {f'Std_{s}_{t}' for s in stats_to_calc for t in ['H', 'A']}
+    existing_cols = potential_new_cols.intersection(df_calc.columns)
+    if existing_cols:
+        logger.warning(f"As seguintes colunas já existem e serão sobrescritas: {existing_cols}")
+
     for stat_prefix in stats_to_calc:
-        std_col_h = f'Std_{stat_prefix}_H'
-        std_col_a = f'Std_{stat_prefix}_A'
-        skip_h = skip_a = False
-        
-        # Verifica se colunas já existem
-        if std_col_h in df_calc.columns and pd.api.types.is_numeric_dtype(df_calc[std_col_h]):
-            skip_h = True
-        if std_col_a in df_calc.columns and pd.api.types.is_numeric_dtype(df_calc[std_col_a]):
-            skip_a = True
+        logger.debug(f"  Processando prefixo: '{stat_prefix}'")
 
-        if skip_h and skip_a:
-            logger.warning(f"{std_col_h}/{std_col_a} já existem.")
-            continue
-
-        # Determina colunas base
+        # Define as colunas de origem e destino
         if stat_prefix == 'Ptos':
             base_h, base_a = 'Ptos_H', 'Ptos_A'
         elif stat_prefix == 'VG':
@@ -669,134 +659,129 @@ def calculate_rolling_std(df: pd.DataFrame, stats_to_calc: List[str], window: in
         elif stat_prefix == 'CG':
             base_h, base_a = 'CG_H_raw', 'CG_A_raw'
         else:
-            logger.warning(f"Prefixo StDev '{stat_prefix}' desconhecido.")
+            logger.warning(f"Prefixo StDev '{stat_prefix}' desconhecido. Pulando.")
             continue
-
-        # Valida existência das colunas base
+            
         if base_h not in df_calc.columns or base_a not in df_calc.columns:
-            logger.error(f"Erro StDev: Colunas base '{base_h}'/'{base_a}' não encontradas.")
+            logger.error(f"Erro StDev: Colunas base '{base_h}'/'{base_a}' não encontradas. Pulando.")
             continue
 
-        rolling_cols_map[stat_prefix] = {'home': base_h, 'away': base_a}
-        if not skip_h:
-            cols_to_calculate[stat_prefix + '_H'] = std_col_h
-        if not skip_a:
-            cols_to_calculate[stat_prefix + '_A'] = std_col_a
+        std_col_h = f'Std_{stat_prefix}_H'
+        std_col_a = f'Std_{stat_prefix}_A'
 
-    if not cols_to_calculate:
-        logger.info("Nenhum StDev Rolling novo a calcular.")
-        return df_calc
+        # 2. Reestrutura os dados (Unpivot)
+        df_home = df_calc[['Home', base_h]].rename(columns={'Home': 'Team', base_h: 'Stat_Value'})
+        df_away = df_calc[['Away', base_a]].rename(columns={'Away': 'Team', base_a: 'Stat_Value'})
+        df_home['match_idx'] = df_calc.index
+        df_away['match_idx'] = df_calc.index
+        
+        df_long = pd.concat([df_home, df_away])
+        df_long = df_long.sort_values(by='match_idx', kind='stable')
 
-    logger.info(f"Calculando StDev rolling para: {list(cols_to_calculate.keys())}")
+        # 3. Tratamento de NaN explícito
+        df_long['Stat_Value'] = pd.to_numeric(df_long['Stat_Value'], errors='coerce')
+        
+        # 4. Calcula usando .transform() para alinhamento seguro
+        #    min_periods=2: precisa de pelo menos 2 pontos para calcular o desvio padrão
+        #    ddof=0: para corresponder ao comportamento de np.std() (desvio padrão populacional)
+        df_long['Rolling_Std'] = (
+            df_long.groupby('Team')['Stat_Value']
+                   .transform(lambda x: x.rolling(window, min_periods=2).std(ddof=0).shift(1))
+        )
+        
+        # 5. Otimizar mapeamento com `merge`
+        stats_to_merge = df_long[['match_idx', 'Team', 'Rolling_Std']].copy()
+        df_merged = df_calc.reset_index().rename(columns={'index': 'match_idx'})
+        
+        home_stats = stats_to_merge.rename(columns={'Team': 'Home', 'Rolling_Std': std_col_h})
+        df_merged = df_merged.merge(home_stats, on=['match_idx', 'Home'], how='left')
 
-    # Calcula estatísticas
-    calculated_stats = []
-    for index, row in tqdm(df_calc.iterrows(), total=len(df_calc), desc="Calc. Rolling StDev"):
-        home_team = row['Home']
-        away_team = row['Away']
-        current_match_features = {'Index': index}
+        away_stats = stats_to_merge.rename(columns={'Team': 'Away', 'Rolling_Std': std_col_a})
+        df_merged = df_merged.merge(away_stats, on=['match_idx', 'Away'], how='left')
 
-        # Calcula stats para time da casa
-        for stat_prefix, base_cols in rolling_cols_map.items():
-            std_col_h = f'Std_{stat_prefix}_H'
-            if stat_prefix + '_H' in cols_to_calculate:
-                hist_H = team_history[home_team][stat_prefix]
-                recent = hist_H[-window:]
-                current_match_features[std_col_h] = np.std(recent) if len(recent) >= 2 else np.nan
+        df_merged = df_merged.set_index('match_idx')
+        df_merged.index.name = df_calc.index.name
+        
+        df_calc[std_col_h] = df_merged[std_col_h]
+        df_calc[std_col_a] = df_merged[std_col_a]
 
-        # Calcula stats para time visitante
-        for stat_prefix, base_cols in rolling_cols_map.items():
-            std_col_a = f'Std_{stat_prefix}_A'
-            if stat_prefix + '_A' in cols_to_calculate:
-                hist_A = team_history[away_team][stat_prefix]
-                recent = hist_A[-window:]
-                current_match_features[std_col_a] = np.std(recent) if len(recent) >= 2 else np.nan
+        logger.info(f"  -> '{std_col_h}' e '{std_col_a}' calculados e juntados.")
 
-        calculated_stats.append(current_match_features)
-
-        # Atualiza histórico
-        for stat_prefix, base_cols in rolling_cols_map.items():
-            if pd.notna(row[base_cols['home']]):
-                team_history[home_team][stat_prefix].append(row[base_cols['home']])
-            if pd.notna(row[base_cols['away']]):
-                team_history[away_team][stat_prefix].append(row[base_cols['away']])
-
-    # Finaliza e retorna
-    df_rolling_stdev = pd.DataFrame(calculated_stats).set_index('Index')
-    cols_to_join = [col for col in cols_to_calculate.values() if col in df_rolling_stdev.columns]
-    logger.info(f"StDev Rolling calculado. Colunas adicionadas: {cols_to_join}")
-    df_final = df_calc.join(df_rolling_stdev[cols_to_join]) if cols_to_join else df_calc
-    return df_final
+    return df_calc
 
 def calculate_rolling_stats(df: pd.DataFrame, stats_to_calc: List[str], window: int = ROLLING_WINDOW) -> pd.DataFrame:
-    """Calcula médias móveis para as estatísticas especificadas."""
+    """
+    Calcula a média móvel de forma otimizada, integrando verificações de colunas,
+    junção otimizada e tratamento explícito de tipos de dados.
+    """
     df_calc = df.copy()
-    teams = pd.concat([df_calc['Home'], df_calc['Away']]).astype(str).dropna().unique()
-    if len(teams) == 0: logger.warning("Rolling Mean: Nenhum time válido."); return df_calc
-    team_history: Dict[str, Dict[str, deque]] = defaultdict(lambda: defaultdict(lambda: deque(maxlen=window)))
-    rolling_cols_map = {}
-    cols_to_calculate = {}
+    logger.info(f"Iniciando cálculo OTIMIZADO (V6) de Média Rolling (Janela={window})...")
 
-    logger.info(f"Iniciando cálculo Médias Rolling (Janela={window})...")
+    # 1. Adicionar controle de colunas (Sua Sugestão)
+    # Cria uma lista de todas as colunas que a função pretende criar.
+    potential_new_cols = {f'Media_{s}_{t}' for s in stats_to_calc for t in ['H', 'A']}
+    existing_cols = potential_new_cols.intersection(df_calc.columns)
+    if existing_cols:
+        logger.warning(f"As seguintes colunas já existem e serão sobrescritas: {existing_cols}")
+        # Opcional: poderia remover as colunas aqui se quisesse garantir um recálculo limpo
+        # df_calc = df_calc.drop(columns=list(existing_cols))
+
     for stat_prefix in stats_to_calc:
-        media_col_h = f'Media_{stat_prefix}_H'; media_col_a = f'Media_{stat_prefix}_A'
-        base_h, base_a = None, None
-        if stat_prefix == 'Ptos': base_h, base_a = 'Ptos_H', 'Ptos_A'
-        elif stat_prefix == 'VG': base_h, base_a = 'VG_H_raw', 'VG_A_raw'
-        elif stat_prefix == 'CG': base_h, base_a = 'CG_H_raw', 'CG_A_raw'
-        else: logger.warning(f"Prefixo Média '{stat_prefix}' desconhecido."); continue
-        if (base_h not in df_calc.columns and base_a not in df_calc.columns): logger.error(f"Erro Média: Colunas base '{base_h}'/'{base_a}' não encontradas."); continue
-        if base_h not in df_calc.columns: base_h = None
-        if base_a not in df_calc.columns: base_a = None
-        rolling_cols_map[stat_prefix] = {'home': base_h, 'away': base_a}
-        if media_col_h not in df_calc.columns or not pd.api.types.is_numeric_dtype(df_calc[media_col_h]): cols_to_calculate[stat_prefix + '_H'] = media_col_h
-        if media_col_a not in df_calc.columns or not pd.api.types.is_numeric_dtype(df_calc[media_col_a]): cols_to_calculate[stat_prefix + '_A'] = media_col_a
+        logger.debug(f"  Processando prefixo: '{stat_prefix}'")
 
-    if not cols_to_calculate: logger.info("Nenhuma Média Rolling nova a calcular."); return df_calc
-    logger.info(f"Calculando Médias rolling para: {list(cols_to_calculate.keys())}")
+        base_h, base_a = f'Media_{stat_prefix}_H'.replace('Media', stat_prefix), f'Media_{stat_prefix}_A'.replace('Media', stat_prefix)
 
-    calculated_stats = []
-    for index, row in tqdm(df_calc.iterrows(), total=len(df_calc), desc="Calc. Rolling Médias"):
-        home_team = row.get('Home'); 
-        away_team = row.get('Away')
-        current_match_features = {'Index': index}
-        if pd.isna(home_team) or pd.isna(away_team):
-            for output_col in cols_to_calculate.values(): current_match_features[output_col] = np.nan
-            calculated_stats.append(current_match_features); continue
+        if base_h not in df_calc.columns or base_a not in df_calc.columns:
+            logger.error(f"Erro Média: Colunas base '{base_h}'/'{base_a}' não encontradas. Pulando.")
+            continue
 
-        for stat_prefix, base_cols in rolling_cols_map.items():
-            # Home Mean
-            media_col_h_calc = f'Media_{stat_prefix}_H'
-            if stat_prefix + '_H' in cols_to_calculate:
-                hist_H_deque = team_history[home_team][stat_prefix]
-                recent_H = list(hist_H_deque)
-                current_match_features[media_col_h_calc] = np.nanmean(recent_H) if len(recent_H) > 0 else np.nan
-            # Away Mean
-            media_col_a_calc = f'Media_{stat_prefix}_A'
-            if stat_prefix + '_A' in cols_to_calculate:
-                hist_A_deque = team_history[away_team][stat_prefix]
-                recent_A = list(hist_A_deque)
-                current_match_features[media_col_a_calc] = np.nanmean(recent_A) if len(recent_A) > 0 else np.nan
+        media_col_h = f'Media_{stat_prefix}_H'
+        media_col_a = f'Media_{stat_prefix}_A'
 
-        calculated_stats.append(current_match_features)
+        # 2. Reestrutura os dados (Unpivot)
+        df_home = df_calc[['Home', base_h]].rename(columns={'Home': 'Team', base_h: 'Stat_Value'})
+        df_away = df_calc[['Away', base_a]].rename(columns={'Away': 'Team', base_a: 'Stat_Value'})
+        df_home['match_idx'] = df_calc.index
+        df_away['match_idx'] = df_calc.index
+        
+        df_long = pd.concat([df_home, df_away])
+        df_long = df_long.sort_values(by='match_idx', kind='stable')
 
-        # Update history
-        for stat_prefix, base_cols in rolling_cols_map.items():
-            base_h_name = base_cols.get('home')
-            base_a_name = base_cols.get('away')
-            if base_h_name and pd.notna(row.get(base_h_name)): 
-                team_history[home_team][stat_prefix].append(row[base_h_name])
-            if base_a_name and pd.notna(row.get(base_a_name)): 
-                team_history[away_team][stat_prefix].append(row[base_a_name])
+        # 3. Tratamento de NaN explícito (Sua Sugestão)
+        df_long['Stat_Value'] = pd.to_numeric(df_long['Stat_Value'], errors='coerce')
+        
+        # 4. Calcula usando .transform() para alinhamento seguro
+        df_long['Rolling_Mean'] = (
+            df_long.groupby('Team')['Stat_Value']
+                   .transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
+        )
+        
+        # 5. Otimizar mapeamento com `merge` (Sua Sugestão, adaptada)
+        # Prepara o DataFrame de estatísticas com as chaves corretas para a junção.
+        stats_to_merge = df_long[['match_idx', 'Team', 'Rolling_Mean']].copy()
+        
+        # Prepara o DataFrame original com um índice temporário para o merge.
+        df_merged = df_calc.reset_index().rename(columns={'index': 'match_idx'})
+        
+        # Merge para os times da casa
+        home_stats = stats_to_merge.rename(columns={'Team': 'Home', 'Rolling_Mean': media_col_h})
+        df_merged = df_merged.merge(home_stats, on=['match_idx', 'Home'], how='left')
 
-    df_rolling_means = pd.DataFrame(calculated_stats).set_index('Index')
-    cols_to_join = [col for col in cols_to_calculate.values() if col in df_rolling_means.columns]
-    logger.info(f"Médias Rolling calculadas. Colunas adicionadas/atualizadas: {cols_to_join}")
-    df_final = df_calc.copy()
-    df_final.update(df_rolling_means[cols_to_join])
-    for col in cols_to_join: # Add new columns if they didn't exist
-        if col not in df_final.columns: df_final[col] = df_rolling_means[col]
-    return df_final
+        # Merge para os times visitantes
+        away_stats = stats_to_merge.rename(columns={'Team': 'Away', 'Rolling_Mean': media_col_a})
+        df_merged = df_merged.merge(away_stats, on=['match_idx', 'Away'], how='left')
+
+        # Restaura o índice original e seleciona as colunas
+        df_merged = df_merged.set_index('match_idx')
+        df_merged.index.name = df_calc.index.name # Preserva o nome do índice original
+        
+        # Atualiza o DataFrame principal com os novos resultados
+        df_calc[media_col_h] = df_merged[media_col_h]
+        df_calc[media_col_a] = df_merged[media_col_a]
+
+        logger.info(f"  -> '{media_col_h}' e '{media_col_a}' calculados e juntados.")
+
+    return df_calc
 
 def calculate_binned_features(df: pd.DataFrame) -> pd.DataFrame:
     """Cria features categóricas (bins). Requer Odd_D_FT."""
@@ -1033,20 +1018,37 @@ def calculate_pi_ratings(df: pd.DataFrame) -> pd.DataFrame:
     return df_out
 
 def calculate_raw_value_cost_goals(df: pd.DataFrame) -> pd.DataFrame:
-    df_calc = df.copy(); logger.info("Calculando VG_raw e CG_raw...")
-    epsilon = FEATURE_EPSILON; gh = GOALS_COLS.get('home'); ga = GOALS_COLS.get('away')
+    """
+    Calcula Value Goals (VG) e Cost Goals (CG) brutos.
+    VG é corrigido para multiplicar os gols de um time por sua própria probabilidade de vitória, 
+    em vez da probabilidade do oponente.
+    """
+    df_calc = df.copy()
+    logger.info("Calculando VG_raw e CG_raw (Lógica Corrigida)...")
+    
+    epsilon = FEATURE_EPSILON
+    gh = GOALS_COLS.get('home')
+    ga = GOALS_COLS.get('away')
+
     required_for_vcg = ['p_H', 'p_A', gh, ga]
     missing = [col for col in required_for_vcg if col not in df_calc.columns or df_calc[col].isnull().all()]
     if missing:
         logger.warning(f"Inputs para VG/CG Raw ausentes ou todos NaN: {missing}. Colunas VG/CG serão NaN.")
         df_calc[['VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw']] = np.nan
         return df_calc
-    h_g = pd.to_numeric(df_calc[gh], errors='coerce'); a_g = pd.to_numeric(df_calc[ga], errors='coerce')
-    p_H = pd.to_numeric(df_calc['p_H'], errors='coerce'); p_A = pd.to_numeric(df_calc['p_A'], errors='coerce')
-    df_calc['VG_H_raw'] = h_g * p_A; df_calc['VG_A_raw'] = a_g * p_H
+
+    h_g = pd.to_numeric(df_calc[gh], errors='coerce')
+    a_g = pd.to_numeric(df_calc[ga], errors='coerce')
+    p_H = pd.to_numeric(df_calc['p_H'], errors='coerce')
+    p_A = pd.to_numeric(df_calc['p_A'], errors='coerce')
+
+    df_calc['VG_H_raw'] = h_g * p_H
+    df_calc['VG_A_raw'] = a_g * p_A
+    
     df_calc['CG_H_raw'] = np.where((h_g.notna() & (h_g > epsilon)) & p_H.notna(), p_H / h_g, np.nan)
     df_calc['CG_A_raw'] = np.where((a_g.notna() & (a_g > epsilon)) & p_A.notna(), p_A / a_g, np.nan)
-    logger.info("-> VG_raw e CG_raw calculados.")
+    
+    logger.info("-> VG_raw e CG_raw calculados com sucesso (lógica corrigida).")
     return df_calc
 
 def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
