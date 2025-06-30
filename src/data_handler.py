@@ -634,153 +634,65 @@ def calculate_normalized_probabilities(df: pd.DataFrame, epsilon=1e-6) -> pd.Dat
     logger.info("Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.")
     return df_calc.drop(columns=['Overround'], errors='ignore')
 
-def calculate_rolling_std(df: pd.DataFrame, stats_to_calc: List[str], window: int = ROLLING_WINDOW) -> pd.DataFrame:
+def calculate_general_rolling_stats(df: pd.DataFrame, stats_configs: List[Dict[str, Any]], default_window: int = ROLLING_WINDOW) -> pd.DataFrame:
     """
-    Calcula o desvio padrão móvel de forma otimizada, integrando verificações de colunas,
-    junção otimizada e tratamento explícito de tipos de dados.
+    Calcula estatísticas móveis (média, std, etc.) de forma otimizada usando groupby.
+    Esta função substitui a necessidade de ter funções separadas para média e desvio padrão.
     """
     df_calc = df.copy()
-    logger.info(f"Iniciando cálculo OTIMIZADO (V6) de Desvio Padrão Rolling (Janela={window})...")
+    logger.info(f"Iniciando cálculo OTIMIZADO Geral de Stats Rolling (Janela Padrão={default_window})...")
 
-    # 1. Adicionar controle de colunas
-    potential_new_cols = {f'Std_{s}_{t}' for s in stats_to_calc for t in ['H', 'A']}
-    existing_cols = potential_new_cols.intersection(df_calc.columns)
-    if existing_cols:
-        logger.warning(f"As seguintes colunas já existem e serão sobrescritas: {existing_cols}")
-
-    for stat_prefix in stats_to_calc:
-        logger.debug(f"  Processando prefixo: '{stat_prefix}'")
-
-        # Define as colunas de origem e destino
-        if stat_prefix == 'Ptos':
-            base_h, base_a = 'Ptos_H', 'Ptos_A'
-        elif stat_prefix == 'VG':
-            base_h, base_a = 'VG_H_raw', 'VG_A_raw'
-        elif stat_prefix == 'CG':
-            base_h, base_a = 'CG_H_raw', 'CG_A_raw'
-        else:
-            logger.warning(f"Prefixo StDev '{stat_prefix}' desconhecido. Pulando.")
+    for config in stats_configs:
+        agg_func = config.get('agg_func')
+        stat_prefix = config.get('output_prefix')
+        window = config.get('window', default_window)
+        # min_periods default para 1, mas 2 para std
+        min_p = config.get('min_periods', 2 if agg_func == np.nanstd else 1)
+        base_h = config.get('base_col_h')
+        base_a = config.get('base_col_a')
+        
+        if not all([agg_func, stat_prefix, base_h, base_a]):
+            logger.warning(f"Configuração de stat incompleta: {config}. Pulando.")
             continue
-            
-        if base_h not in df_calc.columns or base_a not in df_calc.columns:
-            logger.error(f"Erro StDev: Colunas base '{base_h}'/'{base_a}' não encontradas. Pulando.")
-            continue
+        
+        logger.debug(f"  Processando: '{stat_prefix}' com a função '{agg_func.__name__}'")
 
-        std_col_h = f'Std_{stat_prefix}_H'
-        std_col_a = f'Std_{stat_prefix}_A'
+        new_col_h = f"{stat_prefix}_H"
+        new_col_a = f"{stat_prefix}_A"
 
-        # 2. Reestrutura os dados (Unpivot)
+        # Estrutura longa (Unpivot)
         df_home = df_calc[['Home', base_h]].rename(columns={'Home': 'Team', base_h: 'Stat_Value'})
         df_away = df_calc[['Away', base_a]].rename(columns={'Away': 'Team', base_a: 'Stat_Value'})
-        df_home['match_idx'] = df_calc.index
-        df_away['match_idx'] = df_calc.index
-        
-        df_long = pd.concat([df_home, df_away])
-        df_long = df_long.sort_values(by='match_idx', kind='stable')
-
-        # 3. Tratamento de NaN explícito
+        df_home['match_idx'], df_away['match_idx'] = df_calc.index, df_calc.index
+        df_long = pd.concat([df_home, df_away]).sort_values(by='match_idx', kind='stable')
         df_long['Stat_Value'] = pd.to_numeric(df_long['Stat_Value'], errors='coerce')
-        
-        # 4. Calcula usando .transform() para alinhamento seguro
-        #    min_periods=2: precisa de pelo menos 2 pontos para calcular o desvio padrão
-        #    ddof=0: para corresponder ao comportamento de np.std() (desvio padrão populacional)
-        df_long['Rolling_Std'] = (
+
+        # Aplica a função de agregação genérica
+        # Nota: Usamos agg(agg_func) em vez de chamar .mean() ou .std() diretamente.
+        # np.std e np.nanmean são compatíveis com rolling().agg()
+        df_long[f'Rolling_Stat'] = (
             df_long.groupby('Team')['Stat_Value']
-                   .transform(lambda x: x.rolling(window, min_periods=2).std(ddof=0).shift(1))
+                   .transform(lambda x: x.rolling(window, min_periods=min_p).agg(agg_func).shift(1))
         )
         
-        # 5. Otimizar mapeamento com `merge`
-        stats_to_merge = df_long[['match_idx', 'Team', 'Rolling_Std']].copy()
+        # Mapeia de volta usando merges
+        stats_to_merge = df_long[['match_idx', 'Team', 'Rolling_Stat']].copy()
         df_merged = df_calc.reset_index().rename(columns={'index': 'match_idx'})
         
-        home_stats = stats_to_merge.rename(columns={'Team': 'Home', 'Rolling_Std': std_col_h})
+        home_stats = stats_to_merge.rename(columns={'Team': 'Home', 'Rolling_Stat': new_col_h})
         df_merged = df_merged.merge(home_stats, on=['match_idx', 'Home'], how='left')
 
-        away_stats = stats_to_merge.rename(columns={'Team': 'Away', 'Rolling_Std': std_col_a})
+        away_stats = stats_to_merge.rename(columns={'Team': 'Away', 'Rolling_Stat': new_col_a})
         df_merged = df_merged.merge(away_stats, on=['match_idx', 'Away'], how='left')
 
         df_merged = df_merged.set_index('match_idx')
         df_merged.index.name = df_calc.index.name
         
-        df_calc[std_col_h] = df_merged[std_col_h]
-        df_calc[std_col_a] = df_merged[std_col_a]
+        df_calc[new_col_h] = df_merged[new_col_h]
+        df_calc[new_col_a] = df_merged[new_col_a]
 
-        logger.info(f"  -> '{std_col_h}' e '{std_col_a}' calculados e juntados.")
-
-    return df_calc
-
-def calculate_rolling_stats(df: pd.DataFrame, stats_to_calc: List[str], window: int = ROLLING_WINDOW) -> pd.DataFrame:
-    """
-    Calcula a média móvel de forma otimizada, integrando verificações de colunas,
-    junção otimizada e tratamento explícito de tipos de dados.
-    """
-    df_calc = df.copy()
-    logger.info(f"Iniciando cálculo OTIMIZADO (V6) de Média Rolling (Janela={window})...")
-
-    # 1. Adicionar controle de colunas (Sua Sugestão)
-    # Cria uma lista de todas as colunas que a função pretende criar.
-    potential_new_cols = {f'Media_{s}_{t}' for s in stats_to_calc for t in ['H', 'A']}
-    existing_cols = potential_new_cols.intersection(df_calc.columns)
-    if existing_cols:
-        logger.warning(f"As seguintes colunas já existem e serão sobrescritas: {existing_cols}")
-        # Opcional: poderia remover as colunas aqui se quisesse garantir um recálculo limpo
-        # df_calc = df_calc.drop(columns=list(existing_cols))
-
-    for stat_prefix in stats_to_calc:
-        logger.debug(f"  Processando prefixo: '{stat_prefix}'")
-
-        base_h, base_a = f'Media_{stat_prefix}_H'.replace('Media', stat_prefix), f'Media_{stat_prefix}_A'.replace('Media', stat_prefix)
-
-        if base_h not in df_calc.columns or base_a not in df_calc.columns:
-            logger.error(f"Erro Média: Colunas base '{base_h}'/'{base_a}' não encontradas. Pulando.")
-            continue
-
-        media_col_h = f'Media_{stat_prefix}_H'
-        media_col_a = f'Media_{stat_prefix}_A'
-
-        # 2. Reestrutura os dados (Unpivot)
-        df_home = df_calc[['Home', base_h]].rename(columns={'Home': 'Team', base_h: 'Stat_Value'})
-        df_away = df_calc[['Away', base_a]].rename(columns={'Away': 'Team', base_a: 'Stat_Value'})
-        df_home['match_idx'] = df_calc.index
-        df_away['match_idx'] = df_calc.index
+        logger.info(f"  -> '{new_col_h}' e '{new_col_a}' calculados.")
         
-        df_long = pd.concat([df_home, df_away])
-        df_long = df_long.sort_values(by='match_idx', kind='stable')
-
-        # 3. Tratamento de NaN explícito (Sua Sugestão)
-        df_long['Stat_Value'] = pd.to_numeric(df_long['Stat_Value'], errors='coerce')
-        
-        # 4. Calcula usando .transform() para alinhamento seguro
-        df_long['Rolling_Mean'] = (
-            df_long.groupby('Team')['Stat_Value']
-                   .transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
-        )
-        
-        # 5. Otimizar mapeamento com `merge` (Sua Sugestão, adaptada)
-        # Prepara o DataFrame de estatísticas com as chaves corretas para a junção.
-        stats_to_merge = df_long[['match_idx', 'Team', 'Rolling_Mean']].copy()
-        
-        # Prepara o DataFrame original com um índice temporário para o merge.
-        df_merged = df_calc.reset_index().rename(columns={'index': 'match_idx'})
-        
-        # Merge para os times da casa
-        home_stats = stats_to_merge.rename(columns={'Team': 'Home', 'Rolling_Mean': media_col_h})
-        df_merged = df_merged.merge(home_stats, on=['match_idx', 'Home'], how='left')
-
-        # Merge para os times visitantes
-        away_stats = stats_to_merge.rename(columns={'Team': 'Away', 'Rolling_Mean': media_col_a})
-        df_merged = df_merged.merge(away_stats, on=['match_idx', 'Away'], how='left')
-
-        # Restaura o índice original e seleciona as colunas
-        df_merged = df_merged.set_index('match_idx')
-        df_merged.index.name = df_calc.index.name # Preserva o nome do índice original
-        
-        # Atualiza o DataFrame principal com os novos resultados
-        df_calc[media_col_h] = df_merged[media_col_h]
-        df_calc[media_col_a] = df_merged[media_col_a]
-
-        logger.info(f"  -> '{media_col_h}' e '{media_col_a}' calculados e juntados.")
-
     return df_calc
 
 def calculate_binned_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -1087,302 +999,80 @@ def calculate_rolling_goal_stats(
     window: int = ROLLING_WINDOW,
     avg_goals_home_league: Optional[float] = None,
     avg_goals_away_league: Optional[float] = None
-    ) -> pd.DataFrame:
+) -> pd.DataFrame:
     """
-    Calcula médias móveis de gols e Força de Ataque/Defesa ajustada pela liga.
-    (Divisão FA/FD mais robusta)
+    Calcula médias móveis de gols e Força de Ataque/Defesa de forma otimizada,
+    usando merges para garantir o alinhamento correto dos dados.
     """
     df_calc = df.copy()
+    logger.info(f"Iniciando cálculo OTIMIZADO de Rolling Goals/FA/FD (Janela={window})...")
+    
     goals_h_col = GOALS_COLS.get('home', 'Goals_H_FT')
     goals_a_col = GOALS_COLS.get('away', 'Goals_A_FT')
-    epsilon = 1e-6 # Small number to avoid division by zero
+    epsilon = 1e-6
 
     if goals_h_col not in df_calc.columns or goals_a_col not in df_calc.columns:
-        logger.warning("Calc Rolling Goals: Colunas Gols ausentes.")
-        cols_to_add = ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 
-                       'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A',
-                       'FA_H', 'FD_H', 'FA_A', 'FD_A']
+        logger.warning("Calc Rolling Goals: Colunas de Gols ausentes.")
+        # Adiciona colunas vazias para consistência de saída
+        cols_to_add = [
+            'Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'FA_H', 'FD_H',
+            'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'FA_A', 'FD_A'
+        ]
         for col in cols_to_add:
             df_calc[col] = np.nan
         return df_calc
 
+    # 1. Calcula as médias da liga
     if avg_goals_home_league is None:
-         avg_h_league_calc = np.nanmean(df_calc[goals_h_col])
-         avg_h_league = avg_h_league_calc if pd.notna(avg_h_league_calc) else 1.0 
-         logger.warning(f"Média gols casa da liga não fornecida. Calculada como: {avg_h_league:.3f}")
+        avg_h_league = np.nanmean(df_calc[goals_h_col]) if pd.notna(np.nanmean(df_calc[goals_h_col])) else 1.0
+        logger.warning(f"Média gols casa da liga não fornecida. Calculada como: {avg_h_league:.3f}")
     else:
-         avg_h_league = avg_goals_home_league
-
+        avg_h_league = avg_goals_home_league
     if avg_goals_away_league is None:
-         avg_a_league_calc = np.nanmean(df_calc[goals_a_col])
-         avg_a_league = avg_a_league_calc if pd.notna(avg_a_league_calc) else 1.0 
-         logger.warning(f"Média gols fora da liga não fornecida. Calculada como: {avg_a_league:.3f}")
+        avg_a_league = np.nanmean(df_calc[goals_a_col]) if pd.notna(np.nanmean(df_calc[goals_a_col])) else 1.0
+        logger.warning(f"Média gols fora da liga não fornecida. Calculada como: {avg_a_league:.3f}")
     else:
-         avg_a_league = avg_goals_away_league
-
-    # Ensure league averages are not zero for division
+        avg_a_league = avg_goals_away_league
     avg_h_league_safe = max(avg_h_league, epsilon)
     avg_a_league_safe = max(avg_a_league, epsilon)
-    if avg_h_league <= epsilon: 
-        logger.warning(f"Média gols casa da liga é <= {epsilon}. Usando {epsilon} para divisão FA/FD.")
-    if avg_a_league <= epsilon: 
-        logger.warning(f"Média gols fora da liga é <= {epsilon}. Usando {epsilon} para divisão FA/FD.")
 
+    # 2. Reestrutura os dados para formato longo
+    df_home = pd.DataFrame({'Team': df_calc['Home'], 'Gols_Marcados': df_calc[goals_h_col], 'Gols_Sofridos': df_calc[goals_a_col], 'match_idx': df_calc.index})
+    df_away = pd.DataFrame({'Team': df_calc['Away'], 'Gols_Marcados': df_calc[goals_a_col], 'Gols_Sofridos': df_calc[goals_h_col], 'match_idx': df_calc.index})
+    df_long = pd.concat([df_home, df_away]).sort_values(by='match_idx', kind='stable')
+    df_long[['Gols_Marcados', 'Gols_Sofridos']] = df_long[['Gols_Marcados', 'Gols_Sofridos']].apply(pd.to_numeric, errors='coerce')
 
-    teams = pd.concat([df_calc['Home'], df_calc['Away']]).unique()
-    team_history = {
-        team: 
-            {
-                'scored_home': [], 
-                'conceded_home': [], 
-                'scored_away': [], 
-                'conceded_away': []
-            }
-        for team in teams
-    }
-    results_list = []
-    logger.info(f"Calculando Rolling Gols e Forças FA/FD (Janela={window})...")
+    # 3. Calcula médias móveis
+    df_long['Avg_Gols_Marcados'] = df_long.groupby('Team')['Gols_Marcados'].transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
+    df_long['Avg_Gols_Sofridos'] = df_long.groupby('Team')['Gols_Sofridos'].transform(lambda x: x.rolling(window, min_periods=1).mean().shift(1))
 
-    for index, row in tqdm(df_calc.iterrows(), total=len(df_calc), desc="Calc Rolling Goals/FA/FD"):
-        home_team = row['Home']
-        away_team = row['Away']
-        current_stats = {'Index': index}
+    # 4. Mapeia os resultados de volta usando MERGE
+    stats_to_merge = df_long[['match_idx', 'Team', 'Avg_Gols_Marcados', 'Avg_Gols_Sofridos']]
+    df_merged = df_calc.reset_index().rename(columns={'index': 'match_idx'})
+    
+    # Merge para Home
+    home_stats = stats_to_merge.rename(columns={'Team': 'Home', 'Avg_Gols_Marcados': 'Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos': 'Avg_Gols_Sofridos_H'})
+    df_merged = df_merged.merge(home_stats, on=['match_idx', 'Home'], how='left')
 
-        # --- Home Team Calculations ---
-        if home_team in team_history:
-            h_scored_hist = team_history[home_team]['scored_home']
-            h_conceded_hist = team_history[home_team]['conceded_home']
-            a_scored_hist_as_visitor = team_history[home_team]['scored_away']
-            a_conceded_hist_as_visitor = team_history[home_team]['conceded_away'] 
+    # Merge para Away
+    away_stats = stats_to_merge.rename(columns={'Team': 'Away', 'Avg_Gols_Marcados': 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos': 'Avg_Gols_Sofridos_A'})
+    df_merged = df_merged.merge(away_stats, on=['match_idx', 'Away'], how='left')
 
-            all_scored = h_scored_hist + a_scored_hist_as_visitor
-            all_conceded = h_conceded_hist + a_conceded_hist_as_visitor
+    df_merged = df_merged.set_index('match_idx')
+    df_merged.index.name = df_calc.index.name
+    
+    cols_to_update = ['Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A']
+    for col in cols_to_update:
+        df_calc[col] = df_merged[col]
 
-            avg_gs_h = np.nanmean(all_scored[-window:]) if all_scored else np.nan
-            avg_gc_h = np.nanmean(all_conceded[-window:]) if all_conceded else np.nan
-
-            current_stats['Avg_Gols_Marcados_H'] = avg_gs_h
-            current_stats['Avg_Gols_Sofridos_H'] = avg_gc_h
-
-            current_stats['FA_H'] = avg_gs_h / avg_h_league_safe if pd.notna(avg_gs_h) else np.nan
-            current_stats['FD_H'] = avg_gc_h / avg_a_league_safe if pd.notna(avg_gc_h) else np.nan
-        else: 
-            current_stats['Avg_Gols_Marcados_H']=np.nan; current_stats['Avg_Gols_Sofridos_H']=np.nan
-            current_stats['FA_H']=np.nan; current_stats['FD_H']=np.nan
-
-
-        # --- Away Team Calculations ---
-        if away_team in team_history:
-            a_scored_hist = team_history[away_team]['scored_away']
-            a_conceded_hist = team_history[away_team]['conceded_away']
-            h_scored_hist_as_home = team_history[away_team]['scored_home'] 
-            h_conceded_hist_as_home = team_history[away_team]['conceded_home'] 
-
-            all_scored_a = h_scored_hist_as_home + a_scored_hist
-            all_conceded_a = h_conceded_hist_as_home + a_conceded_hist
-
-            avg_gs_a = np.nanmean(all_scored_a[-window:]) if all_scored_a else np.nan
-            avg_gc_a = np.nanmean(all_conceded_a[-window:]) if all_conceded_a else np.nan
-
-            current_stats['Avg_Gols_Marcados_A'] = avg_gs_a
-            current_stats['Avg_Gols_Sofridos_A'] = avg_gc_a
-
-            current_stats['FA_A'] = avg_gs_a / avg_a_league_safe if pd.notna(avg_gs_a) else np.nan
-            current_stats['FD_A'] = avg_gc_a / avg_h_league_safe if pd.notna(avg_gc_a) else np.nan
-        else: 
-            current_stats['Avg_Gols_Marcados_A']=np.nan; current_stats['Avg_Gols_Sofridos_A']=np.nan
-            current_stats['FA_A']=np.nan; current_stats['FD_A']=np.nan
-
-
-        results_list.append(current_stats)
-
-        # Update history (only if goals are valid numbers)
-        home_goals = pd.to_numeric(row.get(goals_h_col), errors='coerce')
-        away_goals = pd.to_numeric(row.get(goals_a_col), errors='coerce')
-        if home_team in team_history:
-            if pd.notna(home_goals): 
-                team_history[home_team]['scored_home'].append(home_goals)
-            if pd.notna(away_goals): 
-                team_history[home_team]['conceded_home'].append(away_goals) 
-        if away_team in team_history:
-            if pd.notna(away_goals): 
-                team_history[away_team]['scored_away'].append(away_goals)
-            if pd.notna(home_goals): 
-                team_history[away_team]['conceded_away'].append(home_goals) 
-
-
-    df_rolling_stats = pd.DataFrame(results_list).set_index('Index')
-    logger.info(f"Rolling Gols/FA/FD calculado. Colunas: {list(df_rolling_stats.columns)}")
-    cols_to_join = [col for col in df_rolling_stats.columns if col not in df_calc.columns]
-    df_final = df_calc.join(df_rolling_stats[cols_to_join])
-    cols_to_update = [col for col in df_rolling_stats.columns if col in df_calc.columns]
-    if cols_to_update:
-        df_final.update(df_rolling_stats[cols_to_update])
-
-    return df_final
-
-def calculate_general_rolling_stats(
-    df: pd.DataFrame,
-    stats_configs: List[Dict[str, Any]],
-    default_window: int = ROLLING_WINDOW
-) -> pd.DataFrame:
-    if df.empty:
-        return df
-
-    logger.info(f"Calculando {len(stats_configs)} métricas rolling (Janela Padrão={default_window})...")
-    df_calc = df.copy()
-    teams_home = df_calc['Home'].astype(str).dropna()
-    teams_away = df_calc['Away'].astype(str).dropna()
-    teams = pd.concat([teams_home, teams_away]).unique()
-    if len(teams) == 0:
-        logger.warning("Nenhum time válido p/ stats rolling.")
-        return df_calc 
-
-    team_history = defaultdict(lambda: defaultdict(lambda: deque(maxlen=default_window + 5)))
-    calculated_stats_list = []
-    valid_configs = []
-    output_cols_mapping = {}
-    base_cols_needed = set(['Home', 'Away'])
-
-    for cfg in stats_configs:  
-        prefix = cfg.get('output_prefix')
-        agg_func = cfg.get('agg_func')
-        base_h = cfg.get('base_col_h')
-        base_a = cfg.get('base_col_a')
-        if not prefix or not agg_func:
-            logger.warning(f"Config inválida: {cfg}.")
-            continue
-        h_exists = base_h and base_h in df_calc.columns
-        a_exists = base_a and base_a in df_calc.columns
-        if not h_exists and not a_exists:
-            logger.warning(f"Cols base '{base_h}'/'{base_a}' ausentes p/ {prefix}.")
-            continue
-        if h_exists:
-            base_cols_needed.add(base_h)
-            cfg['base_col_h'] = base_h  
-        else:
-            cfg['base_col_h'] = None
-        if a_exists:
-            base_cols_needed.add(base_a)
-            cfg['base_col_a'] = base_a  
-        else:
-            cfg['base_col_a'] = None
-
-        context = cfg.get('context', 'all')
-        output_col_h = f"{prefix}_{context}_H" if context != 'all' else f"{prefix}_H"
-        output_col_a = f"{prefix}_{context}_A" if context != 'all' else f"{prefix}_A"
-        output_cols_mapping[output_col_h] = cfg
-        output_cols_mapping[output_col_a] = cfg
-        valid_configs.append(cfg)
-
-    logger.debug(f"Colunas rolling a calcular: {list(output_cols_mapping.keys())}")
-    actual_base_cols_needed = [col for col in base_cols_needed if col in df_calc.columns]
-    logger.debug(f"Colunas base necessárias: {actual_base_cols_needed}")
-    if 'Home' not in actual_base_cols_needed:
-        actual_base_cols_needed.append('Home')
-    if 'Away' not in actual_base_cols_needed:
-        actual_base_cols_needed.append('Away')
-
-    for index, row_data in tqdm(
-        df_calc[actual_base_cols_needed].iterrows(),
-        total=len(df_calc),
-        desc="Calc Rolling Geral"
-    ):
-        home_team = row_data.get('Home')
-        away_team = row_data.get('Away')
-        if pd.isna(home_team) or pd.isna(away_team):
-            nan_stats_for_row = {'Index': index}
-            [nan_stats_for_row.update({out_col: np.nan}) for out_col in output_cols_mapping.keys()]
-            calculated_stats_list.append(nan_stats_for_row)
-            continue
-
-        current_match_stats = {'Index': index}
-        for output_col, cfg in output_cols_mapping.items():
-            is_home_stat = output_col.endswith("_H")
-            team_name = home_team if is_home_stat else away_team
-            if pd.isna(team_name):
-                current_match_stats[output_col] = np.nan
-                continue
-
-            prefix = cfg['output_prefix']
-            agg_func = cfg['agg_func']
-            window = cfg.get('window', default_window)
-            min_p = cfg.get('min_periods', 1 if agg_func != np.nanstd else 2)
-            base_h = cfg.get('base_col_h')
-            base_a = cfg.get('base_col_a')
-            context = cfg.get('context', 'all')
-            stat_type = cfg.get('stat_type', 'offensive')
-            hist_values = []
-
-            try:
-                # Acesso direto ao defaultdict do time
-                team_data = team_history[team_name]
-
-                key_home = base_h if stat_type == 'offensive' else base_a
-                key_away = base_a if stat_type == 'offensive' else base_h
-
-                # --- Select history using .get() on the inner dictionary (team_data) ---
-                if context == 'all':
-                    if key_home and key_home in team_data:
-                        hist_values.extend(list(team_data.get(key_home, deque())))
-                    if key_away and key_away in team_data:
-                        hist_values.extend(list(team_data.get(key_away, deque())))
-                elif context == 'home':
-                    col_to_use = key_home
-                    if col_to_use and col_to_use in team_data:  
-                        hist_values = list(team_data.get(col_to_use, deque()))
-                elif context == 'away':
-                    col_to_use = key_away
-                    if col_to_use and col_to_use in team_data:  
-                        hist_values = list(team_data.get(col_to_use, deque()))
-                # --- End history selection ---
-
-            except Exception as e_hist:
-                logger.error(
-                    f"Erro inesperado ao acessar histórico {team_name}/{prefix}/{context}: {e_hist}",
-                    exc_info=True
-                )
-                current_match_stats[output_col] = np.nan
-                continue
-
-            recent_values = hist_values[-window:] if hist_values else []
-            if len(recent_values) >= min_p:
-                try:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore", category=RuntimeWarning)
-                        calculated_value = agg_func(recent_values)
-                    current_match_stats[output_col] = (
-                        calculated_value if pd.notna(calculated_value) and np.isfinite(calculated_value)
-                        else np.nan
-                    )
-                except Exception as e_agg:
-                    logger.warning(f"Erro agg func {agg_func.__name__} p/ {output_col}: {e_agg}")
-                    current_match_stats[output_col] = np.nan
-            else:
-                current_match_stats[output_col] = np.nan
-
-        calculated_stats_list.append(current_match_stats)
-
-        for cfg_update in valid_configs:  
-            base_col_h = cfg_update.get('base_col_h')
-            base_col_a = cfg_update.get('base_col_a')
-            val_h = row_data.get(base_col_h)
-            val_a = row_data.get(base_col_a)
-            if base_col_h and pd.notna(val_h):
-                team_history[home_team][base_col_h].append(val_h)
-            if base_col_a and pd.notna(val_a):
-                team_history[away_team][base_col_a].append(val_a)
-
-    if not calculated_stats_list:
-        logger.warning("Nenhuma stat rolling calculada.")
-        return df_calc
-
-    df_rolling = pd.DataFrame(calculated_stats_list).set_index('Index')
-    logger.info(f"Métricas rolling calculadas. Shape: {df_rolling.shape}.")
-    df_final = df_calc.join(df_rolling, how='left')
-    nan_counts_rolling = df_final[list(output_cols_mapping.keys())].isnull().sum()
-    logger.debug(f"NaNs rolling após join:\n{nan_counts_rolling[nan_counts_rolling > 0]}")
-    return df_final
+    # 5. Calcula Força de Ataque (FA) e Defesa (FD)
+    df_calc['FA_H'] = df_calc['Avg_Gols_Marcados_H'] / avg_h_league_safe
+    df_calc['FD_H'] = df_calc['Avg_Gols_Sofridos_H'] / avg_a_league_safe
+    df_calc['FA_A'] = df_calc['Avg_Gols_Marcados_A'] / avg_a_league_safe
+    df_calc['FD_A'] = df_calc['Avg_Gols_Sofridos_A'] / avg_h_league_safe
+    
+    logger.info("-> Rolling Gols/FA/FD calculados com sucesso (otimizado).")
+    return df_calc
 
 def calculate_ewma_stats(
     df: pd.DataFrame,
