@@ -42,29 +42,13 @@ logger_dh = setup_logger('DataHandlerMetrics')
 
 # --- Funções Auxiliares ---
 class BettingMetricsCalculator:
-    """
-    Uma classe utilitária para calcular métricas relacionadas a apostas, como ROI e EV.
-    Os métodos são estáticos, pois não dependem do estado da instância.
-    """
 
     @staticmethod
     def roi(y_true: pd.Series,
             y_pred_class: np.ndarray, 
             odds_data: Optional[pd.DataFrame],
             odd_col_name: str) -> Optional[float]:
-        """
-        Calcula o Retorno Sobre Investimento (ROI) para uma estratégia de aposta simples
-        baseada em predições de classe.
 
-        Args:
-            y_true: Série com os resultados reais (0 ou 1).
-            y_pred_class: Array NumPy com as classes preditas (0 ou 1).
-            odds_data: DataFrame contendo as odds, alinhado com y_true.
-            odd_col_name: Nome da coluna em odds_data com a odd relevante.
-
-        Returns:
-            ROI em porcentagem, ou None se não puder ser calculado.
-        """
         if odds_data is None or odd_col_name not in odds_data.columns:
             logger_dh.warning("ROI: Dados de odds ou nome da coluna ausentes.")
             return None
@@ -112,7 +96,7 @@ class BettingMetricsCalculator:
                 return 0.0
             return (profit / valid_bets_count) * 100.0
 
-        except AttributeError as ae: # Comum se um dos inputs não for Series/DataFrame
+        except AttributeError as ae: 
             logger_dh.error(f"ROI AttributeError: {ae}. Verifique os tipos de input.", exc_info=True)
             return None
         except Exception as e:
@@ -125,10 +109,6 @@ class BettingMetricsCalculator:
                                threshold: float,
                                odds_data: Optional[pd.DataFrame],
                                odd_col_name: str) -> Tuple[Optional[float], int, Optional[float]]:
-        """
-        Calcula ROI, número de apostas válidas e lucro/prejuízo,
-        apostando quando a probabilidade predita > threshold.
-        """
 
         if odds_data is None or odd_col_name not in odds_data.columns:
             logger_dh.warning("ROI Thr: Dados de odds ou nome da coluna ausentes.")
@@ -182,10 +162,7 @@ class BettingMetricsCalculator:
                             ev_threshold: float,
                             odds_data: Optional[pd.DataFrame],
                             odd_col_name: str) -> Tuple[Optional[float], int, Optional[float]]:
-        """
-        Calcula ROI, número de apostas e lucro/prejuízo,
-        apostando quando o Expected Value (EV) > ev_threshold.
-        """
+
         if odds_data is None or odd_col_name not in odds_data.columns:
             logger_dh.warning(f"EV Metr: Odds ausentes.")
             return None, 0, None
@@ -207,14 +184,13 @@ class BettingMetricsCalculator:
             y_proba_common = y_proba_series.loc[common_index]
 
             valid_mask = odds_common.notna() & y_proba_common.notna() & (odds_common > 1)
-            ev_series = pd.Series(np.nan, index=common_index) # Renomeado para clareza
+            ev_series = pd.Series(np.nan, index=common_index) 
             if valid_mask.any():
                 prob_ok = y_proba_common[valid_mask]; odds_ok = odds_common[valid_mask]
                 ev_calculated_values = (prob_ok * (odds_ok - 1)) - ((1 - prob_ok) * 1)
                 ev_series.loc[valid_mask] = ev_calculated_values
 
             bet_indices = common_index[ev_series > ev_threshold]
-            # num_bets_suggested = len(bet_indices) # Não usado no retorno, mas útil
 
             if not bet_indices.any(): return 0.0, 0, 0.0
 
@@ -225,15 +201,12 @@ class BettingMetricsCalculator:
             for idx in bet_indices:
                 odd_val = odds_on_bets.get(idx)
                 actual_val = actuals_on_bets.get(idx)
-                # A condição de odd > 1 já foi verificada pelo valid_mask e pelo ev_series > ev_threshold (se ev_threshold >=0)
-                # Mas uma checagem extra não faz mal se ev_threshold puder ser negativo.
                 if pd.notna(odd_val) and odd_val > 1 and pd.notna(actual_val):
                     profit_calc += (odd_val - 1) if actual_val == 1 else -1
                     valid_bets_count += 1
             
             profit = profit_calc
             roi_value = (profit / valid_bets_count) * 100.0 if valid_bets_count > 0 else 0.0
-            # logger_dh.debug(f"    -> Métricas EV (Th={ev_threshold:.3f}): ROI={roi_value:.2f}%, Bets Vál={valid_bets_count}, Profit={profit:.2f}")
             return roi_value, valid_bets_count, profit
         except AttributeError as ae:
             logger_dh.error(f"EV Metr AttributeError: {ae}. Verifique tipos.", exc_info=True)
@@ -242,15 +215,10 @@ class BettingMetricsCalculator:
             logger_dh.error(f"EV Metr Erro Geral - {e}", exc_info=True)
             return None, 0, None
     
-# Função load_historical_data
-# Colunas de stats esperadas nos CSVs/Excel
 EXPECTED_STAT_CSV_COLS = ['Shots_H', 'Shots_A', 'ShotsOnTarget_H', 'ShotsOnTarget_A', 'Corners_H_FT', 'Corners_A_FT']
 
 def _read_historical_file(file_path: str) -> Optional[pd.DataFrame]:
-    """
-    Lê um único arquivo histórico (CSV ou Excel), tratando diferentes encodings.
-    Retorna um DataFrame ou None em caso de falha.
-    """
+
     base_filename = os.path.basename(file_path)
     file_ext = os.path.splitext(file_path)[1].lower()
     df_part = None
@@ -288,7 +256,6 @@ def _read_historical_file(file_path: str) -> Optional[pd.DataFrame]:
     logger.debug(f"    Colunas originais: {list(df_part.columns)}")
     return df_part
 
-
 def _apply_column_mapping_and_league_logic(
     df_input: pd.DataFrame,
     specific_league_map: Dict[str, str], 
@@ -297,10 +264,7 @@ def _apply_column_mapping_and_league_logic(
     target_internal_league_ids: List[str], 
     base_filename: str
 ) -> Optional[pd.DataFrame]:
-    """
-    Aplica mapeamento de colunas, mapeamento de ligas para IDs internos,
-    filtragem opcional de ligas e garante colunas de estatísticas.
-    """
+
     df = df_input.copy()
     internal_league_col_name = 'League' 
 
@@ -312,7 +276,6 @@ def _apply_column_mapping_and_league_logic(
         if v_internal == GOALS_COLS.get('away') and k_csv in df.columns:
             raw_goal_col_away = k_csv
 
-    # Garante colunas de stats básicas e colunas de GOLS (seus nomes originais do arquivo)
     cols_to_ensure_exist_initially = list(EXPECTED_STAT_CSV_COLS)
     if raw_goal_col_home: cols_to_ensure_exist_initially.append(raw_goal_col_home)
     if raw_goal_col_away: cols_to_ensure_exist_initially.append(raw_goal_col_away)
@@ -363,15 +326,12 @@ def _apply_column_mapping_and_league_logic(
         k_csv: v_internal for k_csv, v_internal in csv_to_internal_col_map.items()
         if k_csv in df_to_process_further.columns
     }
-    # Nomes das colunas originais que serão mantidas (seja para renomear ou porque o nome interno é o mesmo)
     original_cols_to_keep = list(cols_to_rename_dict.keys())
 
-    # Adiciona colunas de stats que podem não estar no CSV_HIST_COL_MAP mas queremos manter
     for stat_col in EXPECTED_STAT_CSV_COLS:
         if stat_col in df_to_process_further.columns and stat_col not in original_cols_to_keep:
             original_cols_to_keep.append(stat_col)
 
-    # Adiciona a coluna de ID de liga temporária
     if '_InternalLeagueID_Temp' in df_to_process_further.columns:
         if '_InternalLeagueID_Temp' not in original_cols_to_keep: 
              original_cols_to_keep.append('_InternalLeagueID_Temp')
@@ -384,8 +344,6 @@ def _apply_column_mapping_and_league_logic(
                 if internal_league_col_name not in original_cols_to_keep:
                      original_cols_to_keep.append(internal_league_col_name)
 
-
-    # Garante que todas as colunas em original_cols_to_keep realmente existem
     final_original_cols_to_select = [col for col in original_cols_to_keep if col in df_to_process_further.columns]
     final_original_cols_to_select = list(dict.fromkeys(final_original_cols_to_select)) # Mantém ordem e remove duplicatas
 
@@ -395,8 +353,6 @@ def _apply_column_mapping_and_league_logic(
 
     df_selected = df_to_process_further[final_original_cols_to_select].copy()
 
-    # Renomeia as colunas
-    # Filtra cols_to_rename_dict para conter apenas as colunas que realmente estão em df_selected
     actual_rename_map = {k: v for k, v in cols_to_rename_dict.items() if k in df_selected.columns}
     df_processed = df_selected.rename(columns=actual_rename_map)
 
@@ -406,7 +362,6 @@ def _apply_column_mapping_and_league_logic(
         logger.warning(f"({base_filename}) DataFrame processado resultou vazio.")
     return df_processed
 
-
 def _load_single_historical_file(
     file_path: str,
     specific_league_map: Dict[str, str],
@@ -414,9 +369,7 @@ def _load_single_historical_file(
     apply_league_filter_flag: bool,
     target_internal_league_ids: List[str]
 ) -> Optional[pd.DataFrame]:
-    """
-    Carrega e processa um único arquivo histórico, incluindo leitura, mapeamento e filtragem.
-    """
+
     base_filename = os.path.basename(file_path) 
     df_raw = _read_historical_file(file_path)
     if df_raw is None:
@@ -436,19 +389,14 @@ def _load_single_historical_file(
         logger.error(f"Erro crítico ao aplicar mapeamentos/filtros em {base_filename}: {e}", exc_info=True)
         return None
 
-
 def _post_concat_processing(df_input: pd.DataFrame) -> Optional[pd.DataFrame]:
-    """
-    Processamento comum aplicado após a concatenação de todos os arquivos históricos.
-    Inclui conversão de datas, tipos numéricos, tratamento de NaNs essenciais, ordenação e cálculo de PiRating.
-    """
+
     if df_input.empty:
         logger.error("DF histórico vazio recebido para pós-processamento.")
         return None
     df = df_input.copy()
     logger.info("Iniciando processamento comum pós-concatenação...")
 
-    # Conversão de Data e dropna
     if 'Date' in df.columns:
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         if df['Date'].isnull().any():
@@ -467,7 +415,6 @@ def _post_concat_processing(df_input: pd.DataFrame) -> Optional[pd.DataFrame]:
         logger.error("DF vazio após tratamento da coluna 'Date'.")
         return None
 
-    # Conversão para Numérico e Tratamento de Odds/xG
     numeric_cols_to_convert = (
         list(GOALS_COLS.values()) + list(ODDS_COLS.values()) +
         OTHER_ODDS_NAMES + list(XG_COLS.values()) + EXPECTED_STAT_CSV_COLS
@@ -476,16 +423,13 @@ def _post_concat_processing(df_input: pd.DataFrame) -> Optional[pd.DataFrame]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
             if col in ODDS_COLS.values() or col in OTHER_ODDS_NAMES:
-                # Odds <= 1 são inválidas
                 df.loc[df[col] <= 1, col] = np.nan
+
             if col in XG_COLS.values():
-                # xG < 0 é inválido (xG == 0 pode ser válido, mas às vezes indica missing, depende da fonte)
                 df.loc[df[col] < 0, col] = np.nan
         else:
             logger.debug(f"  Coluna numérica esperada '{col}' ausente no DataFrame concatenado para conversão.")
 
-    # Dropna para colunas essenciais
-    # (Usando nomes internos)
     essential_cols_for_dropna = ['Date', 'Home', 'Away'] + list(GOALS_COLS.values()) + list(ODDS_COLS.values())
     cols_to_dropna_present = [c for c in essential_cols_for_dropna if c in df.columns]
 
@@ -500,30 +444,22 @@ def _post_concat_processing(df_input: pd.DataFrame) -> Optional[pd.DataFrame]:
         logger.error("Nenhum jogo restante após dropna essencial no DataFrame concatenado.")
         return None
 
-    # Ordenação e Reset do Índice
     df = df.sort_values(by='Date').reset_index(drop=True)
     logger.info("  DataFrame histórico ordenado por data.")
 
-    # Cálculo de Pi-Rating (final)
     logger.info("  Calculando Pi-Ratings finais...")
     df = calculate_pi_ratings(df) 
 
     logger.info("Processamento pós-concatenação concluído.")
     return df
 
-
 def load_historical_data() -> Optional[pd.DataFrame]:
-    """
-    Orquestra o carregamento de múltiplos arquivos de dados históricos,
-    aplica mapeamentos, opcionalmente filtra, concatena e realiza
-    processamento comum final.
-    """
+
     file_configs = [
         # {'path': HISTORICAL_DATA_PATH_1, 'league_map': TARGET_LEAGUES_1}, # Exemplo
         # {'path': HISTORICAL_DATA_PATH_2, 'league_map': TARGET_LEAGUES_2}, # Exemplo
         {'path': HISTORICAL_DATA_PATH_3, 'league_map': TARGET_LEAGUES_1} 
     ]
-    # Estas também viriam do config.py
     global_csv_col_map = CSV_HIST_COL_MAP
     apply_filter_hist = APPLY_LEAGUE_FILTER_ON_HISTORICAL
     target_leagues_ids = TARGET_LEAGUES_INTERNAL_IDS
@@ -570,14 +506,12 @@ def load_historical_data() -> Optional[pd.DataFrame]:
         logger.error("DataFrame combinado está vazio antes do pós-processamento.")
         return None
 
-    # Aplicar processamento final pós-concatenação
     df_final_processed = _post_concat_processing(df_combined)
 
     if df_final_processed is None or df_final_processed.empty:
         logger.error("Processamento pós-concatenação falhou ou resultou em DataFrame vazio.")
         return None
 
-    # Log Final
     logger.info(f"Carregamento e processamento de dados históricos concluídos {log_msg_filter}. Shape Final: {df_final_processed.shape}")
     optional_nan_counts = df_final_processed.isnull().sum()
     optional_nan_counts = optional_nan_counts[optional_nan_counts > 0]
@@ -587,27 +521,44 @@ def load_historical_data() -> Optional[pd.DataFrame]:
         logger.info("Nenhum NaN opcional restante detectado no DataFrame final.")
 
     return df_final_processed
+
+def _get_final_team_stats(historical_df_processed: pd.DataFrame) -> pd.DataFrame:
+
+    logger.info("Extraindo o estado final das estatísticas dos times do histórico...")
     
+    stat_cols = [col for col in historical_df_processed.columns if col.startswith(('Media_', 'Std_', 'EWMA_', 'FA_', 'FD_', 'PiRating_'))]
+    
+    df_home = historical_df_processed[['Home'] + [c for c in stat_cols if c.endswith('_H')]].rename(columns={'Home': 'Team'})
+    df_away = historical_df_processed[['Away'] + [c for c in stat_cols if c.endswith('_A')]].rename(columns={'Away': 'Team'})
+
+    df_home.columns = ['Team'] + [c.replace('_H', '') for c in df_home.columns if c.endswith('_H')]
+    df_away.columns = ['Team'] + [c.replace('_A', '') for c in df_away.columns if c.endswith('_A')]
+
+    final_stats = pd.concat([df_home, df_away]).sort_index(kind='stable').drop_duplicates(subset=['Team'], keep='last')
+    
+    logger.info(f"Estado final extraído para {len(final_stats)} times.")
+    return final_stats.set_index('Team')
+
+def _get_training_medians(X_train: pd.DataFrame) -> pd.Series:
+
+    logger.info("Calculando medianas do conjunto de treino para imputação futura.")
+    return X_train.median()
+   
 def calculate_probabilities(df: pd.DataFrame, epsilon=1e-6) -> pd.DataFrame:
-    """Calcula probs implícitas p_H, p_D, p_A. Requer Odd_H/D/A_FT."""
     df_calc = df.copy()
-    required_odds = list(ODDS_COLS.values())  # Usa config
+    required_odds = list(ODDS_COLS.values())  
     if not all(c in df_calc.columns for c in required_odds):
         logger.warning("Odds 1x2 ausentes para calcular Probabilidades.")
         df_calc[['p_H', 'p_D', 'p_A']] = np.nan
         return df_calc
 
     for col in required_odds:
-        # Ensure numeric, but NaNs should already be handled by load_historical_data
         df_calc[col] = pd.to_numeric(df_calc[col], errors='coerce')
-        # Keep NaN where odds were invalid (<=1 handled in loading)
 
-    # Evita divisão por zero e lida com NaNs
-    odd_h = df_calc[ODDS_COLS['home']].replace(0, np.nan) # Replace 0 with NaN just in case
-    odd_d = df_calc[ODDS_COLS['draw']].replace(0, np.nan) # Replace 0 with NaN
-    odd_a = df_calc[ODDS_COLS['away']].replace(0, np.nan) # Replace 0 with NaN
+    odd_h = df_calc[ODDS_COLS['home']].replace(0, np.nan) 
+    odd_d = df_calc[ODDS_COLS['draw']].replace(0, np.nan) 
+    odd_a = df_calc[ODDS_COLS['away']].replace(0, np.nan) 
 
-    # Inverse will propagate NaNs correctly
     df_calc['p_H'] = 1 / odd_h
     df_calc['p_D'] = 1 / odd_d
     df_calc['p_A'] = 1 / odd_a
@@ -615,7 +566,6 @@ def calculate_probabilities(df: pd.DataFrame, epsilon=1e-6) -> pd.DataFrame:
     return df_calc
 
 def calculate_normalized_probabilities(df: pd.DataFrame, epsilon=1e-6) -> pd.DataFrame:
-    """Calcula probs normalizadas e diferença H/A. Requer p_H, p_D, p_A."""
     df_calc = df.copy()
     prob_cols = ['p_H', 'p_D', 'p_A']
     if not all(c in df_calc.columns for c in prob_cols):
@@ -624,7 +574,6 @@ def calculate_normalized_probabilities(df: pd.DataFrame, epsilon=1e-6) -> pd.Dat
         return df_calc
 
     df_calc['Overround'] = df_calc['p_H'] + df_calc['p_D'] + df_calc['p_A']
-    # Evitar divisão por zero no Overround
     df_calc['Overround'] = df_calc['Overround'].replace(0, epsilon)
 
     df_calc['p_H_norm'] = df_calc['p_H'] / df_calc['Overround']
@@ -634,20 +583,22 @@ def calculate_normalized_probabilities(df: pd.DataFrame, epsilon=1e-6) -> pd.Dat
     logger.info("Probabilidades Normalizadas (p_X_norm, abs_ProbDiff_Norm) calculadas.")
     return df_calc.drop(columns=['Overround'], errors='ignore')
 
-def calculate_general_rolling_stats(df: pd.DataFrame, stats_configs: List[Dict[str, Any]], default_window: int = ROLLING_WINDOW) -> pd.DataFrame:
-    """
-    Calcula estatísticas móveis (média, std, etc.) de forma otimizada usando groupby.
-    Esta função substitui a necessidade de ter funções separadas para média e desvio padrão.
-    """
+def calculate_general_rolling_stats(
+    df: pd.DataFrame, 
+    stats_configs: List[Dict[str, Any]], 
+    default_window: int = ROLLING_WINDOW
+) -> pd.DataFrame:
+
     df_calc = df.copy()
     logger.info(f"Iniciando cálculo OTIMIZADO Geral de Stats Rolling (Janela Padrão={default_window})...")
+
+    df_to_melt = df_calc.reset_index().rename(columns={'index': 'match_idx'})
 
     for config in stats_configs:
         agg_func = config.get('agg_func')
         stat_prefix = config.get('output_prefix')
         window = config.get('window', default_window)
-        # min_periods default para 1, mas 2 para std
-        min_p = config.get('min_periods', 2 if agg_func == np.nanstd else 1)
+        min_p = config.get('min_periods', 2 if agg_func == np.std else 1) # Default 2 para std, 1 para outros
         base_h = config.get('base_col_h')
         base_a = config.get('base_col_a')
         
@@ -655,48 +606,57 @@ def calculate_general_rolling_stats(df: pd.DataFrame, stats_configs: List[Dict[s
             logger.warning(f"Configuração de stat incompleta: {config}. Pulando.")
             continue
         
+        if base_h not in df_to_melt.columns or base_a not in df_to_melt.columns:
+            logger.error(f"Erro Rolling Stat: Colunas base '{base_h}'/'{base_a}' não encontradas. Pulando config para '{stat_prefix}'.")
+            continue
+            
         logger.debug(f"  Processando: '{stat_prefix}' com a função '{agg_func.__name__}'")
 
         new_col_h = f"{stat_prefix}_H"
         new_col_a = f"{stat_prefix}_A"
 
-        # Estrutura longa (Unpivot)
-        df_home = df_calc[['Home', base_h]].rename(columns={'Home': 'Team', base_h: 'Stat_Value'})
-        df_away = df_calc[['Away', base_a]].rename(columns={'Away': 'Team', base_a: 'Stat_Value'})
-        df_home['match_idx'], df_away['match_idx'] = df_calc.index, df_calc.index
-        df_long = pd.concat([df_home, df_away]).sort_values(by='match_idx', kind='stable')
-        df_long['Stat_Value'] = pd.to_numeric(df_long['Stat_Value'], errors='coerce')
+        # 1. Melt
+        cols_for_this_melt = ['match_idx', 'Home', 'Away', base_h, base_a]
+        df_long = pd.melt(
+            df_to_melt[cols_for_this_melt],
+            id_vars=['match_idx', 'Home', 'Away'],
+            value_vars=[base_h, base_a],
+            var_name='Stat_Source_Column',
+            value_name='Stat_Value'
+        )
 
-        # Aplica a função de agregação genérica
-        # Nota: Usamos agg(agg_func) em vez de chamar .mean() ou .std() diretamente.
-        # np.std e np.nanmean são compatíveis com rolling().agg()
-        df_long[f'Rolling_Stat'] = (
-            df_long.groupby('Team')['Stat_Value']
-                   .transform(lambda x: x.rolling(window, min_periods=min_p).agg(agg_func).shift(1))
+        # 2. Determinar o time corretamente
+        df_long['Team'] = np.where(
+            df_long['Stat_Source_Column'] == base_h,
+            df_long['Home'],
+            df_long['Away']
         )
         
-        # Mapeia de volta usando merges
-        stats_to_merge = df_long[['match_idx', 'Team', 'Rolling_Stat']].copy()
-        df_merged = df_calc.reset_index().rename(columns={'index': 'match_idx'})
+        # 3. Ordena, converte para numérico e calcula a estatística móvel
+        df_long = df_long.sort_values(by='match_idx', kind='stable')
+        df_long['Stat_Value'] = pd.to_numeric(df_long['Stat_Value'], errors='coerce')
         
-        home_stats = stats_to_merge.rename(columns={'Team': 'Home', 'Rolling_Stat': new_col_h})
-        df_merged = df_merged.merge(home_stats, on=['match_idx', 'Home'], how='left')
+        if agg_func == np.std:
+            rolling_agg_func = lambda x: x.rolling(window, min_periods=min_p).std(ddof=0)
+        else:
+            rolling_agg_func = lambda x: x.rolling(window, min_periods=min_p).agg(agg_func)
 
-        away_stats = stats_to_merge.rename(columns={'Team': 'Away', 'Rolling_Stat': new_col_a})
-        df_merged = df_merged.merge(away_stats, on=['match_idx', 'Away'], how='left')
-
-        df_merged = df_merged.set_index('match_idx')
-        df_merged.index.name = df_calc.index.name
+        df_long['Rolling_Stat'] = (
+            df_long.groupby('Team')['Stat_Value']
+                   .transform(lambda x: rolling_agg_func(x).shift(1))
+        )
         
-        df_calc[new_col_h] = df_merged[new_col_h]
-        df_calc[new_col_a] = df_merged[new_col_a]
+        # 4. Mapeia os resultados de volta para o DataFrame original
+        mapper = df_long.set_index(['match_idx', 'Team'])['Rolling_Stat']
+        df_calc[new_col_h] = df_calc.index.map(lambda idx: mapper.get((idx, df_calc.loc[idx, 'Home'])))
+        df_calc[new_col_a] = df_calc.index.map(lambda idx: mapper.get((idx, df_calc.loc[idx, 'Away'])))
 
         logger.info(f"  -> '{new_col_h}' e '{new_col_a}' calculados.")
         
     return df_calc
 
 def calculate_binned_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Cria features categóricas (bins). Requer Odd_D_FT."""
+
     df_calc = df.copy()
     odd_d_col = ODDS_COLS['draw']
     if odd_d_col not in df_calc.columns:
@@ -721,7 +681,7 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     """Calcula CV_HDA, Diff_Media_CG e NOVAS features de interação."""
     df_calc = df.copy()
     logger.info("Calculando features derivadas (CV_HDA, Diff_Media_CG, Novas Interações)...")
-    epsilon = FEATURE_EPSILON # Use epsilon from config
+    epsilon = FEATURE_EPSILON 
 
     # CV_HDA
     if all(c in df_calc.columns for c in ODDS_COLS.values()):
@@ -733,14 +693,12 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
         logger.warning("Odds 1x2 ausentes p/ CV_HDA."); 
         df_calc['CV_HDA'] = np.nan
 
-    # Diff_Media_CG
     if 'Media_CG_H' in df_calc.columns and 'Media_CG_A' in df_calc.columns:
         df_calc['Diff_Media_CG'] = df_calc['Media_CG_H'] - df_calc['Media_CG_A']
     else: 
         logger.warning("Médias CG ausentes p/ Diff_Media_CG."); 
         df_calc['Diff_Media_CG'] = np.nan
 
-    # Interaction 1: p_D_norm vs CV_HDA (Existing)
     if 'p_D_norm' in df_calc.columns and 'CV_HDA' in df_calc.columns:
         df_calc[INTERACTION_P_D_NORM_X_CV_HDA] = df_calc['p_D_norm'] * df_calc['CV_HDA']
         df_calc[INTERACTION_P_D_NORM_DIV_CV_HDA] = df_calc['p_D_norm'] / (df_calc['CV_HDA'] + epsilon)
@@ -748,7 +706,6 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
         logger.warning("p_D_norm ou CV_HDA ausente."); 
         df_calc[[INTERACTION_P_D_NORM_X_CV_HDA, INTERACTION_P_D_NORM_DIV_CV_HDA]] = np.nan
 
-    # Interaction 2: Prob/Odds Empate vs |PiRating_Diff| (Existing)
     if 'PiRating_Diff' in df_calc.columns:
         abs_pi_rating_diff = df_calc['PiRating_Diff'].abs()
         if 'p_D_norm' in df_calc.columns:
@@ -768,7 +725,6 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
         logger.warning("PiRating_Diff ausente."); 
     df_calc[[INTERACTION_P_D_NORM_X_PIR_DIFF, INTERACTION_P_D_NORM_DIV_PIR_DIFF, INTERACTION_ODD_D_X_PIR_DIFF, INTERACTION_ODD_D_DIV_PIR_DIFF]] = np.nan
 
-    # Interaction 3: PiRating Prob H vs Odd H
     odd_h_col = ODDS_COLS['home']
     if 'PiRating_Prob_H' in df_calc.columns and odd_h_col in df_calc.columns:
         df_calc[INTERACTION_PIR_PROBH_X_ODD_H] = df_calc['PiRating_Prob_H'] * df_calc[odd_h_col]
@@ -776,15 +732,12 @@ def calculate_derived_features(df: pd.DataFrame) -> pd.DataFrame:
         logger.warning("PiRating_Prob_H ou Odd_H_FT ausente."); 
     df_calc[INTERACTION_PIR_PROBH_X_ODD_H] = np.nan
 
-    # Interaction 4: Diff Gols Marcados (Rolling or EWMA)
-    # Prioritize EWMA if available, else use simple rolling
     marc_h = EWMA_GolsMarc_H_LONG if EWMA_GolsMarc_H_LONG in df_calc.columns else 'Media_GolsMarcados_H'
     marc_a = EWMA_GolsMarc_A_LONG if EWMA_GolsMarc_A_LONG in df_calc.columns else 'Media_GolsMarcados_A'
     if marc_h in df_calc.columns and marc_a in df_calc.columns:
         df_calc[INTERACTION_AVG_GOLS_MARC_DIFF] = df_calc[marc_h] - df_calc[marc_a]
     else: logger.warning(f"{marc_h} ou {marc_a} ausente."); df_calc[INTERACTION_AVG_GOLS_MARC_DIFF] = np.nan
 
-    # Interaction 5: Diff Gols Sofridos (Rolling or EWMA)
     sofr_h = EWMA_GolsSofr_H_LONG if EWMA_GolsSofr_H_LONG in df_calc.columns else 'Media_GolsSofridos_H'
     sofr_a = EWMA_GolsSofr_A_LONG if EWMA_GolsSofr_A_LONG in df_calc.columns else 'Media_GolsSofridos_A'
     if sofr_h in df_calc.columns and sofr_a in df_calc.columns:
@@ -800,7 +753,7 @@ def calculate_poisson_draw_prob(
     avg_goals_away_league: float,
     max_goals: int = 6
     ) -> pd.DataFrame:
-    """Calcula P(Empate) Poisson usando Força de Ataque/Defesa (FA/FD)."""
+
     df_calc = df.copy()
     required_cols = ['FA_H', 'FD_A', 'FA_A', 'FD_H']
 
@@ -839,9 +792,7 @@ def calculate_poisson_draw_prob(
     return df_calc
 
 def calculate_pi_ratings(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calcula Pi-Ratings e Pi-Rating Momentum. Requer df ORDENADO por data.
-    """
+
     logger.info(f"Calculando Pi-Ratings e Momentum (Janela={ROLLING_WINDOW})...")
     if not df.index.is_monotonic_increasing:
          logger.warning("DataFrame não ordenado por índice (Data?). Ordenando...")
@@ -917,9 +868,7 @@ def calculate_pi_ratings(df: pd.DataFrame) -> pd.DataFrame:
 
     df_pi_ratings = pd.DataFrame(results_pi).set_index('Index')
     df_out = df.copy()
-    # Use update which handles overlapping columns safely
     df_out.update(df_pi_ratings)
-    # Add new columns if they don't exist (first run)
     for col in df_pi_ratings.columns:
         if col not in df_out.columns:
             df_out[col] = df_pi_ratings[col]
@@ -930,11 +879,7 @@ def calculate_pi_ratings(df: pd.DataFrame) -> pd.DataFrame:
     return df_out
 
 def calculate_raw_value_cost_goals(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calcula Value Goals (VG) e Cost Goals (CG) brutos.
-    VG é corrigido para multiplicar os gols de um time por sua própria probabilidade de vitória, 
-    em vez da probabilidade do oponente.
-    """
+
     df_calc = df.copy()
     logger.info("Calculando VG_raw e CG_raw (Lógica Corrigida)...")
     
@@ -1000,10 +945,7 @@ def calculate_rolling_goal_stats(
     avg_goals_home_league: Optional[float] = None,
     avg_goals_away_league: Optional[float] = None
 ) -> pd.DataFrame:
-    """
-    Calcula médias móveis de gols e Força de Ataque/Defesa de forma otimizada,
-    usando merges para garantir o alinhamento correto dos dados.
-    """
+
     df_calc = df.copy()
     logger.info(f"Iniciando cálculo OTIMIZADO de Rolling Goals/FA/FD (Janela={window})...")
     
@@ -1013,7 +955,6 @@ def calculate_rolling_goal_stats(
 
     if goals_h_col not in df_calc.columns or goals_a_col not in df_calc.columns:
         logger.warning("Calc Rolling Goals: Colunas de Gols ausentes.")
-        # Adiciona colunas vazias para consistência de saída
         cols_to_add = [
             'Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos_H', 'FA_H', 'FD_H',
             'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos_A', 'FA_A', 'FD_A'
@@ -1050,11 +991,9 @@ def calculate_rolling_goal_stats(
     stats_to_merge = df_long[['match_idx', 'Team', 'Avg_Gols_Marcados', 'Avg_Gols_Sofridos']]
     df_merged = df_calc.reset_index().rename(columns={'index': 'match_idx'})
     
-    # Merge para Home
     home_stats = stats_to_merge.rename(columns={'Team': 'Home', 'Avg_Gols_Marcados': 'Avg_Gols_Marcados_H', 'Avg_Gols_Sofridos': 'Avg_Gols_Sofridos_H'})
     df_merged = df_merged.merge(home_stats, on=['match_idx', 'Home'], how='left')
 
-    # Merge para Away
     away_stats = stats_to_merge.rename(columns={'Team': 'Away', 'Avg_Gols_Marcados': 'Avg_Gols_Marcados_A', 'Avg_Gols_Sofridos': 'Avg_Gols_Sofridos_A'})
     df_merged = df_merged.merge(away_stats, on=['match_idx', 'Away'], how='left')
 
@@ -1079,166 +1018,73 @@ def calculate_ewma_stats(
     stats_configs: List[Dict[str, Any]],
     default_span: int = ROLLING_WINDOW
 ) -> pd.DataFrame:
-    if df.empty:
-        logger.warning("EWMA: DF vazio.")
-        return df
 
-    logger.info(f"Calculando {len(stats_configs)} métricas EWMA (Span Padrão={default_span})...")
     df_calc = df.copy()
-    teams_home = df_calc['Home'].astype(str).dropna()
-    teams_away = df_calc['Away'].astype(str).dropna()
-    teams = pd.concat([teams_home, teams_away]).unique()
-    if len(teams) == 0:
-        logger.warning("EWMA: Nenhum time válido.")
-        return df_calc
+    logger.info(f"Iniciando cálculo HÍBRIDO de EWMA (Span Padrão={default_span})...")
 
-    team_history = defaultdict(lambda: defaultdict(lambda: deque(maxlen=len(df_calc))))
-    calculated_stats_list = []
-    valid_configs_ewma = []
-    output_cols_mapping_ewma = {}
-    base_cols_needed_ewma = set(['Home', 'Away'])
+    df_to_melt = df_calc.reset_index().rename(columns={'index': 'match_idx'})
 
-    for cfg in stats_configs:
-        # Valida configs
-        prefix = cfg.get('output_prefix')
-        base_h = cfg.get('base_col_h')
-        base_a = cfg.get('base_col_a')
-        span = cfg.get('span', default_span)
-        if not prefix:
-            logger.warning(f"Config EWMA inválida: {cfg}.")
+    for config in stats_configs:
+        prefix = config.get('output_prefix')
+        base_h = config.get('base_col_h')
+        base_a = config.get('base_col_a')
+        span = config.get('span', default_span)
+        min_p = config.get('min_periods', 1)
+        stat_type = config.get('stat_type', 'offensive')
+        
+        if not all([prefix, base_h, base_a]):
+            logger.warning(f"Config EWMA incompleta: {config}. Pulando.")
             continue
+            
+        logger.debug(f"  Processando EWMA para '{prefix}' com span={span}")
+        
+        output_col_h = f"{prefix}_s{span}_H"
+        output_col_a = f"{prefix}_s{span}_A"
 
-        h_exists = base_h and base_h in df_calc.columns
-        a_exists = base_a and base_a in df_calc.columns
-        if not h_exists and not a_exists:
-            logger.warning(f"Cols base EWMA '{base_h}'/'{base_a}' ausentes p/ {prefix}.")
-            continue
+        home_stat_col = base_h if stat_type == 'offensive' else base_a
+        away_stat_col = base_a if stat_type == 'offensive' else base_h
+        
+        # 1. Melt mais eficiente 
+        cols_for_this_melt = ['match_idx', 'Home', 'Away', home_stat_col, away_stat_col]
+        df_long = pd.melt(
+            df_to_melt[cols_for_this_melt],
+            id_vars=['match_idx', 'Home', 'Away'],
+            value_vars=[home_stat_col, away_stat_col],
+            var_name='Stat_Source_Column',
+            value_name='Stat_Value'
+        )
 
-        if h_exists:
-            base_cols_needed_ewma.add(base_h)
-            cfg['base_col_h'] = base_h
-        else:
-            cfg['base_col_h'] = None
-        if a_exists:
-            base_cols_needed_ewma.add(base_a)
-            cfg['base_col_a'] = base_a
-        else:
-            cfg['base_col_a'] = None
+        # 2. Determinar time corretamente 
+        df_long['Team'] = np.where(
+            df_long['Stat_Source_Column'] == home_stat_col,
+            df_long['Home'],
+            df_long['Away']
+        )
+        
+        # 3. Ordena e calcula a EWMA 
+        df_long = df_long.sort_values(by='match_idx', kind='stable')
+        df_long['Stat_Value'] = pd.to_numeric(df_long['Stat_Value'], errors='coerce')
 
-        context = cfg.get('context', 'all')
-        output_col_h = f"{prefix}_s{span}_{context}_H" if context != "all" else f"{prefix}_s{span}_H"
-        output_col_a = f"{prefix}_s{span}_{context}_A" if context != "all" else f"{prefix}_s{span}_A"
-        cfg_with_span = cfg.copy()
-        cfg_with_span['span'] = span
-        output_cols_mapping_ewma[output_col_h] = cfg_with_span
-        output_cols_mapping_ewma[output_col_a] = cfg_with_span
-        valid_configs_ewma.append(cfg_with_span)
+        df_long['EWMA_Value'] = (
+            df_long.groupby('Team')['Stat_Value']
+                   .transform(lambda x: x.ewm(span=span, adjust=True, min_periods=min_p).mean().shift(1))
+        )
+        
+        # 4. Mapeia os resultados de volta 
+        mapper = df_long.set_index(['match_idx', 'Team'])['EWMA_Value']
+        df_calc[output_col_h] = df_calc.index.map(lambda idx: mapper.get((idx, df_calc.loc[idx, 'Home'])))
+        df_calc[output_col_a] = df_calc.index.map(lambda idx: mapper.get((idx, df_calc.loc[idx, 'Away'])))
 
-    logger.debug(f"Colunas EWMA a calcular: {list(output_cols_mapping_ewma.keys())}")
-    actual_base_cols_needed_ewma = [col for col in base_cols_needed_ewma if col in df_calc.columns]
-    logger.debug(f"Colunas base EWMA necessárias: {actual_base_cols_needed_ewma}")
-    if "Home" not in actual_base_cols_needed_ewma:
-        actual_base_cols_needed_ewma.append("Home")
-    if "Away" not in actual_base_cols_needed_ewma:
-        actual_base_cols_needed_ewma.append("Away")
-
-    for index, row_data in tqdm(
-        df_calc[actual_base_cols_needed_ewma].iterrows(),
-        total=len(df_calc),
-        desc="Calc EWMA Geral",
-    ):
-        home_team = row_data.get("Home")
-        away_team = row_data.get("Away")
-        if pd.isna(home_team) or pd.isna(away_team):
-            nan_stats_for_row = {"Index": index}
-            [nan_stats_for_row.update({out_col: np.nan}) for out_col in output_cols_mapping_ewma.keys()]
-            calculated_stats_list.append(nan_stats_for_row)
-            continue
-
-        current_match_stats = {"Index": index}
-        for output_col, cfg in output_cols_mapping_ewma.items():
-            is_home_stat = output_col.endswith("_H")
-            team_name = home_team if is_home_stat else away_team
-            if pd.isna(team_name):
-                current_match_stats[output_col] = np.nan
-                continue
-
-            prefix = cfg["output_prefix"]
-            span = cfg["span"]
-            min_p = cfg.get("min_periods", 1)
-            base_h = cfg.get("base_col_h")
-            base_a = cfg.get("base_col_a")
-            context = cfg.get("context", "all")
-            stat_type = cfg.get("stat_type", "offensive")
-            hist_values = []
-
-            try:
-                team_data = team_history[team_name]
-                key_home = base_h if stat_type == "offensive" else base_a
-                key_away = base_a if stat_type == "offensive" else base_h
-
-                if context == "all":
-                    if key_home and key_home in team_data:
-                        hist_values.extend(list(team_data.get(key_home, deque())))
-                    if key_away and key_away in team_data:
-                        hist_values.extend(list(team_data.get(key_away, deque())))
-                elif context == "home":
-                    col_to_use = key_home
-                    if col_to_use and col_to_use in team_data:
-                        hist_values = list(team_data.get(col_to_use, deque()))
-                elif context == "away":
-                    col_to_use = key_away
-                    if col_to_use and col_to_use in team_data:
-                        hist_values = list(team_data.get(col_to_use, deque()))
-
-                if len(hist_values) >= min_p:
-                    hist_series = pd.Series(hist_values)
-                    ewma_series = hist_series.ewm(span=span, adjust=True, min_periods=min_p).mean()
-                    calculated_value = ewma_series.iloc[-1] if not ewma_series.empty else np.nan
-                    current_match_stats[output_col] = (
-                        calculated_value if pd.notna(calculated_value) and np.isfinite(calculated_value)
-                        else np.nan
-                    )
-                else:
-                    current_match_stats[output_col] = np.nan
-
-            except Exception as e_ewm_calc:
-                logger.error(f"Erro calcular EWMA {output_col} p/ {team_name}: {e_ewm_calc}", exc_info=False)
-                current_match_stats[output_col] = np.nan
-                continue
-
-        calculated_stats_list.append(current_match_stats)
-
-        for cfg_update in valid_configs_ewma:
-            base_col_h = cfg_update.get("base_col_h")
-            base_col_a = cfg_update.get("base_col_a")
-            val_h = row_data.get(base_col_h)
-            val_a = row_data.get(base_col_a)
-            if base_col_h and pd.notna(val_h):
-                team_history[home_team][base_col_h].append(val_h)
-            if base_col_a and pd.notna(val_a):
-                team_history[away_team][base_col_a].append(val_a)
-
-    if not calculated_stats_list:
-        logger.warning("Nenhuma stat EWMA calculada.")
-        return df_calc
-
-    df_ewma = pd.DataFrame(calculated_stats_list).set_index("Index")
-    logger.info(f"Métricas EWMA calculadas. Shape: {df_ewma.shape}.")
-    df_final = df_calc.join(df_ewma, how="left")
-    nan_counts_ewma = df_final[list(output_cols_mapping_ewma.keys())].isnull().sum()
-    logger.debug(f"NaNs EWMA após join:\n{nan_counts_ewma[nan_counts_ewma > 0]}")
-    return df_final
+        logger.info(f"  -> '{output_col_h}' e '{output_col_a}' calculados.")
+        
+    return df_calc
 
 def _select_and_clean_final_features(
     df_with_all_features: pd.DataFrame,
     configured_feature_columns: List[str], 
     target_col_name: str
 ) -> Optional[Tuple[pd.DataFrame, pd.Series, List[str]]]:
-    """
-    Seleciona as features finais configuradas, o alvo, e limpa NaNs/Infs.
-    Retorna X, y e a lista de features efetivamente usadas.
-    """
+
     logger.info("--- Selecionando e Limpando Features Finais ---")
 
     if df_with_all_features is None or df_with_all_features.empty:
@@ -1317,13 +1163,13 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     logger.info(f"Médias Liga (FA/FD, Poisson): Casa={avg_h_lg_safe:.3f}, Fora={avg_a_lg_safe:.3f}")
 
     logger.info("=== ETAPA 1: Intermediárias e Probs ===")
-    df_processed = calculate_historical_intermediate(df_processed) # IsDraw, Ptos
+    df_processed = calculate_historical_intermediate(df_processed) 
     if TARGET_COLUMN not in df_processed.columns or df_processed[TARGET_COLUMN].isnull().all():
         logger.error(f"Alvo '{TARGET_COLUMN}' ausente ou todos NaNs após stats intermediárias."); return None
     df_processed = calculate_probabilities(df_processed)
     df_processed = calculate_normalized_probabilities(df_processed)
-    logger.info("=== ETAPA 1.5: VG_raw e CG_raw ===") # <<< NOVA ORDEM
-    df_processed = calculate_raw_value_cost_goals(df_processed) # <<< CHAMADA AQUI
+    logger.info("=== ETAPA 1.5: VG_raw e CG_raw ===") 
+    df_processed = calculate_raw_value_cost_goals(df_processed) 
 
     logger.info("=== ETAPA 2: PiRatings ===")
     df_processed = calculate_pi_ratings(df_processed)
@@ -1333,7 +1179,7 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     else: logger.warning("Nenhuma config rolling válida/colunas base são NaN. Stats rolling não calculadas.")
     logger.info("=== ETAPA 4: EWMA Stats ===")
     valid_ewma_cfg = [c for c in STATS_EWMA_CONFIG if (c.get('base_col_h') and c['base_col_h'] in df_processed.columns and df_processed[c['base_col_h']].notna().any()) or (c.get('base_col_a') and c['base_col_a'] in df_processed.columns and df_processed[c['base_col_a']].notna().any())]
-    if valid_ewma_cfg: df_processed = calculate_ewma_stats(df_processed, valid_ewma_cfg) # default_span do config
+    if valid_ewma_cfg: df_processed = calculate_ewma_stats(df_processed, valid_ewma_cfg) 
     else: logger.warning("Nenhuma config EWMA válida/colunas base são NaN. EWMA stats não calculadas.")
 
     logger.info("=== ETAPA 5: FA/FD ===")
@@ -1359,6 +1205,7 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
 
 
 def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
+
     if FIXTURE_FETCH_DAY == "tomorrow":
         target_date = date.today() + timedelta(days=1)
     else:
@@ -1375,13 +1222,16 @@ def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
         logger.info("Arquivo futuro encontrado. Tentando ler...")
         content_bytes = response.content  
 
-        try:  # Try CSV first
+        try:  
+
             logger.debug("Tentando ler como CSV...")
             df_fix = pd.read_csv(BytesIO(content_bytes), low_memory=False)
             logger.info("Lido com sucesso como CSV.")
+
         except Exception as e_csv:
             logger.warning(f"Falha ao ler como CSV ({e_csv}), tentando ler como Excel...")
-            try:  # Try Excel as fallback
+            try:  
+
                 df_fix = pd.read_excel(BytesIO(content_bytes), engine='openpyxl')
                 logger.info("Lido com sucesso como Excel.")
             except Exception as e_excel:
@@ -1402,6 +1252,7 @@ def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
         return None
 
     try:
+
         logger.info("Processando arquivo de jogos futuros...")
         logger.debug(f"Colunas lidas: {list(df_fix.columns)}")
         cols_to_map_and_rename = {k: v for k, v in CSV_HIST_COL_MAP.items() if k in df_fix.columns}
@@ -1506,10 +1357,7 @@ def _build_team_history_final_state(
     all_needed_stat_configs: List[Dict[str, Any]], 
     progress_desc: str = "Construindo Estado Histórico"
 ) -> Dict[str, Dict[str, deque]]:
-    """
-    Constrói o estado histórico final das equipes.
-    Para cada time, armazena o histórico de cada 'coluna base' relevante para ele.
-    """
+
     logger.info(f"Construindo estado final histórico...")
     history_maxlen = len(historical_df_minimal_sorted) + 5 
     team_history_final_state = defaultdict(lambda: defaultdict(lambda: deque(maxlen=history_maxlen)))
@@ -1563,13 +1411,12 @@ def _build_team_history_final_state(
                 team_history_final_state[home_team][base_col_key].append(value_in_row)
                 team_history_final_state[away_team][base_col_key].append(value_in_row)
 
-
     logger.info(f"Estado histórico final construído para {len(team_history_final_state)} times.")
    
     return team_history_final_state
 
 def _get_final_pi_ratings(df_hist: pd.DataFrame) -> Dict[str, float]:
-    """Calculates the final Pi-Ratings based on the entire historical dataset."""
+
     ratings = {}
     goals_h_c = GOALS_COLS.get('home')
     goals_a_c = GOALS_COLS.get('away')
@@ -1613,283 +1460,78 @@ def _get_final_pi_ratings(df_hist: pd.DataFrame) -> Dict[str, float]:
 def prepare_fixture_data(
     fixture_df: pd.DataFrame,
     historical_df_full: pd.DataFrame,
-    feature_columns_for_model: List[str] 
+    feature_columns_for_model: List[str],
+    training_medians: pd.Series 
 ) -> Optional[pd.DataFrame]:
-    """
-    Prepara features para jogos futuros, incluindo rolling, EWMA, PiRatings e interações,
-    usando configurações centralizadas de estatísticas.
-    """
-    if fixture_df is None or historical_df_full is None or not feature_columns_for_model:
-        logger.error("Prep Fix: Argumentos inválidos (fixture_df, historical_df_full ou feature_columns_for_model)."); return None
+
+    if fixture_df is None or historical_df_full is None or training_medians is None or not feature_columns_for_model:
+        logger.error("Prep Fix: Argumentos inválidos (fixture_df, historical_df_full, training_medians ou feature_columns)."); return None
     if fixture_df.empty:
         logger.info("Prep Fix: DataFrame de jogos futuros vazio. Nada a preparar."); return pd.DataFrame()
     if historical_df_full.empty:
         logger.error("Prep Fix: DataFrame histórico está vazio. Não é possível preparar features futuras."); return None
 
-    logger.info("--- Iniciando Preparação de Features para Jogos Futuros ---")
+    logger.info("--- Iniciando Preparação de Features para Jogos Futuros (Versão Refatorada) ---")
     df_output_fixtures = fixture_df.copy()
 
-    # ETAPA 1: Médias da Liga
-    goals_h_col = GOALS_COLS.get('home'); goals_a_col = GOALS_COLS.get('away')
-    avg_h_league = np.nanmean(historical_df_full[goals_h_col]) if goals_h_col in historical_df_full and historical_df_full[goals_h_col].notna().any() else 1.0
-    avg_a_league = np.nanmean(historical_df_full[goals_a_col]) if goals_a_col in historical_df_full and historical_df_full[goals_a_col].notna().any() else 1.0
-    avg_h_league_safe = max(avg_h_league, FEATURE_EPSILON)
-    avg_a_league_safe = max(avg_a_league, FEATURE_EPSILON)
-    logger.info(f"Usando Médias da Liga (Histórico): Casa={avg_h_league_safe:.3f}, Fora={avg_a_league_safe:.3f}")
+    # --- ETAPA 1: Processar o histórico UMA VEZ para obter o estado final ---
+    logger.info("Processando histórico completo para extrair o estado final...")
+    X_hist, _, _ = preprocess_and_feature_engineer(historical_df_full)
+    if X_hist is None:
+        logger.error("Falha ao processar o DataFrame histórico para extrair o estado.")
+        return None
+        
+    historical_df_processed = X_hist.join(historical_df_full[['Home', 'Away']])
+    historical_df_processed.dropna(subset=['Home', 'Away'], inplace=True)
+    
+    final_team_stats = _get_final_team_stats(historical_df_processed)
+    
+    # --- ETAPA 2: Mapear o estado final para os jogos futuros ---
+    logger.info("Mapeando o estado final das estatísticas para os jogos futuros...")
+    
+    home_stats_mapped = df_output_fixtures['Home'].map(final_team_stats.to_dict('index')).apply(pd.Series)
+    home_stats_mapped.columns = [f"{col}_H" for col in home_stats_mapped.columns]
 
-    # ETAPA 2: Identificar Configs de Stats Rolling/EWMA Necessárias
-    logger.info("ETAPA 2: Identificando Configs de Stats Rolling/EWMA Necessárias...")
-    needed_rolling_configs = []
-    needed_ewma_configs = []
-    base_cols_for_hist_state = set(['Date', 'Home', 'Away']) 
-    final_model_features_set = set(feature_columns_for_model)
+    away_stats_mapped = df_output_fixtures['Away'].map(final_team_stats.to_dict('index')).apply(pd.Series)
+    away_stats_mapped.columns = [f"{col}_A" for col in away_stats_mapped.columns]
 
-    def _get_output_col_name(cfg: Dict, team_perspective: str) -> str:
-        prefix = cfg['output_prefix']
-        context = cfg.get('context', 'all')
-        span_str = f"_s{cfg['span']}" if 'span' in cfg else ""
-        if context == 'all':
-            return f"{prefix}{span_str}_{team_perspective}"
-        else:
-            return f"{prefix}{span_str}_{context}_{team_perspective}"
+    df_output_fixtures = pd.concat([df_output_fixtures, home_stats_mapped, away_stats_mapped], axis=1)
 
-    for cfg_roll in STATS_ROLLING_CONFIG:
-        output_h_name = _get_output_col_name(cfg_roll, 'H')
-        output_a_name = _get_output_col_name(cfg_roll, 'A')
-        is_needed = False
-        if output_h_name in final_model_features_set or output_a_name in final_model_features_set:
-            is_needed = True
-
-        elif cfg_roll['output_prefix'] == 'Media_GolsMarcados' and \
-             any(f in final_model_features_set for f in ['FA_H', 'FA_A', 'Prob_Empate_Poisson', INTERACTION_AVG_GOLS_MARC_DIFF]):
-            is_needed = True
-        elif cfg_roll['output_prefix'] == 'Media_GolsSofridos' and \
-             any(f in final_model_features_set for f in ['FD_H', 'FD_A', 'Prob_Empate_Poisson', INTERACTION_AVG_GOLS_SOFR_DIFF]):
-            is_needed = True
-        elif cfg_roll['output_prefix'] == 'Media_CG' and 'Diff_Media_CG' in final_model_features_set:
-            is_needed = True
-
-        if is_needed:
-            base_h = cfg_roll.get('base_col_h')
-            base_a = cfg_roll.get('base_col_a')
-            if (base_h and base_h in historical_df_full.columns) or \
-               (base_a and base_a in historical_df_full.columns):
-                needed_rolling_configs.append(cfg_roll)
-                if base_h: base_cols_for_hist_state.add(base_h)
-                if base_a: base_cols_for_hist_state.add(base_a)
-                if cfg_roll['output_prefix'] in ['Media_VG', 'Media_CG', 'Std_CG']:
-                    base_cols_for_hist_state.update([
-                        c for c in list(GOALS_COLS.values()) + list(ODDS_COLS.values()) + ['p_H', 'p_A', 'VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw']
-                        if c in historical_df_full.columns
-                    ])
-            else:
-                logger.warning(f"Rolling Config '{cfg_roll['output_prefix']}' ignorada para futuro: colunas base ausentes no histórico ({base_h}, {base_a}).")
-
-    # Filtrar STATS_EWMA_CONFIG
-    for cfg_ewma in STATS_EWMA_CONFIG:
-        output_h_name = _get_output_col_name(cfg_ewma, 'H')
-        output_a_name = _get_output_col_name(cfg_ewma, 'A')
-        is_needed = False
-        if output_h_name in final_model_features_set or output_a_name in final_model_features_set:
-            is_needed = True
-        elif cfg_ewma['output_prefix'] == 'EWMA_GolsMarc' and \
-             any(f in final_model_features_set for f in ['FA_H', 'FA_A', 'Prob_Empate_Poisson', INTERACTION_AVG_GOLS_MARC_DIFF]):
-            is_needed = True
-        elif cfg_ewma['output_prefix'] == 'EWMA_GolsSofr' and \
-             any(f in final_model_features_set for f in ['FD_H', 'FD_A', 'Prob_Empate_Poisson', INTERACTION_AVG_GOLS_SOFR_DIFF]):
-            is_needed = True
-
-        if is_needed:
-            base_h = cfg_ewma.get('base_col_h')
-            base_a = cfg_ewma.get('base_col_a')
-            if (base_h and base_h in historical_df_full.columns) or \
-               (base_a and base_a in historical_df_full.columns):
-                needed_ewma_configs.append(cfg_ewma) 
-                if base_h: base_cols_for_hist_state.add(base_h)
-                if base_a: base_cols_for_hist_state.add(base_a)
-                if cfg_ewma['output_prefix'] in ['EWMA_VG', 'EWMA_CG']:
-                     base_cols_for_hist_state.update([
-                        c for c in list(GOALS_COLS.values()) + list(ODDS_COLS.values()) + ['p_H', 'p_A', 'VG_H_raw', 'VG_A_raw', 'CG_H_raw', 'CG_A_raw']
-                        if c in historical_df_full.columns
-                    ])
-            else:
-                logger.warning(f"EWMA Config '{cfg_ewma['output_prefix']}' ignorada para futuro: colunas base ausentes no histórico ({base_h}, {base_a}).")
-
-    all_needed_configs_for_history_build = needed_rolling_configs + needed_ewma_configs
-    logger.info(f"Configs rolling necessárias para futuro: {[c['output_prefix'] for c in needed_rolling_configs]}")
-    logger.info(f"Configs EWMA necessárias para futuro: {[c['output_prefix'] for c in needed_ewma_configs]}")
-
-    # ETAPA 3: Preparar Histórico Mínimo e Construir Estado Final
-    hist_cols_present = [c for c in base_cols_for_hist_state if c in historical_df_full.columns]
-    if not all(c in historical_df_full.columns for c in ['Date', 'Home', 'Away']):
-        logger.error("Prep futuro: Colunas essenciais ('Date','Home','Away') ausentes no historical_df_full."); return None
-    historical_df_minimal_sorted = historical_df_full[hist_cols_present].copy().sort_values(by='Date', ascending=True)
-
-    team_history_final_state = _build_team_history_final_state(
-        historical_df_minimal_sorted,
-        all_needed_configs_for_history_build 
-    )
-
-    # ETAPA 4: Calcular Features Rolling/EWMA para Jogos Futuros
-    logger.info("ETAPA 4: Calculando features rolling/EWMA para jogos futuros...")
-    calculated_fixture_stats_list = []
-    default_window = ROLLING_WINDOW 
-
-    for index_fix, future_match_row in tqdm(df_output_fixtures.iterrows(), total=len(df_output_fixtures), desc="Calc. Stats Futuras"):
-        current_match_calculated_features = {'Index': index_fix}
-        home_team_fix = future_match_row.get('Home')
-        away_team_fix = future_match_row.get('Away')
-
-        if pd.isna(home_team_fix) or pd.isna(away_team_fix):
-            for cfg_list_nan in [needed_rolling_configs, needed_ewma_configs]:
-                for cfg_nan in cfg_list_nan:
-                    current_match_calculated_features[_get_output_col_name(cfg_nan, 'H')] = np.nan
-                    current_match_calculated_features[_get_output_col_name(cfg_nan, 'A')] = np.nan
-            calculated_fixture_stats_list.append(current_match_calculated_features)
-            continue
-
-        for team_perspective_calc, team_name_fixture in [('H', home_team_fix), ('A', away_team_fix)]:
-            team_specific_hist_live = team_history_final_state.get(team_name_fixture, defaultdict(deque))
-
-            # --- ROLLING STATS ---
-            for cfg_roll in needed_rolling_configs:
-                output_col_roll = _get_output_col_name(cfg_roll, team_perspective_calc)
-                base_h = cfg_roll.get('base_col_h'); base_a = cfg_roll.get('base_col_a')
-                context = cfg_roll.get('context', 'all'); stat_type = cfg_roll.get('stat_type', 'offensive')
-                window = cfg_roll.get('window', default_window); min_p = cfg_roll.get('min_periods', 1 if cfg_roll['agg_func'] != np.nanstd else 2)
-                agg_func = cfg_roll['agg_func']
-                hist_values_roll = deque() 
-
-                if context == 'all':
-                    if base_h and base_h in team_specific_hist_live: hist_values_roll.extend(team_specific_hist_live[base_h])
-                    if base_a and base_a in team_specific_hist_live: hist_values_roll.extend(team_specific_hist_live[base_a])
-                elif context == 'home': 
-                    key_hist = base_h if stat_type == 'offensive' else base_a 
-                    if key_hist and key_hist in team_specific_hist_live: hist_values_roll.extend(team_specific_hist_live[key_hist])
-                elif context == 'away': 
-                    key_hist = base_a if stat_type == 'offensive' else base_h
-                    if key_hist and key_hist in team_specific_hist_live: hist_values_roll.extend(team_specific_hist_live[key_hist])
-
-                recent_values_roll = list(hist_values_roll)[-window:] 
-                if len(recent_values_roll) >= min_p:
-                    with warnings.catch_warnings(): warnings.simplefilter("ignore",RuntimeWarning); calc_val = agg_func(recent_values_roll)
-                    current_match_calculated_features[output_col_roll] = calc_val if pd.notna(calc_val) and np.isfinite(calc_val) else np.nan
-                else: current_match_calculated_features[output_col_roll] = np.nan
-
-            # --- EWMA STATS ---
-            for cfg_ewma in needed_ewma_configs:
-                output_col_ewma = _get_output_col_name(cfg_ewma, team_perspective_calc)
-                base_h = cfg_ewma.get('base_col_h'); base_a = cfg_ewma.get('base_col_a')
-                context = cfg_ewma.get('context','all'); stat_type = cfg_ewma.get('stat_type','offensive')
-                span_val = cfg_ewma['span']; min_p = cfg_ewma.get('min_periods', 1)
-                hist_values_ewma = deque()
-
-                if context == 'all':
-                    if base_h and base_h in team_specific_hist_live: hist_values_ewma.extend(team_specific_hist_live[base_h])
-                    if base_a and base_a in team_specific_hist_live: hist_values_ewma.extend(team_specific_hist_live[base_a])
-                elif context == 'home':
-                    key_hist = base_h if stat_type == 'offensive' else base_a
-                    if key_hist and key_hist in team_specific_hist_live: hist_values_ewma.extend(team_specific_hist_live[key_hist])
-                elif context == 'away':
-                    key_hist = base_a if stat_type == 'offensive' else base_h
-                    if key_hist and key_hist in team_specific_hist_live: hist_values_ewma.extend(team_specific_hist_live[key_hist])
-
-                if len(hist_values_ewma) >= min_p:
-                    hist_series = pd.Series(list(hist_values_ewma)); ewma_series = hist_series.ewm(span=span_val, adjust=True, min_periods=min_p).mean()
-                    calc_val = ewma_series.iloc[-1] if not ewma_series.empty and pd.notna(ewma_series.iloc[-1]) else np.nan
-                    current_match_calculated_features[output_col_ewma] = calc_val if pd.notna(calc_val) and np.isfinite(calc_val) else np.nan
-                else: current_match_calculated_features[output_col_ewma] = np.nan
-        calculated_fixture_stats_list.append(current_match_calculated_features)
-
-    if calculated_fixture_stats_list:
-        df_calculated_stats_for_fixtures = pd.DataFrame(calculated_fixture_stats_list).set_index('Index')
-        for col_stat_update in df_calculated_stats_for_fixtures.columns:
-             if col_stat_update not in df_output_fixtures.columns: 
-                 df_output_fixtures[col_stat_update] = np.nan
-             df_output_fixtures[col_stat_update].update(df_calculated_stats_for_fixtures[col_stat_update]) 
-        logger.info(f"Features Rolling/EWMA adicionadas/atualizadas. Shape atual: {df_output_fixtures.shape}")
-        logger.debug(f"Colunas após rolling/EWMA: {df_output_fixtures.columns.tolist()}")
-    else:
-        logger.warning("Nenhuma feature rolling/EWMA calculada para jogos futuros (lista vazia).")
-
-
-    # ETAPA 5: Calcular Pi-Ratings Atuais
-    logger.info("ETAPA 5: Calculando Pi-Ratings atuais...")
-    try:
-        final_pi_ratings_map = _get_final_pi_ratings(historical_df_full.sort_values(by='Date'))
-        df_output_fixtures['PiRating_H'] = df_output_fixtures['Home'].map(final_pi_ratings_map).fillna(PI_RATING_INITIAL)
-        df_output_fixtures['PiRating_A'] = df_output_fixtures['Away'].map(final_pi_ratings_map).fillna(PI_RATING_INITIAL)
-        df_output_fixtures['PiRating_Diff'] = df_output_fixtures['PiRating_H'] - df_output_fixtures['PiRating_A']
-        df_output_fixtures[PIRATING_MOMENTUM_H] = np.nan
-        df_output_fixtures[PIRATING_MOMENTUM_A] = np.nan
-        df_output_fixtures[PIRATING_MOMENTUM_DIFF] = np.nan
-        rating_h_adj_fix = df_output_fixtures['PiRating_H'] + PI_RATING_HOME_ADVANTAGE
-        rating_diff_fix = rating_h_adj_fix - df_output_fixtures['PiRating_A']
-        df_output_fixtures['PiRating_Prob_H'] = 1 / (1 + 10**(-rating_diff_fix / 400))
-    except Exception as e_pi_fix:
-        logger.error(f"Erro calcular PiRatings futuro: {e_pi_fix}", exc_info=True)
-        pi_cols_to_nan = ['PiRating_H','PiRating_A','PiRating_Diff',PIRATING_MOMENTUM_H,PIRATING_MOMENTUM_A,PIRATING_MOMENTUM_DIFF,'PiRating_Prob_H']
-        for col in pi_cols_to_nan: df_output_fixtures[col] = np.nan
-
-    # ETAPA 6: Calcular Outras Features
-    logger.info("ETAPA 6: Calculando features restantes (Probs, FA/FD, Poisson, Binned, Derivadas)...")
-    marc_h_fd_col_fut = _get_output_col_name({'output_prefix': 'EWMA_GolsMarc', 'span': EWMA_SPAN_LONG, 'context': 'all'}, 'H') \
-                        if _get_output_col_name({'output_prefix': 'EWMA_GolsMarc', 'span': EWMA_SPAN_LONG, 'context': 'all'}, 'H') in df_output_fixtures.columns \
-                        else _get_output_col_name({'output_prefix': 'Media_GolsMarcados', 'context': 'all'}, 'H')
-    sofr_a_fd_col_fut = _get_output_col_name({'output_prefix': 'EWMA_GolsSofr', 'span': EWMA_SPAN_LONG, 'context': 'all'}, 'A') \
-                        if _get_output_col_name({'output_prefix': 'EWMA_GolsSofr', 'span': EWMA_SPAN_LONG, 'context': 'all'}, 'A') in df_output_fixtures.columns \
-                        else _get_output_col_name({'output_prefix': 'Media_GolsSofridos', 'context': 'all'}, 'A')
-    marc_a_fd_col_fut = _get_output_col_name({'output_prefix': 'EWMA_GolsMarc', 'span': EWMA_SPAN_LONG, 'context': 'all'}, 'A') \
-                        if _get_output_col_name({'output_prefix': 'EWMA_GolsMarc', 'span': EWMA_SPAN_LONG, 'context': 'all'}, 'A') in df_output_fixtures.columns \
-                        else _get_output_col_name({'output_prefix': 'Media_GolsMarcados', 'context': 'all'}, 'A')
-    sofr_h_fd_col_fut = _get_output_col_name({'output_prefix': 'EWMA_GolsSofr', 'span': EWMA_SPAN_LONG, 'context': 'all'}, 'H') \
-                        if _get_output_col_name({'output_prefix': 'EWMA_GolsSofr', 'span': EWMA_SPAN_LONG, 'context': 'all'}, 'H') in df_output_fixtures.columns \
-                        else _get_output_col_name({'output_prefix': 'Media_GolsSofridos', 'context': 'all'}, 'H')
-
-
-    if marc_h_fd_col_fut in df_output_fixtures.columns: df_output_fixtures['FA_H'] = df_output_fixtures[marc_h_fd_col_fut] / avg_h_league_safe
-    else: df_output_fixtures['FA_H']=np.nan; logger.warning(f"FA_H (Futuro) não calculada (faltando {marc_h_fd_col_fut})")
-
-    if sofr_a_fd_col_fut in df_output_fixtures.columns: df_output_fixtures['FD_A'] = df_output_fixtures[sofr_a_fd_col_fut] / avg_h_league_safe
-    else: df_output_fixtures['FD_A']=np.nan; logger.warning(f"FD_A (Futuro) não calculada (faltando {sofr_a_fd_col_fut})")
-
-    if marc_a_fd_col_fut in df_output_fixtures.columns: df_output_fixtures['FA_A'] = df_output_fixtures[marc_a_fd_col_fut] / avg_a_league_safe
-    else: df_output_fixtures['FA_A']=np.nan; logger.warning(f"FA_A (Futuro) não calculada (faltando {marc_a_fd_col_fut})")
-
-    if sofr_h_fd_col_fut in df_output_fixtures.columns: df_output_fixtures['FD_H'] = df_output_fixtures[sofr_h_fd_col_fut] / avg_a_league_safe
-    else: df_output_fixtures['FD_H']=np.nan; logger.warning(f"FD_H (Futuro) não calculada (faltando {sofr_h_fd_col_fut})")
-
+    # --- ETAPA 3: Calcular features "instantâneas" que dependem apenas dos dados do jogo ---
+    logger.info("Calculando features instantâneas (Probs, Derivadas)...")
     df_output_fixtures = calculate_probabilities(df_output_fixtures)
     df_output_fixtures = calculate_normalized_probabilities(df_output_fixtures)
     df_output_fixtures = calculate_binned_features(df_output_fixtures)
-    df_output_fixtures = calculate_poisson_draw_prob(df_output_fixtures, avg_h_league_safe, avg_a_league_safe, max_goals=6)
-    df_output_fixtures = calculate_derived_features(df_output_fixtures) 
+    
+    goals_h_col = GOALS_COLS.get('home'); goals_a_col = GOALS_COLS.get('away')
+    avg_h_league = np.nanmean(historical_df_full[goals_h_col]) if goals_h_col in historical_df_full else 1.0
+    avg_a_league = np.nanmean(historical_df_full[goals_a_col]) if goals_a_col in historical_df_full else 1.0
+    
+    df_output_fixtures['FA_H'] = df_output_fixtures['Media_GolsMarcados_H'] / avg_h_league
+    df_output_fixtures['FD_H'] = df_output_fixtures['Media_GolsSofridos_H'] / avg_a_league
+    df_output_fixtures['FA_A'] = df_output_fixtures['Media_GolsMarcados_A'] / avg_a_league
+    df_output_fixtures['FD_A'] = df_output_fixtures['Media_GolsSofridos_A'] / avg_h_league
 
-    # ETAPA 7: Seleção Final das Features e Limpeza
-    logger.info(f"ETAPA 7: Selecionando features FINAIS ({feature_columns_for_model}) para predição...")
-    X_fix_prep_final = pd.DataFrame(index=df_output_fixtures.index)
+    df_output_fixtures = calculate_poisson_draw_prob(df_output_fixtures, avg_h_league, avg_a_league)
+    df_output_fixtures = calculate_derived_features(df_output_fixtures)
 
-    for f_col_model in feature_columns_for_model:
-        if f_col_model in df_output_fixtures.columns:
-            X_fix_prep_final[f_col_model] = df_output_fixtures[f_col_model]
-        else:
-            logger.warning(f"Feature esperada pelo modelo '{f_col_model}' ausente no DF de fixtures processado. Preenchendo com 0.")
-            X_fix_prep_final[f_col_model] = 0
+    # --- ETAPA 4: Seleção final das features e imputação inteligente ---
+    logger.info(f"Selecionando features finais e aplicando imputação...")
+    
+    for col in feature_columns_for_model:
+        if col not in df_output_fixtures.columns:
+            df_output_fixtures[col] = np.nan
+            
+    X_fix_prep_final = df_output_fixtures[feature_columns_for_model].copy()
 
-    logger.info(f"Shape X_fix_prep_final (antes da limpeza final): {X_fix_prep_final.shape}")
-
-    nan_counts_final = X_fix_prep_final.isnull().sum().sum()
-    if nan_counts_final > 0:
-        logger.warning(f"{nan_counts_final} NaNs restantes nas features de predição. Preenchendo com 0.")
-        X_fix_prep_final.fillna(0, inplace=True)
-    inf_counts_final = X_fix_prep_final.isin([np.inf, -np.inf]).sum().sum()
-    if inf_counts_final > 0:
-        logger.warning(f"{inf_counts_final} valores infinitos encontrados. Substituindo por 0.")
-        X_fix_prep_final.replace([np.inf, -np.inf], 0, inplace=True)
-
+    missing_before = X_fix_prep_final.isnull().sum().sum()
+    if missing_before > 0:
+        logger.warning(f"{missing_before} valores ausentes encontrados (ex: times novos). Imputando com a mediana do treino.")
+        X_fix_prep_final.fillna(training_medians, inplace=True)
+    
     if X_fix_prep_final.isnull().values.any():
-        final_nan_cols = X_fix_prep_final.columns[X_fix_prep_final.isnull().any()].tolist()
-        logger.error(f"ERRO CRÍTICO (Futuro): NaNs ainda presentes em X_fix_prep_final após preenchimento! Colunas: {final_nan_cols}"); return None
+        logger.warning("Valores ausentes restantes após imputação por mediana. Preenchendo com 0.")
+        X_fix_prep_final.fillna(0, inplace=True)
 
-    logger.info(f"--- Preparação de Features para Jogos Futuros Concluída. Shape Final Retornado: {X_fix_prep_final.shape} ---")
+    logger.info(f"--- Preparação de Features para Jogos Futuros Concluída. Shape Final: {X_fix_prep_final.shape} ---")
     return X_fix_prep_final

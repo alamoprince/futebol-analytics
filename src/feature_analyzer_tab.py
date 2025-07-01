@@ -21,10 +21,10 @@ if BASE_DIR not in sys.path: sys.path.insert(0, BASE_DIR)
 
 # Imports do Projeto
 try:
-    from config import GOALS_COLS, RANDOM_STATE # RANDOM_STATE não é usado aqui, pode remover se quiser
+    from config import GOALS_COLS, RANDOM_STATE, STATS_ROLLING_CONFIG, ROLLING_WINDOW  # RANDOM_STATE não é usado aqui, pode remover se quiser
     from data_handler import (load_historical_data, calculate_historical_intermediate,
                               calculate_probabilities, calculate_normalized_probabilities,
-                              calculate_rolling_stats, calculate_rolling_std,
+                              calculate_general_rolling_stats,
                               calculate_binned_features, calculate_derived_features,
                               calculate_rolling_goal_stats, calculate_poisson_draw_prob,
                               calculate_pi_ratings)
@@ -186,8 +186,14 @@ class FeatureAnalyzerApp:
             df_p = calculate_probabilities(df_p) # Garante probs
             df_p = calculate_normalized_probabilities(df_p)
             df_p = calculate_pi_ratings(df_p)
-            df_p = calculate_rolling_stats(df_p,['VG','CG']) # Adicione Ptos se relevante
-            df_p = calculate_rolling_std(df_p,['CG'])      # Adicione VG, Ptos se relevante
+            valid_roll_cfg = [
+                c for c in STATS_ROLLING_CONFIG 
+                if (c.get('base_col_h') in df_p.columns and c.get('base_col_a') in df_p.columns)
+            ]
+            if valid_roll_cfg:
+                df_p = calculate_general_rolling_stats(df_p, stats_configs=valid_roll_cfg, default_window=ROLLING_WINDOW)
+            else:
+                logger.warning("Análise: Nenhuma config de rolling stat válida. Pulando.")
             df_p = calculate_rolling_goal_stats(df_p, avg_goals_home_league=avg_h_league_safe, avg_goals_away_league=avg_a_league_safe)
             df_p = calculate_poisson_draw_prob(df_p, avg_goals_home_league=avg_h_league_safe, avg_goals_away_league=avg_a_league_safe);
             df_p = calculate_binned_features(df_p)

@@ -348,8 +348,6 @@ N_JOBS_GRIDSEARCH = -1 # Usar todos os processadores
 ROLLING_WINDOW = 5 # <<< AJUSTE AQUI a janela padrão para médias simples e momentum PiRating
 FEATURE_EPSILON = 1e-9 # Valor pequeno para evitar divisão por zero
 
-RESULT_MAPPING = {'D': 0, 'H': 1, 'A': 2} # Usado para Ptos (em calculate_historical_intermediate)
-CLASS_NAMES = ['Nao_Empate', 'Empate'] # Alvo binário
 
 # --- Nomes das Features ---
 # Interações (Manter nomes)
@@ -565,35 +563,35 @@ HEURISTIC_FILTER_MODEL_NAME = "Filtro Heurístico A"
 
 # Coluna alvo
 TARGET_COLUMN = 'IsDraw' # Certifique-se que é esta
+CLASS_NAMES = ['Nao_Empate', 'Empate']
 CALIBRATION_METHOD_DEFAULT = 'sigmoid'
 
 STATS_ROLLING_CONFIG = [
     # VG (Value Goals)
     {'base_col_h': 'VG_H_raw', 'base_col_a': 'VG_A_raw', 'output_prefix': 'Media_VG',
-     'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'}, # Context 'all' é implícito se não houver H/A no output
+     'agg_func': np.nanmean, 'window': ROLLING_WINDOW},
+     
     # CG (Cost Goals)
     {'base_col_h': 'CG_H_raw', 'base_col_a': 'CG_A_raw', 'output_prefix': 'Media_CG',
-     'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+     'agg_func': np.nanmean, 'window': ROLLING_WINDOW},
     {'base_col_h': 'CG_H_raw', 'base_col_a': 'CG_A_raw', 'output_prefix': 'Std_CG',
-     'agg_func': np.nanstd, 'min_periods': 2, 'window': ROLLING_WINDOW, 'context': 'all'},
-    # Gols Marcados
-    {'base_col_h': GOALS_COLS.get('home'), 'base_col_a': GOALS_COLS.get('away'), 'stat_type': 'offensive',
-     'output_prefix': 'Media_GolsMarcados', 'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
-    # Gols Sofridos
-    {'base_col_h': GOALS_COLS.get('away'), 'base_col_a': GOALS_COLS.get('home'), 'stat_type': 'defensive',
-     'output_prefix': 'Media_GolsSofridos', 'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+     'agg_func': np.nanstd, 'min_periods': 2, 'window': ROLLING_WINDOW},
+     
     # Chutes Totais
-    {'base_col_h': 'Shots_H', 'base_col_a': 'Shots_A', 'stat_type': 'offensive',
-     'output_prefix': 'Media_ChutesTotal', 'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+    {'base_col_h': 'Shots_H', 'base_col_a': 'Shots_A', 'output_prefix': 'Media_ChutesTotal',
+     'agg_func': np.nanmean, 'window': ROLLING_WINDOW},
+     
     # Chutes ao Alvo
-    {'base_col_h': 'ShotsOnTarget_H', 'base_col_a': 'ShotsOnTarget_A', 'stat_type': 'offensive',
-     'output_prefix': 'Media_ChutesAlvo', 'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+    {'base_col_h': 'ShotsOnTarget_H', 'base_col_a': 'ShotsOnTarget_A', 'output_prefix': 'Media_ChutesAlvo',
+     'agg_func': np.nanmean, 'window': ROLLING_WINDOW},
+     
     # Escanteios
-    {'base_col_h': 'Corners_H_FT', 'base_col_a': 'Corners_A_FT', 'stat_type': 'offensive',
-     'output_prefix': 'Media_Escanteios', 'agg_func': np.nanmean, 'window': 10, 'context': 'all'}, # Janela específica
-    # Outras que você pode querer adicionar:
+    {'base_col_h': 'Corners_H_FT', 'base_col_a': 'Corners_A_FT', 'output_prefix': 'Media_Escanteios',
+     'agg_func': np.nanmean, 'window': 10}, # Janela específica
+     
+    # Exemplo de Ptos
     # {'base_col_h': 'Ptos_H', 'base_col_a': 'Ptos_A', 'output_prefix': 'Media_Ptos',
-    #  'agg_func': np.nanmean, 'window': ROLLING_WINDOW, 'context': 'all'},
+    #  'agg_func': np.nanmean, 'window': ROLLING_WINDOW},
 ]
 
 # --- Configurações para Estatísticas EWMA (Média Móvel Exponencial Ponderada) ---

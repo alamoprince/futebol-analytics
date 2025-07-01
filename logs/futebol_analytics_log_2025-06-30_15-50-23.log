@@ -1,0 +1,6 @@
+2025-06-30 15:50:23 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src
+2025-06-30 15:50:23 - MainApp - INFO - SRC_DIR: c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src
+2025-06-30 15:50:23 - MainApp - INFO - BASE_DIR: c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics
+2025-06-30 15:50:23 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-06-30 15:51:16 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-06-30 15:51:45 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.

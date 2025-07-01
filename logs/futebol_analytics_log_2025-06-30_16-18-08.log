@@ -1,0 +1,16 @@
+2025-06-30 16:18:08 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src
+2025-06-30 16:18:08 - MainApp - INFO - SRC_DIR: c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src
+2025-06-30 16:18:08 - MainApp - INFO - BASE_DIR: c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics
+2025-06-30 16:18:08 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-06-30 16:18:11 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-06-30 16:18:12 - Main2 - ERROR - Erro import main.py (Treino/Previsão): cannot import name 'CLASS_NAMES' from 'config' (c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\config.py)
+2025-06-30 16:18:12 - MainApp - ERROR - Erro ao importar classes da GUI: cannot import name 'CLASS_NAMES' from 'config' (c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\config.py)
+Traceback (most recent call last):
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\app_launcher.py", line 27, in <module>
+    from main import FootballPredictorDashboard
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\main.py", line 32, in <module>
+    from config import (
+    ...<3 lines>...
+        DEFAULT_F1_THRESHOLD, DEFAULT_EV_THRESHOLD, CALIBRATION_METHOD_DEFAULT )
+ImportError: cannot import name 'CLASS_NAMES' from 'config' (c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\config.py)
+2025-06-30 16:18:12 - MainApp - ERROR - Verifique os nomes dos arquivos/classes e se os arquivos estão em 'src'.
