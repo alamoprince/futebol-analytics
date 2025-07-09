@@ -1173,33 +1173,35 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
 
     logger.info("=== ETAPA 2: PiRatings ===")
     df_processed = calculate_pi_ratings(df_processed)
+
     logger.info("=== ETAPA 3: Rolling Stats ===")
-    valid_roll_cfg = [c for c in STATS_ROLLING_CONFIG if (c.get('base_col_h') and c['base_col_h'] in df_processed.columns and df_processed[c['base_col_h']].notna().any()) or (c.get('base_col_a') and c['base_col_a'] in df_processed.columns and df_processed[c['base_col_a']].notna().any())]
-    if valid_roll_cfg: df_processed = calculate_general_rolling_stats(df_processed, valid_roll_cfg, ROLLING_WINDOW)
-    else: logger.warning("Nenhuma config rolling válida/colunas base são NaN. Stats rolling não calculadas.")
+    valid_roll_cfg = [
+        c for c in STATS_ROLLING_CONFIG 
+        if c.get('base_col_h') in df_processed.columns and c.get('base_col_a') in df_processed.columns
+    ]
+    if valid_roll_cfg:
+        df_processed = calculate_general_rolling_stats(df_processed, stats_configs=valid_roll_cfg)
+    else:
+        logger.warning("Nenhuma config de rolling stat válida. Pulando.")
+
     logger.info("=== ETAPA 4: EWMA Stats ===")
     valid_ewma_cfg = [c for c in STATS_EWMA_CONFIG if (c.get('base_col_h') and c['base_col_h'] in df_processed.columns and df_processed[c['base_col_h']].notna().any()) or (c.get('base_col_a') and c['base_col_a'] in df_processed.columns and df_processed[c['base_col_a']].notna().any())]
     if valid_ewma_cfg: df_processed = calculate_ewma_stats(df_processed, valid_ewma_cfg) 
     else: logger.warning("Nenhuma config EWMA válida/colunas base são NaN. EWMA stats não calculadas.")
 
-    logger.info("=== ETAPA 5: FA/FD ===")
-    mh_fd = EWMA_GolsMarc_H_LONG if EWMA_GolsMarc_H_LONG in df_processed.columns and df_processed[EWMA_GolsMarc_H_LONG].notna().any() else 'Media_GolsMarcados_H'
-    sa_fd = EWMA_GolsSofr_A_LONG if EWMA_GolsSofr_A_LONG in df_processed.columns and df_processed[EWMA_GolsSofr_A_LONG].notna().any() else 'Media_GolsSofridos_A'
-    ma_fd = EWMA_GolsMarc_A_LONG if EWMA_GolsMarc_A_LONG in df_processed.columns and df_processed[EWMA_GolsMarc_A_LONG].notna().any() else 'Media_GolsMarcados_A'
-    sh_fd = EWMA_GolsSofr_H_LONG if EWMA_GolsSofr_H_LONG in df_processed.columns and df_processed[EWMA_GolsSofr_H_LONG].notna().any() else 'Media_GolsSofridos_H'
-    if mh_fd in df_processed.columns and df_processed[mh_fd].notna().any(): df_processed['FA_H'] = df_processed[mh_fd]/avg_h_lg_safe
-    else: df_processed['FA_H']=np.nan; logger.warning(f"FA_H não calc (base '{mh_fd}' ausente/NaN).")
-    if sa_fd in df_processed.columns and df_processed[sa_fd].notna().any(): df_processed['FD_A'] = df_processed[sa_fd]/avg_h_lg_safe
-    else: df_processed['FD_A']=np.nan; logger.warning(f"FD_A não calc (base '{sa_fd}' ausente/NaN).")
-    if ma_fd in df_processed.columns and df_processed[ma_fd].notna().any(): df_processed['FA_A'] = df_processed[ma_fd]/avg_a_lg_safe
-    else: df_processed['FA_A']=np.nan; logger.warning(f"FA_A não calc (base '{ma_fd}' ausente/NaN).")
-    if sh_fd in df_processed.columns and df_processed[sh_fd].notna().any(): df_processed['FD_H'] = df_processed[sh_fd]/avg_a_lg_safe
-    else: df_processed['FD_H']=np.nan; logger.warning(f"FD_H não calc (base '{sh_fd}' ausente/NaN).")
+    logger.info("=== ETAPA 5: RollingGoals; FA/FD ===")
+    gh_col = GOALS_COLS.get('home')
+    ga_col = GOALS_COLS.get('away')
+    avg_h_lg = np.nanmean(df_processed[gh_col]) if gh_col in df_processed and df_processed[gh_col].notna().any() else 1.0
+    avg_a_lg = np.nanmean(df_processed[ga_col]) if ga_col in df_processed and df_processed[ga_col].notna().any() else 1.0
+    
+    df_processed = calculate_rolling_goal_stats(df_processed, avg_goals_home_league=avg_h_lg, avg_goals_away_league=avg_a_lg)
 
     logger.info("=== ETAPA 6: Poisson, Binned, Derivadas ===")
     df_processed = calculate_poisson_draw_prob(df_processed, avg_h_lg_safe, avg_a_lg_safe)
     df_processed = calculate_binned_features(df_processed)
     df_processed = calculate_derived_features(df_processed)
+
     logger.info("=== FIM PIPELINE FEATURE ENG (HISTÓRICO) ===")
     return _select_and_clean_final_features(df_processed, FEATURE_COLUMNS, TARGET_COLUMN)
 

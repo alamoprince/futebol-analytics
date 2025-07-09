@@ -76,6 +76,11 @@ try:
     from data_handler import BettingMetricsCalculator
 except ImportError as e: logger.critical(f"Erro crítico import config/typing/calibrator: {e}", exc_info=True); raise
 
+def _get_training_medians(X_train: pd.DataFrame) -> pd.Series:
+        logger.info("Calculando medianas do conjunto de treino para imputação futura.")
+        X_train_clean = X_train.replace([np.inf, -np.inf], np.nan)
+        return X_train_clean.median()
+
 def scale_features(
         X_train: pd.DataFrame, 
         X_val: Optional[pd.DataFrame], 
@@ -121,12 +126,9 @@ def scale_features(
             logger.error(f"Erro durante o scaling das features: {e}", exc_info=True)
             # Retorna os dados originais em caso de erro para não quebrar o pipeline
             return X_train, X_val, X_test, None
-        
+
 class ModelTrainingOrchestrator:
-    """
-    Orquestra o pipeline completo de treinamento, avaliação e salvamento de modelos
-    de machine learning, incluindo modelos individuais e um ensemble opcional.
-    """
+
     def __init__(self, X: pd.DataFrame, y: pd.Series,
                  X_test_with_odds: Optional[pd.DataFrame],
                  training_params: Dict[str, Any],
@@ -136,17 +138,16 @@ class ModelTrainingOrchestrator:
             raise ValueError("Dados X ou y de entrada não podem ser vazios ou None.")
         if not X.index.is_monotonic_increasing or not y.index.is_monotonic_increasing:
             logger.warning("AVISO: Dados de entrada X ou y podem não estar ordenados temporalmente. Isso é crucial para TimeSeriesSplit.")
-            # Poderia forçar ordenação aqui se o índice for datetime, mas é melhor garantir antes.
         if not X.index.equals(y.index):
             raise ValueError("Índices de X e y de entrada não coincidem.")
 
         self.X_full = X
         self.y_full = y
-        self.X_test_with_odds_full = X_test_with_odds # DataFrame completo com odds para todo o dataset
+        self.X_test_with_odds_full = X_test_with_odds 
         self.progress_callback = progress_callback
-        self.training_params = training_params # Armazena todos os parâmetros
+        self.training_params = training_params 
+        self.training_medians: Optional[pd.Series] = None
 
-        # Desempacota parâmetros com defaults do config.py
         self._unpack_training_params()
 
         self.original_feature_names: List[str] = list(X.columns)
@@ -206,26 +207,27 @@ class ModelTrainingOrchestrator:
         return available
     
     def _make_progress_call(self, model_idx: int, current_stage_progress_within_model: int, message: str):
-        """Helper para calcular progresso total e chamar callback."""
+
         if self.progress_callback:
-            # model_idx é 0-based.
-            # Cada modelo individual tem 100 unidades. O ensemble também.
+
             base_progress_for_model = model_idx * 100
             total_current_progress = min(base_progress_for_model + current_stage_progress_within_model, self.progress_total_units)
             self.progress_callback(total_current_progress, message)
     
+    
     def _prepare_data_splits(self) -> bool:
-        """Divide os dados e alinha as odds."""
-        # (Implementação de _temporal_train_test_split e _align_odds_with_test_set são as mesmas
-        #  definidas como funções globais anteriormente, mas podem ser métodos privados se preferir)
+
         split_result = _temporal_train_test_split(
             self.X_full, self.y_full, self.test_size_ratio, self.cv_splits
         )
         if split_result is None: return False
         self.X_train_cv_data, self.y_train_cv_data, self.X_test_data, self.y_test_data = split_result
 
-        # Alinha as odds para todo o dataset X_full, depois selecionaremos para o X_test_data
-        # Isso é para o caso de X_test_with_odds_full ser o dataset histórico completo antes do split
+        self.training_medians = _get_training_medians(self.X_train_cv_data)
+        if self.training_medians is None or self.training_medians.empty:
+            logger.error("Falha ao calcular as medianas do treino. Não será possível salvar para imputação.")
+            return False
+        
         if self.X_test_with_odds_full is not None:
             common_indices_full = self.X_full.index.intersection(self.X_test_with_odds_full.index)
             aligned_odds_full_dataset = self.X_test_with_odds_full.loc[common_indices_full]
@@ -239,7 +241,7 @@ class ModelTrainingOrchestrator:
 
         self.cv_temporal_splitter = TimeSeriesSplit(n_splits=self.cv_splits)
         return True
-    
+
     def _process_single_model(self, model_name: str, model_config: Dict, model_idx: int) -> Optional[Dict]:
         log_prefix = f"Mod {model_idx+1}/{len(self.available_model_configs)} ({model_name})"
         logger.info(f"\n--- {log_prefix}: Iniciando ---")
@@ -321,16 +323,11 @@ class ModelTrainingOrchestrator:
             model_result = self._process_single_model(model_name, model_config, model_idx)
             if model_result:
                 self.all_model_results_list.append(model_result)
-            # O progresso para 100% deste modelo é feito ao final de _process_single_model
-            # ou aqui, se _process_single_model retornar None.
             if model_result is None and self.progress_callback:
                  self._make_progress_call(model_idx, 99, f"Mod {model_idx+1}/{len(self.available_model_configs)} ({model_name}): Falha.")
     
     def _train_evaluate_ensemble(self) -> Optional[Dict]:
-        # (Implementação de _train_evaluate_ensemble como na resposta anterior)
-        # Certifique-se de chamar self._make_progress_call aqui também para o estágio do ensemble
-        # Ex: self._make_progress_call(len(self.available_model_configs), 10, "Ensemble: Iniciando...")
-        #      self._make_progress_call(len(self.available_model_configs), 99, "Ensemble: OK.")
+
         if len(self.all_model_results_list) < 2 or self.n_ensemble_models <= 0:
             logger.info("Ensemble: Modelos individuais insuficientes ou n_ensemble_models <= 0. Pulando.")
             return None
@@ -407,14 +404,12 @@ class ModelTrainingOrchestrator:
             results_df = pd.DataFrame(self.all_model_results_list)
             results_df['f1_score_draw_metric'] = results_df['metrics'].apply(lambda m: m.get(BEST_MODEL_METRIC, -1.0))
             results_df['roi_metric'] = results_df['metrics'].apply(lambda m: m.get(BEST_MODEL_METRIC_ROI, -np.inf))
-            # ... (logging do comparativo df) ...
             results_df_sorted_f1 = results_df.sort_values(by='f1_score_draw_metric', ascending=False).reset_index(drop=True)
             best_f1_dict = results_df_sorted_f1.iloc[0].to_dict() if not results_df_sorted_f1.empty else None
             if best_f1_dict:
                 logger.info(f"Salvando Melhor por F1: {best_f1_dict.get('model_name', 'N/A')}")
-                _save_model_object(best_f1_dict, self.original_feature_names, BEST_F1_MODEL_SAVE_PATH) # Usa constante global
+                _save_model_object(best_f1_dict, self.original_feature_names, BEST_F1_MODEL_SAVE_PATH, self.training_medians) # Usa constante global
             else: logger.error("Nenhum modelo para Melhor F1."); return False
-            # ... (lógica para model_for_roi_slot e salvar em BEST_ROI_MODEL_SAVE_PATH) ...
             model_for_roi_slot = None
             results_df_valid_roi = results_df[results_df['roi_metric'].notna() & np.isfinite(results_df['roi_metric']) & (results_df['roi_metric'] > -np.inf)]
             if not results_df_valid_roi.empty:
@@ -425,7 +420,7 @@ class ModelTrainingOrchestrator:
             elif best_f1_dict: model_for_roi_slot = best_f1_dict; logger.warning("Nenhum ROI válido. Usando melhor F1 para slot 'Melhor ROI'.")
             if model_for_roi_slot:
                 logger.info(f"Salvando para Slot Melhor ROI/2nd F1: {model_for_roi_slot.get('model_name', 'N/A')}")
-                _save_model_object(model_for_roi_slot, self.original_feature_names, BEST_ROI_MODEL_SAVE_PATH) # Usa constante global
+                _save_model_object(model_for_roi_slot, self.original_feature_names, BEST_ROI_MODEL_SAVE_PATH, self.training_medians) 
             return True
         except Exception as e: logger.error(f"Erro seleção/salvamento: {e}", exc_info=True); return False
 
@@ -433,31 +428,28 @@ class ModelTrainingOrchestrator:
     def run_training_pipeline(self) -> bool:
         logger.info(f"--- ModelTrainingOrchestrator: Iniciando Pipeline ---")
         if self.progress_callback:
-            # Informa à GUI o total de unidades de progresso esperado
             self.progress_callback(self.progress_total_units, "progress_max_set") # Sinal especial para a GUI
             self._make_progress_call(0, 1, "Preparando dados...") # Progresso inicial mínimo
 
         if not self._prepare_data_splits():
             logger.error("Falha na preparação dos splits. Encerrando."); return False
-        self._make_progress_call(0, 2, "Splits de dados OK.") # Pequeno avanço
+        self._make_progress_call(0, 2, "Splits de dados OK.") 
 
         self._train_and_evaluate_individual_models()
-        self._train_evaluate_ensemble() # Já lida com seu próprio progresso
+        self._train_evaluate_ensemble() 
         success = self._select_and_save_final_models()
         
-        # Sinaliza conclusão final do progresso (100% do total)
         if self.progress_callback:
              self.progress_callback(self.progress_total_units, "Treinamento Concluído!" if success else "Treinamento Falhou.")
 
         logger.info(f"--- ModelTrainingOrchestrator: Pipeline Concluído ---")
         return success
 
-# --- Função de Ponto de Entrada (Wrapper) ---
 def train_evaluate_and_save_best_models(
     X: pd.DataFrame, y: pd.Series,
     X_test_with_odds: Optional[pd.DataFrame] = None,
     progress_callback_stages: Optional[Callable[[int, str], None]] = None,
-    **training_params_kwargs # Captura todos os outros parâmetros de config
+    **training_params_kwargs 
     ) -> bool:
     try:
         orchestrator = ModelTrainingOrchestrator(
@@ -475,8 +467,6 @@ def train_evaluate_and_save_best_models(
         if progress_callback_stages: progress_callback_stages(0, f"Erro Fatal: {e}")
         return False
     
-    
-# --- Função Principal de Treinamento ---
 def _temporal_train_test_split(
     X: pd.DataFrame, y: pd.Series, test_size_ratio: float, cv_splits_for_min_train: int
 ) -> Optional[Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]]:
@@ -503,8 +493,6 @@ def _temporal_train_test_split(
         logger.error(f"Erro durante a divisão temporal manual: {e}", exc_info=True)
         return None
     
-
-
 def _align_odds_with_test_set(
     X_test: pd.DataFrame, X_test_with_odds_full: Optional[pd.DataFrame], odd_draw_col_name: str
 ) -> Optional[pd.DataFrame]:
@@ -680,7 +668,6 @@ def _calibrate_and_optimize_thresholds(
 
     return fitted_calibrator_object, y_proba_calibrated_draw, optimal_f1_thr, optimal_ev_thr, optimal_prec_thr
 
-
 def _evaluate_model_on_test_set(
     final_trained_pipeline: ImbPipeline, X_test_eval_processed: pd.DataFrame, y_test_eval: pd.Series,
     y_proba_raw_test_full_eval: Optional[np.ndarray], y_proba_final_draw_test_eval: Optional[np.ndarray], 
@@ -724,8 +711,7 @@ def _evaluate_model_on_test_set(
     else: metrics['f1_score_draw']=metrics.get('f1_score_draw_thr05',-1.0); logger.warning(f"  Sem probs {model_name_log_eval}. Usando F1@0.5.") 
     return metrics
 
-
-def _save_model_object(model_result_dict: Dict, feature_names_list: List[str], file_path_to_save: str) -> None:
+def _save_model_object(model_result_dict: Dict, feature_names_list: List[str], file_path_to_save: str, training_medians: Optional[pd.Series] = None) -> None:
     if not isinstance(model_result_dict, dict): logger.error(f"Salvar: Dados inválidos p/ {file_path_to_save}"); return
     try:
         model_obj_to_save = model_result_dict.get('model_object') 
@@ -743,12 +729,20 @@ def _save_model_object(model_result_dict: Dict, feature_names_list: List[str], f
             'feature_names': feature_names_list, 
             'best_params': model_result_dict.get('params'), 
             'eval_metrics': metrics_d,
+            'training_medians': training_medians,
             'optimal_ev_threshold': metrics_d.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD),
             'optimal_f1_threshold': metrics_d.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD),
             'optimal_precision_threshold': metrics_d.get('optimal_precision_threshold', 0.5),
             'save_timestamp': datetime.datetime.now().isoformat(),
             'model_class_name': model_result_dict.get('model_name', object_to_actually_save.__class__.__name__) # Nome do modelo/pipeline
         }
+        if training_medians is not None:
+            logger.debug("     Medianas do treino incluídas no objeto salvo.")
+        else:
+            logger.warning("     AVISO: Medianas do treino não fornecidas para salvamento.")
+
+        joblib.dump(save_obj_dict, file_path_to_save)
+        logger.info(f"  -> Objeto salvo: '{save_obj_dict['model_class_name']}' em {os.path.basename(file_path_to_save)}.")
         joblib.dump(save_obj_dict, file_path_to_save)
         logger.info(f"  -> Objeto salvo: '{save_obj_dict['model_class_name']}' em {os.path.basename(file_path_to_save)}.")
         logger.debug(f"     Detalhes salvos: Features={len(save_obj_dict['feature_names']) if save_obj_dict['feature_names'] else 'N/A'}, Scaler={'Sim' if save_obj_dict['scaler'] else 'Não'}, Calib={'Sim' if save_obj_dict['calibrator'] else 'Não'}")
@@ -756,7 +750,6 @@ def _save_model_object(model_result_dict: Dict, feature_names_list: List[str], f
 
     except Exception as e: logger.error(f"  -> Erro GRAVE ao salvar objeto em {file_path_to_save}: {e}", exc_info=True)
 
-# --- Função Principal ---
 def train_evaluate_and_save_best_models(
     X: pd.DataFrame, y: pd.Series,
     X_test_with_odds: Optional[pd.DataFrame] = None,

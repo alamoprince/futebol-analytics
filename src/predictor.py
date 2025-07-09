@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 import os
 import datetime
-import numpy as np  # Necessário para isnan
+import numpy as np  
 import traceback
 from sklearn.exceptions import NotFittedError
 from config import CLASS_NAMES, ODDS_COLS, DEFAULT_EV_THRESHOLD, DEFAULT_F1_THRESHOLD
@@ -15,7 +15,6 @@ from logger_config import setup_logger
 
 logger = setup_logger("PredictorApp")
 
-# --- Função de Carregamento (MODIFICADA) ---
 def load_model_scaler_features(model_path: str) -> Optional[Tuple[Any, Optional[Any], Optional[Any], float, float, Optional[List[str]], Optional[Dict], Optional[Dict], Optional[str]]]:
     """ Carrega modelo, scaler, calibrador, limiar EV, limiar F1, features, params, métricas, timestamp. """
     try:
@@ -25,23 +24,22 @@ def load_model_scaler_features(model_path: str) -> Optional[Tuple[Any, Optional[
             scaler = load_obj.get('scaler'); calibrator = load_obj.get('calibrator')
             optimal_ev_threshold = load_obj.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD)
             optimal_f1_threshold = load_obj.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD) # <<< USA DEFAULT DO CONFIG
+            training_medians = load_obj.get('training_medians')
             feature_names = load_obj.get('feature_names')
-            best_params = load_obj.get('best_params') # Assume que foi salvo com esta chave
+            best_params = load_obj.get('best_params') 
             eval_metrics = load_obj.get('eval_metrics')
             saved_timestamp = load_obj.get('save_timestamp'); model_class_name = load_obj.get('model_class_name', 'N/A'); fts = "N/A"
             try: mtime = os.path.getmtime(model_path); fts = datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
             except Exception: pass
             logger.info(f"Modelo carregado: {os.path.basename(model_path)} (Modif.: {fts})")
             logger.info(f"  Tipo: {model_class_name} | Calib: {'Sim' if calibrator else 'Não'} | F1 Thr: {optimal_f1_threshold:.4f} | EV Thr: {optimal_ev_threshold:.4f}")
-            # Retorna 9 itens
-            return model, scaler, calibrator, optimal_ev_threshold, optimal_f1_threshold, feature_names, best_params, eval_metrics, fts
-        else: # Fallback formato antigo
+            return model, scaler, calibrator, optimal_ev_threshold, optimal_f1_threshold, training_medians, feature_names, best_params, eval_metrics, fts
+        else: 
             logger.warning(f"  Aviso: Formato antigo/inválido em {model_path}.")
             return load_obj, None, None, DEFAULT_EV_THRESHOLD, DEFAULT_F1_THRESHOLD, None, None, None, "N/A"
     except FileNotFoundError: logger.error(f"Erro: Modelo não encontrado: '{model_path}'"); return None
     except Exception as e: logger.error(f"Erro carregar modelo: {e}", exc_info=True); return None
 
-# --- Função make_predictions (MODIFICADA) ---
 def make_predictions(
     model: Any,
     scaler: Optional[Any],
@@ -66,7 +64,6 @@ def make_predictions(
 
         if not hasattr(model, "predict_proba"): logger.error("Modelo sem predict_proba."); return None
 
-        # --- Cálculo Probs Brutas ---
         logger.info("  Calculando probs brutas...")
         predictions_proba_raw = model.predict_proba(X_pred)
         class_names_local = CLASS_NAMES if CLASS_NAMES and len(CLASS_NAMES) == len(model.classes_) else [f"Class_{c}" for c in model.classes_]
@@ -77,14 +74,11 @@ def make_predictions(
         logger.debug(f"Predictor: Colunas probs brutas criadas: {prob_cols_raw_names}")
         logger.debug(f"Predictor: Amostra df_predictions (brutas):\n{df_predictions.head()}")
 
-
         # --- Calibração ---
-        # Nomes internos pós-calib: Prob_Nao_Empate, Prob_Empate (baseado em class_names_local)
-        prob_col_calib_draw = f'Prob_{class_names_local[1]}'  # Ex: Prob_Empate
-        prob_col_calib_other = f'Prob_{class_names_local[0]}' # Ex: Prob_Nao_Empate
-        prob_col_raw_draw = f'ProbRaw_{class_names_local[1]}' # Ex: ProbRaw_Empate
+        prob_col_calib_draw = f'Prob_{class_names_local[1]}'  
+        prob_col_calib_other = f'Prob_{class_names_local[0]}' 
+        prob_col_raw_draw = f'ProbRaw_{class_names_local[1]}' 
         proba_draw_calibrated_series = None
-        # Inicializa colunas calibradas com NaN
         df_predictions[prob_col_calib_draw] = np.nan
         df_predictions[prob_col_calib_other] = np.nan
 
@@ -92,24 +86,21 @@ def make_predictions(
             logger.info(f"  Aplicando calibrador ({calibrator.__class__.__name__}) na coluna '{prob_col_raw_draw}'...")
             try:
                 proba_draw_raw_values = df_predictions[prob_col_raw_draw].values # 1D array
-                # A mágica da POO: chamamos o mesmo método, a implementação correta é executada
                 proba_draw_calibrated_array = None
 
                 if isinstance(calibrator, IsotonicRegression): 
                    proba_draw_calibrated_array = calibrator.predict(proba_draw_raw_values)
                 elif isinstance(calibrator, LogisticRegression): 
                    proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values.reshape(-1, 1))[:, 1]
-               # Adicione mais elif para outros tipos de calibradores se necessário
                 else:
                    logger.warning(f"  Tipo de calibrador não tratado explicitamente: {calibrator.__class__.__name__}. Tentando .predict_proba() se existir, senão .predict().")
                    if hasattr(calibrator, 'predict_proba'):
                        try:
-                           # Tenta com reshape, pois muitos classificadores sklearn esperam 2D
                            proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values.reshape(-1, 1))[:, 1]
                        except ValueError as ve_pp:
-                           if "Expected 2D array" in str(ve_pp) and proba_draw_raw_values.ndim == 1: # Típico
+                           if "Expected 2D array" in str(ve_pp) and proba_draw_raw_values.ndim == 1: 
                                proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values.reshape(-1,1))[:,1]
-                           else: # Tenta sem reshape como último recurso para predict_proba
+                           else: 
                                proba_draw_calibrated_array = calibrator.predict_proba(proba_draw_raw_values)[:,1]
                    elif hasattr(calibrator, 'predict'):
                        proba_draw_calibrated_array = calibrator.predict(proba_draw_raw_values)
@@ -124,18 +115,14 @@ def make_predictions(
             except NotFittedError as nfe:
                 logger.error(f"  Calibrador não ajustado: {nfe}")
 
-
         # --- Cálculo de EV ---
-        # (Código como antes, usando proba_ev_base que pega calib (se SUCESSO) ou raw)
         df_predictions['EV_Empate'] = np.nan
         calculate_ev = odd_draw_col_name in fixture_info.columns
-        # Usa a série calibrada SÓ SE ela foi criada com sucesso, senão usa a bruta
         proba_ev_base = proba_draw_calibrated_series if proba_draw_calibrated_series is not None else df_predictions.get(prob_col_raw_draw)
 
         if calculate_ev and proba_ev_base is not None:
             log_msg_ev = f"  Calculando EV usando probs {'calibradas' if proba_draw_calibrated_series is not None else 'brutas'}..."
             logger.info(log_msg_ev)
-            # ... (lógica exata como antes para calcular EV e popular df_predictions['EV_Empate']) ...
             try:
                  common_ev_index = fixture_info.index.intersection(proba_ev_base.index)
                  if not common_ev_index.empty:
@@ -150,20 +137,17 @@ def make_predictions(
         elif not calculate_ev: logger.info("  Cálculo EV pulado (sem odd).")
         else: logger.info("  Cálculo EV pulado (sem probs base).")
 
-
         # *** JOIN FINAL ***
         logger.debug(f"Predictor: Colunas em fixture_info ANTES do join: {list(fixture_info.columns)}")
         logger.debug(f"Predictor: Colunas em df_predictions ANTES do join: {list(df_predictions.columns)}") # Verifica se Prob_Empate está aqui
         logger.debug(f"Predictor: Índice de fixture_info: {fixture_info.index.dtype}, Primeiros 5: {fixture_info.index.tolist()[:5]}")
         logger.debug(f"Predictor: Índice de df_predictions: {df_predictions.index.dtype}, Primeiros 5: {df_predictions.index.tolist()[:5]}")
 
-        # Realiza o join usando o índice (que foi validado no início)
         df_results = fixture_info.join(df_predictions)
 
         if len(df_results) != len(fixture_info): logger.warning(f"Predictor: Tamanho do DF mudou após join!")
 
         logger.debug(f"Predictor: Colunas em df_results APÓS join: {list(df_results.columns)}") # Verifica se Prob_Empate está aqui
-        # Verifica se colunas essenciais e a calibrada (se aplicável) sobreviveram
         if 'Time_Str' not in df_results.columns: logger.error("Predictor: Coluna 'Time_Str' PERDIDA após o join!")
         if 'Home' not in df_results.columns: logger.error("Predictor: Coluna 'Home' PERDIDA após o join!")
         if calibrator and prob_col_calib_draw not in df_results.columns: logger.error(f"Predictor: Coluna '{prob_col_calib_draw}' PERDIDA após o join!")

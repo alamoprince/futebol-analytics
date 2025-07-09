@@ -1,0 +1,703 @@
+2025-07-08 20:07:01 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src
+2025-07-08 20:07:01 - MainApp - INFO - SRC_DIR: c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src
+2025-07-08 20:07:01 - MainApp - INFO - BASE_DIR: c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics
+2025-07-08 20:07:01 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-07-08 20:07:03 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-07-08 20:07:04 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-07-08 20:07:05 - MainApp - INFO - DPI Awareness set.
+2025-07-08 20:07:05 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-07-08 20:07:05 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-06-30 18:35:49)
+2025-07-08 20:07:05 - PredictorApp - INFO -   Tipo: SVC | Calib: Sim | F1 Thr: 0.2439 | EV Thr: 0.3840
+2025-07-08 20:07:05 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-06-30 18:35:49)
+2025-07-08 20:07:05 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2696 | EV Thr: 0.4380
+2025-07-08 20:07:05 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-07-08 20:07:05 - DataHandler - INFO - -- Processando arquivo: dados_combinados_2019_2025.xlsx --
+2025-07-08 20:07:05 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx (formato: .xlsx)...
+2025-07-08 20:07:44 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-07-08 20:07:44 - DataHandler - INFO - (dados_combinados_2019_2025.xlsx) Mapeando coluna de liga 'League'...
+2025-07-08 20:07:44 - DataHandler - WARNING -   (dados_combinados_2019_2025.xlsx) Ligas NÃO mapeadas para ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-07-08 20:07:44 - DataHandler - INFO -   (dados_combinados_2019_2025.xlsx) APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-07-08 20:07:44 - DataHandler - INFO -     -> Filtro de Liga: 18177/97670 jogos restantes.
+2025-07-08 20:07:44 - DataHandler - INFO -   -> Arquivo dados_combinados_2019_2025.xlsx processado com sucesso (Shape: (18177, 20)).
+2025-07-08 20:07:44 - DataHandler - INFO - Concatenando 1 DataFrames processados...
+2025-07-08 20:07:44 - DataHandler - INFO - DataFrame histórico combinado antes do pós-processamento: (18177, 20)
+2025-07-08 20:07:44 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-07-08 20:07:44 - DataHandler - INFO -   -> Conversão de 'Date' concluída. 0 NaNs restantes em Date (deveria ser 0).
+2025-07-08 20:07:44 - DataHandler - INFO -   Verificando NaNs essenciais em: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-07-08 20:07:44 - DataHandler - INFO -   Removidas 239 linhas devido a NaNs em colunas essenciais.
+2025-07-08 20:07:44 - DataHandler - INFO -   DataFrame histórico ordenado por data.
+2025-07-08 20:07:44 - DataHandler - INFO -   Calculando Pi-Ratings finais...
+2025-07-08 20:07:44 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-07-08 20:07:45 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-07-08 20:07:45 - DataHandler - INFO - Processamento pós-concatenação concluído.
+2025-07-08 20:07:45 - DataHandler - INFO - Carregamento e processamento de dados históricos concluídos (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS). Shape Final: (17938, 27)
+2025-07-08 20:07:45 - DataHandler - INFO - Contagem de NaNs finais (em colunas com algum NaN):
+Odd_Over25_FT      156
+Odd_Under25_FT     156
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-07-08 20:07:45 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-07-08 20:07:45 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-07-08 20:07:45 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-07-08 20:08:04 - ScraperTab - INFO - Thread de scraping iniciada.
+2025-07-08 20:08:04 - ScrapperPredictor - INFO - Iniciando WebDriver...
+2025-07-08 20:08:05 - ScrapperPredictor - INFO - WebDriver inicializado.
+2025-07-08 20:08:09 - ScrapperPredictor - INFO - Selecionando dia 'tomorrow' clicando na seta 'próximo dia' 1 vez(es)...
+2025-07-08 20:08:10 - ScrapperPredictor - INFO - Dia 'tomorrow' selecionado com sucesso. Aguardando carregamento da página...
+2025-07-08 20:08:25 - ScrapperPredictor - INFO - Procurando IDs dos jogos...
+2025-07-08 20:08:26 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: OxfJfLBl
+2025-07-08 20:08:26 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/OxfJfLBl/#/match-summary/match-summary
+2025-07-08 20:08:28 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:08:28 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:08:29 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:08:29 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:08:29 - ScrapperPredictor - INFO -         País: EUROPE
+2025-07-08 20:08:29 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:08:29 - ScrapperPredictor - INFO -         Liga (Limpo): CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:08:29 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: EUROPE: CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:08:29 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: OxfJfLBl
+2025-07-08 20:08:29 - ScrapperPredictor - INFO -   Jogo ID OxfJfLBl (EUROPE: CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:08:50 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: IZm15xQ6
+2025-07-08 20:08:50 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/IZm15xQ6/#/match-summary/match-summary
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -         País: EUROPE
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -         Liga (Limpo): CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: EUROPE: CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: IZm15xQ6
+2025-07-08 20:08:53 - ScrapperPredictor - INFO -   Jogo ID IZm15xQ6 (EUROPE: CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:09:16 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: v90iGgvP
+2025-07-08 20:09:16 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/v90iGgvP/#/match-summary/match-summary
+2025-07-08 20:09:18 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:09:18 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:09:19 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:09:19 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:09:19 - ScrapperPredictor - INFO -         País: EUROPE
+2025-07-08 20:09:19 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:09:19 - ScrapperPredictor - INFO -         Liga (Limpo): CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:09:19 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: EUROPE: CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:09:19 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: v90iGgvP
+2025-07-08 20:09:19 - ScrapperPredictor - INFO -   Jogo ID v90iGgvP (EUROPE: CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:09:40 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: hGG7IqLh
+2025-07-08 20:09:40 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/hGG7IqLh/#/match-summary/match-summary
+2025-07-08 20:09:42 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:09:42 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:09:43 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:09:43 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:09:43 - ScrapperPredictor - INFO -         País: EUROPE
+2025-07-08 20:09:43 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:09:43 - ScrapperPredictor - INFO -         Liga (Limpo): CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:09:43 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: EUROPE: CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS
+2025-07-08 20:09:43 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: hGG7IqLh
+2025-07-08 20:09:43 - ScrapperPredictor - INFO -   Jogo ID hGG7IqLh (EUROPE: CHAMPIONS LEAGUE - QUALIFICATION - 1/8-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:10:05 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: pUHqWmpA
+2025-07-08 20:10:05 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/pUHqWmpA/#/match-summary/match-summary
+2025-07-08 20:10:06 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -         País: EUROPE
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -         Liga (Texto Bruto): EURO WOMEN - ROUND 2
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -         Liga (Limpo): EURO WOMEN
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: EUROPE: EURO WOMEN
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: pUHqWmpA
+2025-07-08 20:10:07 - ScrapperPredictor - INFO -   Jogo ID pUHqWmpA (EUROPE: EURO WOMEN): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:10:30 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: tdBhUREM
+2025-07-08 20:10:30 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/tdBhUREM/#/match-summary/match-summary
+2025-07-08 20:10:32 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:10:32 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:10:33 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:10:33 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:10:33 - ScrapperPredictor - INFO -         País: EUROPE
+2025-07-08 20:10:33 - ScrapperPredictor - INFO -         Liga (Texto Bruto): EURO WOMEN - ROUND 2
+2025-07-08 20:10:33 - ScrapperPredictor - INFO -         Liga (Limpo): EURO WOMEN
+2025-07-08 20:10:33 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: EUROPE: EURO WOMEN
+2025-07-08 20:10:33 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: tdBhUREM
+2025-07-08 20:10:33 - ScrapperPredictor - INFO -   Jogo ID tdBhUREM (EUROPE: EURO WOMEN): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:10:55 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: nobj4McD
+2025-07-08 20:10:55 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/nobj4McD/#/match-summary/match-summary
+2025-07-08 20:10:56 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:10:56 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:10:57 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:10:57 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:10:57 - ScrapperPredictor - INFO -         País: WORLD
+2025-07-08 20:10:57 - ScrapperPredictor - INFO -         Liga (Texto Bruto): FIFA CLUB WORLD CUP - PLAY OFFS - SEMI-FINALS
+2025-07-08 20:10:57 - ScrapperPredictor - INFO -         Liga (Limpo): FIFA CLUB WORLD CUP - PLAY OFFS - SEMI-FINALS
+2025-07-08 20:10:57 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: WORLD: FIFA CLUB WORLD CUP - PLAY OFFS - SEMI-FINALS
+2025-07-08 20:10:57 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: nobj4McD
+2025-07-08 20:10:57 - ScrapperPredictor - INFO -   Jogo ID nobj4McD (WORLD: FIFA CLUB WORLD CUP - PLAY OFFS - SEMI-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:11:19 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: fLCzThvf
+2025-07-08 20:11:19 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/fLCzThvf/#/match-summary/match-summary
+2025-07-08 20:11:21 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:11:21 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:11:22 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:11:22 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:11:22 - ScrapperPredictor - INFO -         País: AFRICA
+2025-07-08 20:11:22 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COSAFA CHAMPIONSHIP U20
+2025-07-08 20:11:22 - ScrapperPredictor - INFO -         Liga (Limpo): COSAFA CHAMPIONSHIP U20
+2025-07-08 20:11:22 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AFRICA: COSAFA CHAMPIONSHIP U20
+2025-07-08 20:11:22 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: fLCzThvf
+2025-07-08 20:11:22 - ScrapperPredictor - INFO -   Jogo ID fLCzThvf (AFRICA: COSAFA CHAMPIONSHIP U20): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:11:45 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: Gz1qRW86
+2025-07-08 20:11:45 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/Gz1qRW86/#/match-summary/match-summary
+2025-07-08 20:11:47 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:11:47 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:11:47 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:11:47 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:11:47 - ScrapperPredictor - INFO -         País: AFRICA
+2025-07-08 20:11:47 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COSAFA CHAMPIONSHIP U20
+2025-07-08 20:11:47 - ScrapperPredictor - INFO -         Liga (Limpo): COSAFA CHAMPIONSHIP U20
+2025-07-08 20:11:48 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AFRICA: COSAFA CHAMPIONSHIP U20
+2025-07-08 20:11:48 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: Gz1qRW86
+2025-07-08 20:11:48 - ScrapperPredictor - INFO -   Jogo ID Gz1qRW86 (AFRICA: COSAFA CHAMPIONSHIP U20): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:11:51 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: Gz1qRW86
+2025-07-08 20:12:13 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: Gz1qRW86
+2025-07-08 20:12:15 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: Gz1qRW86
+2025-07-08 20:12:30 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: GrmRiMqJ
+2025-07-08 20:12:30 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/GrmRiMqJ/#/match-summary/match-summary
+2025-07-08 20:12:32 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:12:32 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:12:32 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:12:32 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:12:32 - ScrapperPredictor - INFO -         País: AFRICA
+2025-07-08 20:12:32 - ScrapperPredictor - INFO -         Liga (Texto Bruto): AFRICA CUP OF NATIONS WOMEN - ROUND 2
+2025-07-08 20:12:32 - ScrapperPredictor - INFO -         Liga (Limpo): AFRICA CUP OF NATIONS WOMEN
+2025-07-08 20:12:33 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AFRICA: AFRICA CUP OF NATIONS WOMEN
+2025-07-08 20:12:33 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: GrmRiMqJ
+2025-07-08 20:12:33 - ScrapperPredictor - INFO -   Jogo ID GrmRiMqJ (AFRICA: AFRICA CUP OF NATIONS WOMEN): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:12:36 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: GrmRiMqJ
+2025-07-08 20:12:57 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: GrmRiMqJ
+2025-07-08 20:13:00 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: GrmRiMqJ
+2025-07-08 20:13:15 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 8IqJgrF6
+2025-07-08 20:13:15 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/8IqJgrF6/#/match-summary/match-summary
+2025-07-08 20:13:17 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:13:17 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:13:17 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:13:17 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:13:17 - ScrapperPredictor - INFO -         País: AFRICA
+2025-07-08 20:13:18 - ScrapperPredictor - INFO -         Liga (Texto Bruto): AFRICA CUP OF NATIONS WOMEN - ROUND 2
+2025-07-08 20:13:18 - ScrapperPredictor - INFO -         Liga (Limpo): AFRICA CUP OF NATIONS WOMEN
+2025-07-08 20:13:18 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AFRICA: AFRICA CUP OF NATIONS WOMEN
+2025-07-08 20:13:18 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 8IqJgrF6
+2025-07-08 20:13:18 - ScrapperPredictor - INFO -   Jogo ID 8IqJgrF6 (AFRICA: AFRICA CUP OF NATIONS WOMEN): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:13:21 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: 8IqJgrF6
+2025-07-08 20:13:42 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: 8IqJgrF6
+2025-07-08 20:13:44 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: 8IqJgrF6
+2025-07-08 20:13:59 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: QRXAtymd
+2025-07-08 20:13:59 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/QRXAtymd/#/match-summary/match-summary
+2025-07-08 20:14:02 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:14:02 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:14:03 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:14:03 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:14:03 - ScrapperPredictor - INFO -         País: ARGENTINA
+2025-07-08 20:14:03 - ScrapperPredictor - INFO -         Liga (Texto Bruto): TORNEO FEDERAL - ROUND 16
+2025-07-08 20:14:03 - ScrapperPredictor - INFO -         Liga (Limpo): TORNEO FEDERAL
+2025-07-08 20:14:03 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: ARGENTINA: TORNEO FEDERAL
+2025-07-08 20:14:03 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: QRXAtymd
+2025-07-08 20:14:03 - ScrapperPredictor - INFO -   Jogo ID QRXAtymd (ARGENTINA: TORNEO FEDERAL): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:14:25 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: Aeop2oL5
+2025-07-08 20:14:25 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/Aeop2oL5/#/match-summary/match-summary
+2025-07-08 20:14:27 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:14:27 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:14:28 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:14:28 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:14:28 - ScrapperPredictor - INFO -         País: ASIA
+2025-07-08 20:14:28 - ScrapperPredictor - INFO -         Liga (Texto Bruto): EAFF E-1 FOOTBALL CHAMPIONSHIP WOMEN
+2025-07-08 20:14:28 - ScrapperPredictor - INFO -         Liga (Limpo): EAFF E-1 FOOTBALL CHAMPIONSHIP WOMEN
+2025-07-08 20:14:28 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: ASIA: EAFF E-1 FOOTBALL CHAMPIONSHIP WOMEN
+2025-07-08 20:14:28 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: Aeop2oL5
+2025-07-08 20:14:28 - ScrapperPredictor - INFO -   Jogo ID Aeop2oL5 (ASIA: EAFF E-1 FOOTBALL CHAMPIONSHIP WOMEN): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:14:51 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: WAZh0PkI
+2025-07-08 20:14:51 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/WAZh0PkI/#/match-summary/match-summary
+2025-07-08 20:14:53 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:14:53 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:14:53 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:14:53 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:14:53 - ScrapperPredictor - INFO -         País: ASIA
+2025-07-08 20:14:54 - ScrapperPredictor - INFO -         Liga (Texto Bruto): EAFF E-1 FOOTBALL CHAMPIONSHIP WOMEN
+2025-07-08 20:14:54 - ScrapperPredictor - INFO -         Liga (Limpo): EAFF E-1 FOOTBALL CHAMPIONSHIP WOMEN
+2025-07-08 20:14:54 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: ASIA: EAFF E-1 FOOTBALL CHAMPIONSHIP WOMEN
+2025-07-08 20:14:54 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: WAZh0PkI
+2025-07-08 20:14:54 - ScrapperPredictor - INFO -   Jogo ID WAZh0PkI (ASIA: EAFF E-1 FOOTBALL CHAMPIONSHIP WOMEN): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:15:15 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: Me056dUi
+2025-07-08 20:15:15 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/Me056dUi/#/match-summary/match-summary
+2025-07-08 20:15:17 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:15:17 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:15:18 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:15:18 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:15:18 - ScrapperPredictor - INFO -         País: AUSTRALIA
+2025-07-08 20:15:18 - ScrapperPredictor - INFO -         Liga (Texto Bruto): NPL NORTHERN NSW - ROUND 11
+2025-07-08 20:15:18 - ScrapperPredictor - INFO -         Liga (Limpo): NPL NORTHERN NSW
+2025-07-08 20:15:18 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA: NPL NORTHERN NSW
+2025-07-08 20:15:18 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: Me056dUi
+2025-07-08 20:15:18 - ScrapperPredictor - INFO -   Jogo ID Me056dUi (AUSTRALIA: NPL NORTHERN NSW): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:15:42 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: SvdizDWb
+2025-07-08 20:15:42 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/SvdizDWb/#/match-summary/match-summary
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -         País: AUSTRALIA
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -         Liga (Texto Bruto): NPL NORTHERN NSW - ROUND 6
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -         Liga (Limpo): NPL NORTHERN NSW
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA: NPL NORTHERN NSW
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: SvdizDWb
+2025-07-08 20:15:44 - ScrapperPredictor - INFO -   Jogo ID SvdizDWb (AUSTRALIA: NPL NORTHERN NSW): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:16:07 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 0QLzHV9j
+2025-07-08 20:16:07 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/0QLzHV9j/#/match-summary/match-summary
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -         País: AUSTRALIA
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -         Liga (Texto Bruto): NPL QUEENSLAND - ROUND 10
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -         Liga (Limpo): NPL QUEENSLAND
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA: NPL QUEENSLAND
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 0QLzHV9j
+2025-07-08 20:16:09 - ScrapperPredictor - INFO -   Jogo ID 0QLzHV9j (AUSTRALIA: NPL QUEENSLAND): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:16:32 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: WCQYMrKj
+2025-07-08 20:16:32 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/WCQYMrKj/#/match-summary/match-summary
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -         País: AUSTRALIA
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -         Liga (Texto Bruto): NPL QUEENSLAND - ROUND 5
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -         Liga (Limpo): NPL QUEENSLAND
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA: NPL QUEENSLAND
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: WCQYMrKj
+2025-07-08 20:16:34 - ScrapperPredictor - INFO -   Jogo ID WCQYMrKj (AUSTRALIA: NPL QUEENSLAND): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:16:57 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: SGXEBFGD
+2025-07-08 20:16:57 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/SGXEBFGD/#/match-summary/match-summary
+2025-07-08 20:16:58 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:16:58 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:16:59 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:16:59 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:16:59 - ScrapperPredictor - INFO -         País: AUSTRALIA
+2025-07-08 20:16:59 - ScrapperPredictor - INFO -         Liga (Texto Bruto): NPL QUEENSLAND - ROUND 8
+2025-07-08 20:16:59 - ScrapperPredictor - INFO -         Liga (Limpo): NPL QUEENSLAND
+2025-07-08 20:16:59 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA: NPL QUEENSLAND
+2025-07-08 20:16:59 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: SGXEBFGD
+2025-07-08 20:16:59 - ScrapperPredictor - INFO -   Jogo ID SGXEBFGD (AUSTRALIA: NPL QUEENSLAND): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:17:22 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: jirChjoo
+2025-07-08 20:17:22 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/jirChjoo/#/match-summary/match-summary
+2025-07-08 20:17:23 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -         País: AUSTRALIA
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CAPITAL PREMIER LEAGUE - ROUND 7
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -         Liga (Limpo): CAPITAL PREMIER LEAGUE
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA: CAPITAL PREMIER LEAGUE
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: jirChjoo
+2025-07-08 20:17:24 - ScrapperPredictor - INFO -   Jogo ID jirChjoo (AUSTRALIA: CAPITAL PREMIER LEAGUE): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:17:46 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: xjDqfI57
+2025-07-08 20:17:46 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/xjDqfI57/#/match-summary/match-summary
+2025-07-08 20:17:48 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:17:48 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:17:49 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:17:49 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:17:49 - ScrapperPredictor - INFO -         País: AUSTRALIA
+2025-07-08 20:17:49 - ScrapperPredictor - INFO -         Liga (Texto Bruto): QUEENSLAND PREMIER LEAGUE - ROUND 7
+2025-07-08 20:17:49 - ScrapperPredictor - INFO -         Liga (Limpo): QUEENSLAND PREMIER LEAGUE
+2025-07-08 20:17:49 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA: QUEENSLAND PREMIER LEAGUE
+2025-07-08 20:17:49 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: xjDqfI57
+2025-07-08 20:17:49 - ScrapperPredictor - INFO -   Jogo ID xjDqfI57 (AUSTRALIA: QUEENSLAND PREMIER LEAGUE): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:18:11 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: Uwc5zEb4
+2025-07-08 20:18:11 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/Uwc5zEb4/#/match-summary/match-summary
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -         País: AUSTRALIA
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -         Liga (Texto Bruto): VICTORIA PREMIER LEAGUE - ROUND 14
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -         Liga (Limpo): VICTORIA PREMIER LEAGUE
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA: VICTORIA PREMIER LEAGUE
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: Uwc5zEb4
+2025-07-08 20:18:13 - ScrapperPredictor - INFO -   Jogo ID Uwc5zEb4 (AUSTRALIA: VICTORIA PREMIER LEAGUE): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:18:35 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: W42s0H6D
+2025-07-08 20:18:35 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/W42s0H6D/#/match-summary/match-summary
+2025-07-08 20:18:36 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -         País: AUSTRALIA & OCEANIA
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -         Liga (Texto Bruto): OFC NATIONS CUP WOMEN
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -         Liga (Limpo): OFC NATIONS CUP WOMEN
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: AUSTRALIA & OCEANIA: OFC NATIONS CUP WOMEN
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: W42s0H6D
+2025-07-08 20:18:37 - ScrapperPredictor - INFO -   Jogo ID W42s0H6D (AUSTRALIA & OCEANIA: OFC NATIONS CUP WOMEN): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:18:41 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: W42s0H6D
+2025-07-08 20:19:02 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: W42s0H6D
+2025-07-08 20:19:05 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: W42s0H6D
+2025-07-08 20:19:20 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 6ksUpPxf
+2025-07-08 20:19:20 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/6ksUpPxf/#/match-summary/match-summary
+2025-07-08 20:19:21 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:19:21 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:19:22 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:19:22 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:19:22 - ScrapperPredictor - INFO -         País: BOLIVIA
+2025-07-08 20:19:22 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COPA PACENA - ROUND 5
+2025-07-08 20:19:22 - ScrapperPredictor - INFO -         Liga (Limpo): COPA PACENA
+2025-07-08 20:19:22 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: BOLIVIA: COPA PACENA
+2025-07-08 20:19:22 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 6ksUpPxf
+2025-07-08 20:19:22 - ScrapperPredictor - INFO -   Jogo ID 6ksUpPxf (BOLIVIA: COPA PACENA): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:19:44 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: K8Zyz4LM
+2025-07-08 20:19:44 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/K8Zyz4LM/#/match-summary/match-summary
+2025-07-08 20:19:46 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:19:46 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:19:47 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:19:47 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:19:47 - ScrapperPredictor - INFO -         País: BRAZIL
+2025-07-08 20:19:47 - ScrapperPredictor - INFO -         Liga (Texto Bruto): TOCANTINENSE U20 - PLAY OFFS - FINAL
+2025-07-08 20:19:47 - ScrapperPredictor - INFO -         Liga (Limpo): TOCANTINENSE U20 - PLAY OFFS - FINAL
+2025-07-08 20:19:47 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: BRAZIL: TOCANTINENSE U20 - PLAY OFFS - FINAL
+2025-07-08 20:19:47 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: K8Zyz4LM
+2025-07-08 20:19:47 - ScrapperPredictor - INFO -   Jogo ID K8Zyz4LM (BRAZIL: TOCANTINENSE U20 - PLAY OFFS - FINAL): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:20:09 - ScrapperPredictor - WARNING - Timeout ao esperar odds 1x2 FT. Jogo ID: K8Zyz4LM
+2025-07-08 20:20:29 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: K8Zyz4LM
+2025-07-08 20:20:50 - ScrapperPredictor - WARNING - Timeout ao esperar odds BTTS FT. Jogo ID: K8Zyz4LM
+2025-07-08 20:21:05 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: YgMsA8Ph
+2025-07-08 20:21:05 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/YgMsA8Ph/#/match-summary/match-summary
+2025-07-08 20:21:06 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -         País: BRAZIL
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COPA PAULISTA - ROUND 4
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -         Liga (Limpo): COPA PAULISTA
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: BRAZIL: COPA PAULISTA
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: YgMsA8Ph
+2025-07-08 20:21:07 - ScrapperPredictor - INFO -   Jogo ID YgMsA8Ph (BRAZIL: COPA PAULISTA): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:21:30 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 8WG644gU
+2025-07-08 20:21:30 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/8WG644gU/#/match-summary/match-summary
+2025-07-08 20:21:31 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -         País: BRAZIL
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COPA PAULISTA - ROUND 5
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -         Liga (Limpo): COPA PAULISTA
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: BRAZIL: COPA PAULISTA
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 8WG644gU
+2025-07-08 20:21:32 - ScrapperPredictor - INFO -   Jogo ID 8WG644gU (BRAZIL: COPA PAULISTA): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:21:55 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: bqUnPPdf
+2025-07-08 20:21:55 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/bqUnPPdf/#/match-summary/match-summary
+2025-07-08 20:21:57 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:21:57 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:21:58 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:21:58 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:21:58 - ScrapperPredictor - INFO -         País: BRAZIL
+2025-07-08 20:21:58 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:21:58 - ScrapperPredictor - INFO -         Liga (Limpo): COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:21:58 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: BRAZIL: COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:21:58 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: bqUnPPdf
+2025-07-08 20:21:58 - ScrapperPredictor - INFO -   Jogo ID bqUnPPdf (BRAZIL: COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:22:20 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 4pyvRoSs
+2025-07-08 20:22:20 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/4pyvRoSs/#/match-summary/match-summary
+2025-07-08 20:22:21 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:22:21 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:22:22 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:22:22 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:22:22 - ScrapperPredictor - INFO -         País: BRAZIL
+2025-07-08 20:22:22 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:22:22 - ScrapperPredictor - INFO -         Liga (Limpo): COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:22:22 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: BRAZIL: COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:22:22 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 4pyvRoSs
+2025-07-08 20:22:22 - ScrapperPredictor - INFO -   Jogo ID 4pyvRoSs (BRAZIL: COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:22:45 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: WdSfN3R6
+2025-07-08 20:22:45 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/WdSfN3R6/#/match-summary/match-summary
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -         País: BRAZIL
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -         Liga (Limpo): COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: BRAZIL: COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: WdSfN3R6
+2025-07-08 20:22:47 - ScrapperPredictor - INFO -   Jogo ID WdSfN3R6 (BRAZIL: COPA DO NORDESTE - PLAY OFFS - QUARTER-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:23:09 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 2ycReLZo
+2025-07-08 20:23:09 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/2ycReLZo/#/match-summary/match-summary
+2025-07-08 20:23:11 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:23:11 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:23:11 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:23:11 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:23:11 - ScrapperPredictor - INFO -         País: CANADA
+2025-07-08 20:23:11 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CHAMPIONSHIP - QUARTER-FINALS
+2025-07-08 20:23:11 - ScrapperPredictor - INFO -         Liga (Limpo): CHAMPIONSHIP - QUARTER-FINALS
+2025-07-08 20:23:12 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: CANADA: CHAMPIONSHIP - QUARTER-FINALS
+2025-07-08 20:23:12 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 2ycReLZo
+2025-07-08 20:23:12 - ScrapperPredictor - INFO -   Jogo ID 2ycReLZo (CANADA: CHAMPIONSHIP - QUARTER-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:23:34 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: IgQEjQc6
+2025-07-08 20:23:34 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/IgQEjQc6/#/match-summary/match-summary
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -         País: CANADA
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CHAMPIONSHIP - QUARTER-FINALS
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -         Liga (Limpo): CHAMPIONSHIP - QUARTER-FINALS
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: CANADA: CHAMPIONSHIP - QUARTER-FINALS
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: IgQEjQc6
+2025-07-08 20:23:36 - ScrapperPredictor - INFO -   Jogo ID IgQEjQc6 (CANADA: CHAMPIONSHIP - QUARTER-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:23:59 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 218NaemR
+2025-07-08 20:23:59 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/218NaemR/#/match-summary/match-summary
+2025-07-08 20:24:00 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -         País: CHILE
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COPA CHILE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -         Liga (Limpo): COPA CHILE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: CHILE: COPA CHILE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 218NaemR
+2025-07-08 20:24:01 - ScrapperPredictor - INFO -   Jogo ID 218NaemR (CHILE: COPA CHILE - PLAY OFFS - QUARTER-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:24:23 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: EuSSwEQ7
+2025-07-08 20:24:23 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/EuSSwEQ7/#/match-summary/match-summary
+2025-07-08 20:24:25 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:24:25 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:24:25 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:24:26 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:24:26 - ScrapperPredictor - INFO -         País: CHILE
+2025-07-08 20:24:26 - ScrapperPredictor - INFO -         Liga (Texto Bruto): COPA CHILE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:24:26 - ScrapperPredictor - INFO -         Liga (Limpo): COPA CHILE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:24:26 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: CHILE: COPA CHILE - PLAY OFFS - QUARTER-FINALS
+2025-07-08 20:24:26 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: EuSSwEQ7
+2025-07-08 20:24:26 - ScrapperPredictor - INFO -   Jogo ID EuSSwEQ7 (CHILE: COPA CHILE - PLAY OFFS - QUARTER-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:24:48 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 21EKvW6E
+2025-07-08 20:24:48 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/21EKvW6E/#/match-summary/match-summary
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -         País: CUBA
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -         Liga (Texto Bruto): LIGA NACIONAL - CLAUSURA - PLAY IN - FINAL
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -         Liga (Limpo): LIGA NACIONAL - CLAUSURA - PLAY IN - FINAL
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: CUBA: LIGA NACIONAL - CLAUSURA - PLAY IN - FINAL
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 21EKvW6E
+2025-07-08 20:24:50 - ScrapperPredictor - INFO -   Jogo ID 21EKvW6E (CUBA: LIGA NACIONAL - CLAUSURA - PLAY IN - FINAL): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:25:12 - ScrapperPredictor - WARNING - Timeout ao esperar odds 1x2 FT. Jogo ID: 21EKvW6E
+2025-07-08 20:25:33 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: 21EKvW6E
+2025-07-08 20:25:54 - ScrapperPredictor - WARNING - Timeout ao esperar odds BTTS FT. Jogo ID: 21EKvW6E
+2025-07-08 20:26:09 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: EuYPIlpe
+2025-07-08 20:26:09 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/EuYPIlpe/#/match-summary/match-summary
+2025-07-08 20:26:10 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -         País: CUBA
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -         Liga (Texto Bruto): LIGA NACIONAL - CLAUSURA - PLAY IN - FINAL
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -         Liga (Limpo): LIGA NACIONAL - CLAUSURA - PLAY IN - FINAL
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: CUBA: LIGA NACIONAL - CLAUSURA - PLAY IN - FINAL
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: EuYPIlpe
+2025-07-08 20:26:11 - ScrapperPredictor - INFO -   Jogo ID EuYPIlpe (CUBA: LIGA NACIONAL - CLAUSURA - PLAY IN - FINAL): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:26:33 - ScrapperPredictor - WARNING - Timeout ao esperar odds 1x2 FT. Jogo ID: EuYPIlpe
+2025-07-08 20:26:54 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: EuYPIlpe
+2025-07-08 20:27:15 - ScrapperPredictor - WARNING - Timeout ao esperar odds BTTS FT. Jogo ID: EuYPIlpe
+2025-07-08 20:27:30 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: bPVGkAhM
+2025-07-08 20:27:30 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/bPVGkAhM/#/match-summary/match-summary
+2025-07-08 20:27:32 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:27:32 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:27:33 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:27:33 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:27:33 - ScrapperPredictor - INFO -         País: FINLAND
+2025-07-08 20:27:33 - ScrapperPredictor - INFO -         Liga (Texto Bruto): YKKOSLIIGA
+2025-07-08 20:27:33 - ScrapperPredictor - INFO -         Liga (Limpo): YKKOSLIIGA
+2025-07-08 20:27:33 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: FINLAND: YKKOSLIIGA
+2025-07-08 20:27:33 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: bPVGkAhM
+2025-07-08 20:27:33 - ScrapperPredictor - INFO -   Jogo ID bPVGkAhM (FINLAND: YKKOSLIIGA): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:27:55 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 2cx8iWN9
+2025-07-08 20:27:55 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/2cx8iWN9/#/match-summary/match-summary
+2025-07-08 20:27:57 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:27:57 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:27:57 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:27:57 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:27:57 - ScrapperPredictor - INFO -         País: FINLAND
+2025-07-08 20:27:58 - ScrapperPredictor - INFO -         Liga (Texto Bruto): YKKOSLIIGA
+2025-07-08 20:27:58 - ScrapperPredictor - INFO -         Liga (Limpo): YKKOSLIIGA
+2025-07-08 20:27:58 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: FINLAND: YKKOSLIIGA
+2025-07-08 20:27:58 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 2cx8iWN9
+2025-07-08 20:27:58 - ScrapperPredictor - INFO -   Jogo ID 2cx8iWN9 (FINLAND: YKKOSLIIGA): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:28:21 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: fXYaghgc
+2025-07-08 20:28:21 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/fXYaghgc/#/match-summary/match-summary
+2025-07-08 20:28:23 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:28:23 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:28:24 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:28:24 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:28:24 - ScrapperPredictor - INFO -         País: FINLAND
+2025-07-08 20:28:24 - ScrapperPredictor - INFO -         Liga (Texto Bruto): YKKOSLIIGA
+2025-07-08 20:28:24 - ScrapperPredictor - INFO -         Liga (Limpo): YKKOSLIIGA
+2025-07-08 20:28:24 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: FINLAND: YKKOSLIIGA
+2025-07-08 20:28:24 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: fXYaghgc
+2025-07-08 20:28:24 - ScrapperPredictor - INFO -   Jogo ID fXYaghgc (FINLAND: YKKOSLIIGA): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:28:47 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: xImMfpbs
+2025-07-08 20:28:47 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/xImMfpbs/#/match-summary/match-summary
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -         País: INDIA
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CALCUTTA PREMIER DIVISION
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -         Liga (Limpo): CALCUTTA PREMIER DIVISION
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: INDIA: CALCUTTA PREMIER DIVISION
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: xImMfpbs
+2025-07-08 20:28:49 - ScrapperPredictor - INFO -   Jogo ID xImMfpbs (INDIA: CALCUTTA PREMIER DIVISION): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:29:11 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 6Zdj06zK
+2025-07-08 20:29:11 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/6Zdj06zK/#/match-summary/match-summary
+2025-07-08 20:29:13 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:29:13 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:29:14 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:29:14 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:29:14 - ScrapperPredictor - INFO -         País: INDIA
+2025-07-08 20:29:14 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CALCUTTA PREMIER DIVISION
+2025-07-08 20:29:14 - ScrapperPredictor - INFO -         Liga (Limpo): CALCUTTA PREMIER DIVISION
+2025-07-08 20:29:14 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: INDIA: CALCUTTA PREMIER DIVISION
+2025-07-08 20:29:14 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 6Zdj06zK
+2025-07-08 20:29:14 - ScrapperPredictor - INFO -   Jogo ID 6Zdj06zK (INDIA: CALCUTTA PREMIER DIVISION): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:29:17 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: 6Zdj06zK
+2025-07-08 20:29:38 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: 6Zdj06zK
+2025-07-08 20:29:41 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: 6Zdj06zK
+2025-07-08 20:29:56 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: vDjEhfHD
+2025-07-08 20:29:56 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/vDjEhfHD/#/match-summary/match-summary
+2025-07-08 20:29:58 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:29:58 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:29:59 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:29:59 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:29:59 - ScrapperPredictor - INFO -         País: INDIA
+2025-07-08 20:29:59 - ScrapperPredictor - INFO -         Liga (Texto Bruto): CALCUTTA PREMIER DIVISION
+2025-07-08 20:29:59 - ScrapperPredictor - INFO -         Liga (Limpo): CALCUTTA PREMIER DIVISION
+2025-07-08 20:29:59 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: INDIA: CALCUTTA PREMIER DIVISION
+2025-07-08 20:29:59 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: vDjEhfHD
+2025-07-08 20:29:59 - ScrapperPredictor - INFO -   Jogo ID vDjEhfHD (INDIA: CALCUTTA PREMIER DIVISION): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:30:20 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 6smkF4uh
+2025-07-08 20:30:20 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/6smkF4uh/#/match-summary/match-summary
+2025-07-08 20:30:22 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:30:22 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:30:23 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:30:23 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:30:23 - ScrapperPredictor - INFO -         País: MONGOLIA
+2025-07-08 20:30:23 - ScrapperPredictor - INFO -         Liga (Texto Bruto): PREMIER LEAGUE - ROUND 25
+2025-07-08 20:30:23 - ScrapperPredictor - INFO -         Liga (Limpo): PREMIER LEAGUE
+2025-07-08 20:30:23 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: MONGOLIA: PREMIER LEAGUE
+2025-07-08 20:30:23 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 6smkF4uh
+2025-07-08 20:30:23 - ScrapperPredictor - INFO -   Jogo ID 6smkF4uh (MONGOLIA: PREMIER LEAGUE): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:30:45 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: CvjcDrA4
+2025-07-08 20:30:45 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/CvjcDrA4/#/match-summary/match-summary
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -         País: MONGOLIA
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -         Liga (Texto Bruto): PREMIER LEAGUE - ROUND 25
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -         Liga (Limpo): PREMIER LEAGUE
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: MONGOLIA: PREMIER LEAGUE
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: CvjcDrA4
+2025-07-08 20:30:48 - ScrapperPredictor - INFO -   Jogo ID CvjcDrA4 (MONGOLIA: PREMIER LEAGUE): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:30:52 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: CvjcDrA4
+2025-07-08 20:31:13 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: CvjcDrA4
+2025-07-08 20:31:15 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: CvjcDrA4
+2025-07-08 20:31:30 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: Ygv6BMvH
+2025-07-08 20:31:30 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/Ygv6BMvH/#/match-summary/match-summary
+2025-07-08 20:31:32 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:31:32 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:31:33 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:31:33 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:31:33 - ScrapperPredictor - INFO -         País: MONGOLIA
+2025-07-08 20:31:33 - ScrapperPredictor - INFO -         Liga (Texto Bruto): PREMIER LEAGUE - ROUND 25
+2025-07-08 20:31:33 - ScrapperPredictor - INFO -         Liga (Limpo): PREMIER LEAGUE
+2025-07-08 20:31:33 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: MONGOLIA: PREMIER LEAGUE
+2025-07-08 20:31:33 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: Ygv6BMvH
+2025-07-08 20:31:33 - ScrapperPredictor - INFO -   Jogo ID Ygv6BMvH (MONGOLIA: PREMIER LEAGUE): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:31:35 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: Ygv6BMvH
+2025-07-08 20:31:56 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: Ygv6BMvH
+2025-07-08 20:31:58 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: Ygv6BMvH
+2025-07-08 20:32:13 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: jognq92b
+2025-07-08 20:32:13 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/jognq92b/#/match-summary/match-summary
+2025-07-08 20:32:15 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:32:15 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:32:16 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:32:16 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:32:16 - ScrapperPredictor - INFO -         País: MOZAMBIQUE
+2025-07-08 20:32:16 - ScrapperPredictor - INFO -         Liga (Texto Bruto): MOCAMBOLA - ROUND 5
+2025-07-08 20:32:16 - ScrapperPredictor - INFO -         Liga (Limpo): MOCAMBOLA
+2025-07-08 20:32:16 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: MOZAMBIQUE: MOCAMBOLA
+2025-07-08 20:32:16 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: jognq92b
+2025-07-08 20:32:16 - ScrapperPredictor - INFO -   Jogo ID jognq92b (MOZAMBIQUE: MOCAMBOLA): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:32:38 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: OGhvDmhe
+2025-07-08 20:32:38 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/OGhvDmhe/#/match-summary/match-summary
+2025-07-08 20:32:39 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:32:39 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:32:40 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:32:40 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:32:40 - ScrapperPredictor - INFO -         País: NIGER
+2025-07-08 20:32:40 - ScrapperPredictor - INFO -         Liga (Texto Bruto): SUPER LIGUE - ROUND 29
+2025-07-08 20:32:40 - ScrapperPredictor - INFO -         Liga (Limpo): SUPER LIGUE
+2025-07-08 20:32:40 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: NIGER: SUPER LIGUE
+2025-07-08 20:32:40 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: OGhvDmhe
+2025-07-08 20:32:40 - ScrapperPredictor - INFO -   Jogo ID OGhvDmhe (NIGER: SUPER LIGUE): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:32:43 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: OGhvDmhe
+2025-07-08 20:33:04 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: OGhvDmhe
+2025-07-08 20:33:07 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: OGhvDmhe
+2025-07-08 20:33:22 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: OGQlYD5D
+2025-07-08 20:33:22 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/OGQlYD5D/#/match-summary/match-summary
+2025-07-08 20:33:23 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:33:23 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:33:24 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:33:24 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:33:24 - ScrapperPredictor - INFO -         País: NORWAY
+2025-07-08 20:33:24 - ScrapperPredictor - INFO -         Liga (Texto Bruto): NM CUP - SEMI-FINALS
+2025-07-08 20:33:24 - ScrapperPredictor - INFO -         Liga (Limpo): NM CUP - SEMI-FINALS
+2025-07-08 20:33:24 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: NORWAY: NM CUP - SEMI-FINALS
+2025-07-08 20:33:24 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: OGQlYD5D
+2025-07-08 20:33:24 - ScrapperPredictor - INFO -   Jogo ID OGQlYD5D (NORWAY: NM CUP - SEMI-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:33:46 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: Awhtxd6l
+2025-07-08 20:33:46 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/Awhtxd6l/#/match-summary/match-summary
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -         País: NORWAY
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -         Liga (Texto Bruto): NM CUP - SEMI-FINALS
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -         Liga (Limpo): NM CUP - SEMI-FINALS
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: NORWAY: NM CUP - SEMI-FINALS
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: Awhtxd6l
+2025-07-08 20:33:48 - ScrapperPredictor - INFO -   Jogo ID Awhtxd6l (NORWAY: NM CUP - SEMI-FINALS): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:34:11 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: fsbbH9lS
+2025-07-08 20:34:11 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/fsbbH9lS/#/match-summary/match-summary
+2025-07-08 20:34:12 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:34:12 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:34:13 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:34:13 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:34:13 - ScrapperPredictor - INFO -         País: SIERRA LEONE
+2025-07-08 20:34:13 - ScrapperPredictor - INFO -         Liga (Texto Bruto): PREMIER LEAGUE - ROUND 31
+2025-07-08 20:34:13 - ScrapperPredictor - INFO -         Liga (Limpo): PREMIER LEAGUE
+2025-07-08 20:34:13 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: SIERRA LEONE: PREMIER LEAGUE
+2025-07-08 20:34:13 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: fsbbH9lS
+2025-07-08 20:34:13 - ScrapperPredictor - INFO -   Jogo ID fsbbH9lS (SIERRA LEONE: PREMIER LEAGUE): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:34:37 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: fsbbH9lS
+2025-07-08 20:34:58 - ScrapperPredictor - WARNING - Timeout ao esperar odds BTTS FT. Jogo ID: fsbbH9lS
+2025-07-08 20:35:13 - ScrapperPredictor - INFO -   Buscando info básica para Jogo ID: 0ILoJa6k
+2025-07-08 20:35:13 - ScrapperPredictor - INFO -     Navegando para: https://flashscore.com/match/0ILoJa6k/#/match-summary/match-summary
+2025-07-08 20:35:15 - ScrapperPredictor - INFO -     Aguardando container principal: 'div.duelParticipant'
+2025-07-08 20:35:15 - ScrapperPredictor - INFO -     Container principal encontrado.
+2025-07-08 20:35:16 - ScrapperPredictor - INFO -     Buscando breadcrumbs: 'ol.wcl-breadcrumbList_m5Npe'
+2025-07-08 20:35:16 - ScrapperPredictor - INFO -       Lista de breadcrumbs encontrada.
+2025-07-08 20:35:16 - ScrapperPredictor - INFO -         País: SYRIA
+2025-07-08 20:35:16 - ScrapperPredictor - INFO -         Liga (Texto Bruto): PREMIER LEAGUE - CHAMPIONSHIP GROUP - ROUND 2
+2025-07-08 20:35:16 - ScrapperPredictor - INFO -         Liga (Limpo): PREMIER LEAGUE - CHAMPIONSHIP GROUP
+2025-07-08 20:35:16 - ScrapperPredictor - INFO -     Nome Completo Scraper para Map: SYRIA: PREMIER LEAGUE - CHAMPIONSHIP GROUP
+2025-07-08 20:35:16 - ScrapperPredictor - INFO -   -> Info básica OK para Jogo ID: 0ILoJa6k
+2025-07-08 20:35:16 - ScrapperPredictor - INFO -   Jogo ID 0ILoJa6k (SYRIA: PREMIER LEAGUE - CHAMPIONSHIP GROUP): NÃO MAPEADO (sem filtro). Usando nome raspado. Coletando odds...
+2025-07-08 20:35:19 - ScrapperPredictor - WARNING - Não encontrou 3+ células de odds (a.oddsCell__odd, span.oddsCell__odd) 1x2 FT na primeira linha. Jogo ID: 0ILoJa6k
+2025-07-08 20:35:40 - ScrapperPredictor - WARNING - Timeout ao esperar/encontrar linha O/U 2.5. Jogo ID: 0ILoJa6k
+2025-07-08 20:35:43 - ScrapperPredictor - WARNING - Não encontrou 2+ células de odds (a.oddsCell__odd, span.oddsCell__odd) BTTS FT. Jogo ID: 0ILoJa6k
+2025-07-08 20:35:49 - MainApp - INFO - Fechando aplicação.
+2025-07-08 20:35:49 - MainApp - INFO - Destruindo janela principal.

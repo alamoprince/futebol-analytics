@@ -1,0 +1,140 @@
+2025-07-08 19:42:59 - MainApp - INFO - APP_DIR (launcher): c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src
+2025-07-08 19:42:59 - MainApp - INFO - SRC_DIR: c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src
+2025-07-08 19:42:59 - MainApp - INFO - BASE_DIR: c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics
+2025-07-08 19:42:59 - MainApp - INFO - sys.path includes SRC_DIR?: True, BASE_DIR?: True
+2025-07-08 19:43:08 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-07-08 19:43:09 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-07-08 19:43:15 - MainApp - INFO - DPI Awareness set.
+2025-07-08 19:43:15 - MainApp - INFO - ScraperUploadTab instanciada.
+2025-07-08 19:43:15 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_f1.joblib (Modif.: 2025-06-30 18:35:49)
+2025-07-08 19:43:15 - PredictorApp - INFO -   Tipo: SVC | Calib: Sim | F1 Thr: 0.2439 | EV Thr: 0.3840
+2025-07-08 19:43:15 - PredictorApp - INFO - Modelo carregado: best_model_backdraw_best_roi.joblib (Modif.: 2025-06-30 18:35:49)
+2025-07-08 19:43:15 - PredictorApp - INFO -   Tipo: GaussianNB | Calib: Sim | F1 Thr: 0.2696 | EV Thr: 0.4380
+2025-07-08 19:43:15 - DataHandler - INFO - Iniciando carregamento/mapeamento histórico (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS)...
+2025-07-08 19:43:15 - DataHandler - INFO - -- Processando arquivo: dados_combinados_2019_2025.xlsx --
+2025-07-08 19:43:15 - DataHandler - INFO - Lendo dados_combinados_2019_2025.xlsx (formato: .xlsx)...
+2025-07-08 19:43:52 - DataHandler - INFO -   -> Lido 97670 linhas de dados_combinados_2019_2025.xlsx.
+2025-07-08 19:43:52 - DataHandler - INFO - (dados_combinados_2019_2025.xlsx) Mapeando coluna de liga 'League'...
+2025-07-08 19:43:52 - DataHandler - WARNING -   (dados_combinados_2019_2025.xlsx) Ligas NÃO mapeadas para ID Interno: ['Austria 2. Liga', 'Austria Bundesliga', 'Belgium Pro League', 'Bulgaria First League', 'Chile Primera División', 'China Chinese Super League', 'Croatia Prva HNL', 'Czech Republic First League', 'Denmark Superliga', 'Egypt Egyptian Premier League', 'England Championship', 'England EFL League One', 'England EFL League Two', 'England Premier League', 'Estonia Meistriliiga', 'Finland Veikkausliiga', 'France Ligue 1', 'France Ligue 2', 'Germany 2. Bundesliga', 'Germany Bundesliga', 'Greece Super League', 'Iceland Úrvalsdeild', 'Japan J1 League', 'Japan J2 League', 'Netherlands Eerste Divisie', 'Netherlands Eredivisie', 'Norway Eliteserien', 'Norway First Division', 'Paraguay Division Profesional', 'Poland Ekstraklasa', 'Portugal Liga NOS', 'Portugal LigaPro', 'Republic of Ireland Premier Division', 'Scotland Premiership', 'Slovakia Super Liga', 'Slovenia PrvaLiga', 'South Korea K League 1', 'South Korea K League 2', 'Spain La Liga', 'Sweden Allsvenskan', 'Sweden Superettan', 'Switzerland Challenge League', 'Switzerland Super League', 'Turkey Süper Lig', 'USA MLS', 'Uruguay Primera División', 'Wales Welsh Premier League']
+2025-07-08 19:43:52 - DataHandler - INFO -   (dados_combinados_2019_2025.xlsx) APLICANDO FILTRO por TARGET_LEAGUES_INTERNAL_IDS...
+2025-07-08 19:43:52 - DataHandler - INFO -     -> Filtro de Liga: 18177/97670 jogos restantes.
+2025-07-08 19:43:52 - DataHandler - INFO -   -> Arquivo dados_combinados_2019_2025.xlsx processado com sucesso (Shape: (18177, 20)).
+2025-07-08 19:43:52 - DataHandler - INFO - Concatenando 1 DataFrames processados...
+2025-07-08 19:43:52 - DataHandler - INFO - DataFrame histórico combinado antes do pós-processamento: (18177, 20)
+2025-07-08 19:43:52 - DataHandler - INFO - Iniciando processamento comum pós-concatenação...
+2025-07-08 19:43:53 - DataHandler - INFO -   -> Conversão de 'Date' concluída. 0 NaNs restantes em Date (deveria ser 0).
+2025-07-08 19:43:53 - DataHandler - INFO -   Verificando NaNs essenciais em: ['Date', 'Home', 'Away', 'Goals_H_FT', 'Goals_A_FT', 'Odd_H_FT', 'Odd_D_FT', 'Odd_A_FT']
+2025-07-08 19:43:53 - DataHandler - INFO -   Removidas 239 linhas devido a NaNs em colunas essenciais.
+2025-07-08 19:43:53 - DataHandler - INFO -   DataFrame histórico ordenado por data.
+2025-07-08 19:43:53 - DataHandler - INFO -   Calculando Pi-Ratings finais...
+2025-07-08 19:43:53 - DataHandler - INFO - Calculando Pi-Ratings e Momentum (Janela=5)...
+2025-07-08 19:43:54 - DataHandler - INFO - Pi-Ratings/Momentum calculados. Colunas: ['PiRating_H', 'PiRating_A', 'PiRating_Diff', 'PiRating_Prob_H', 'PiR_Mom_5G_H', 'PiR_Mom_5G_A', 'PiR_Mom_5G_Diff']
+2025-07-08 19:43:54 - DataHandler - INFO - Processamento pós-concatenação concluído.
+2025-07-08 19:43:54 - DataHandler - INFO - Carregamento e processamento de dados históricos concluídos (FILTRO DE LIGA HISTÓRICO ATIVO por TARGET_LEAGUES_INTERNAL_IDS). Shape Final: (17938, 27)
+2025-07-08 19:43:54 - DataHandler - INFO - Contagem de NaNs finais (em colunas com algum NaN):
+Odd_Over25_FT      156
+Odd_Under25_FT     156
+Odd_BTTS_Yes       154
+Odd_BTTS_No        154
+PiR_Mom_5G_H       591
+PiR_Mom_5G_A       616
+PiR_Mom_5G_Diff    793
+dtype: int64
+2025-07-08 19:43:54 - MainApp - INFO - FootballPredictorDashboard instanciada.
+2025-07-08 19:43:54 - MainApp - INFO - FeatureAnalyzerApp instanciada.
+2025-07-08 19:43:54 - MainApp - INFO - ModelInterpreterApp instanciada.
+2025-07-08 19:45:47 - ScraperTab - INFO - Thread de scraping iniciada.
+2025-07-08 19:45:47 - ScrapperPredictor - INFO - Iniciando WebDriver...
+2025-07-08 19:45:54 - ScrapperPredictor - INFO - WebDriver inicializado.
+2025-07-08 19:46:00 - ScrapperPredictor - INFO - Selecionando dia 'tomorrow'...
+2025-07-08 19:46:20 - ScrapperPredictor - ERROR - Erro CRÍTICO ao clicar no botão do dia 'tomorrow': Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff603f66f75+76917]
+	GetHandleVerifier [0x0x7ff603f66fd0+77008]
+	(No symbol) [0x0x7ff603d19dea]
+	(No symbol) [0x0x7ff603d70256]
+	(No symbol) [0x0x7ff603d7050c]
+	(No symbol) [0x0x7ff603dc3887]
+	(No symbol) [0x0x7ff603d984af]
+	(No symbol) [0x0x7ff603dc065c]
+	(No symbol) [0x0x7ff603d98243]
+	(No symbol) [0x0x7ff603d61431]
+	(No symbol) [0x0x7ff603d621c3]
+	GetHandleVerifier [0x0x7ff60423d2ad+3051437]
+	GetHandleVerifier [0x0x7ff604237903+3028483]
+	GetHandleVerifier [0x0x7ff60425589d+3151261]
+	GetHandleVerifier [0x0x7ff603f8183e+185662]
+	GetHandleVerifier [0x0x7ff603f896ff+218111]
+	GetHandleVerifier [0x0x7ff603f6faf4+112628]
+	GetHandleVerifier [0x0x7ff603f6fca9+113065]
+	GetHandleVerifier [0x0x7ff603f56c78+10616]
+	BaseThreadInitThunk [0x0x7ffa41d7e8d7+23]
+	RtlUserThreadStart [0x0x7ffa43ebc34c+44]
+
+2025-07-08 19:46:22 - ScrapperPredictor - INFO - WebDriver fechado.
+2025-07-08 19:46:22 - ScraperTab - ERROR - Scraping falhou, retornou None.
+2025-07-08 19:46:22 - ScraperTab - INFO - Thread de scraping finalizada.
+2025-07-08 19:47:33 - ScraperTab - INFO - Thread de scraping iniciada.
+2025-07-08 19:47:33 - ScrapperPredictor - INFO - Iniciando WebDriver...
+2025-07-08 19:47:34 - ScrapperPredictor - INFO - WebDriver inicializado.
+2025-07-08 19:47:39 - ScrapperPredictor - INFO - Selecionando dia 'tomorrow'...
+2025-07-08 19:48:00 - ScrapperPredictor - ERROR - Erro CRÍTICO ao clicar no botão do dia 'tomorrow': Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff603f66f75+76917]
+	GetHandleVerifier [0x0x7ff603f66fd0+77008]
+	(No symbol) [0x0x7ff603d19dea]
+	(No symbol) [0x0x7ff603d70256]
+	(No symbol) [0x0x7ff603d7050c]
+	(No symbol) [0x0x7ff603dc3887]
+	(No symbol) [0x0x7ff603d984af]
+	(No symbol) [0x0x7ff603dc065c]
+	(No symbol) [0x0x7ff603d98243]
+	(No symbol) [0x0x7ff603d61431]
+	(No symbol) [0x0x7ff603d621c3]
+	GetHandleVerifier [0x0x7ff60423d2ad+3051437]
+	GetHandleVerifier [0x0x7ff604237903+3028483]
+	GetHandleVerifier [0x0x7ff60425589d+3151261]
+	GetHandleVerifier [0x0x7ff603f8183e+185662]
+	GetHandleVerifier [0x0x7ff603f896ff+218111]
+	GetHandleVerifier [0x0x7ff603f6faf4+112628]
+	GetHandleVerifier [0x0x7ff603f6fca9+113065]
+	GetHandleVerifier [0x0x7ff603f56c78+10616]
+	BaseThreadInitThunk [0x0x7ffa41d7e8d7+23]
+	RtlUserThreadStart [0x0x7ffa43ebc34c+44]
+
+2025-07-08 19:48:02 - ScrapperPredictor - INFO - WebDriver fechado.
+2025-07-08 19:48:02 - ScraperTab - ERROR - Scraping falhou, retornou None.
+2025-07-08 19:48:02 - ScraperTab - INFO - Thread de scraping finalizada.
+2025-07-08 19:48:59 - ScraperTab - INFO - Thread de scraping iniciada.
+2025-07-08 19:48:59 - ScrapperPredictor - INFO - Iniciando WebDriver...
+2025-07-08 19:49:01 - ScrapperPredictor - INFO - WebDriver inicializado.
+2025-07-08 19:49:05 - ScrapperPredictor - INFO - Selecionando dia 'tomorrow'...
+2025-07-08 19:49:25 - ScrapperPredictor - ERROR - Erro CRÍTICO ao clicar no botão do dia 'tomorrow': Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff603f66f75+76917]
+	GetHandleVerifier [0x0x7ff603f66fd0+77008]
+	(No symbol) [0x0x7ff603d19dea]
+	(No symbol) [0x0x7ff603d70256]
+	(No symbol) [0x0x7ff603d7050c]
+	(No symbol) [0x0x7ff603dc3887]
+	(No symbol) [0x0x7ff603d984af]
+	(No symbol) [0x0x7ff603dc065c]
+	(No symbol) [0x0x7ff603d98243]
+	(No symbol) [0x0x7ff603d61431]
+	(No symbol) [0x0x7ff603d621c3]
+	GetHandleVerifier [0x0x7ff60423d2ad+3051437]
+	GetHandleVerifier [0x0x7ff604237903+3028483]
+	GetHandleVerifier [0x0x7ff60425589d+3151261]
+	GetHandleVerifier [0x0x7ff603f8183e+185662]
+	GetHandleVerifier [0x0x7ff603f896ff+218111]
+	GetHandleVerifier [0x0x7ff603f6faf4+112628]
+	GetHandleVerifier [0x0x7ff603f6fca9+113065]
+	GetHandleVerifier [0x0x7ff603f56c78+10616]
+	BaseThreadInitThunk [0x0x7ffa41d7e8d7+23]
+	RtlUserThreadStart [0x0x7ffa43ebc34c+44]
+
+2025-07-08 19:49:28 - ScrapperPredictor - INFO - WebDriver fechado.
+2025-07-08 19:49:28 - ScraperTab - ERROR - Scraping falhou, retornou None.
+2025-07-08 19:49:28 - ScraperTab - INFO - Thread de scraping finalizada.
+2025-07-08 19:53:02 - MainApp - INFO - Fechando aplicação.
+2025-07-08 19:53:02 - MainApp - INFO - Destruindo janela principal.

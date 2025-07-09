@@ -60,7 +60,7 @@ HISTORICAL_DATA_FILENAME_3 = "dados_combinados_2019_2025.xlsx"
 HISTORICAL_DATA_PATH_3 = os.path.join(DATA_DIR, HISTORICAL_DATA_FILENAME_3)
 
 SCRAPER_BASE_URL = "https://flashscore.com"
-SCRAPER_TARGET_DAY =  "tomorrow" # "today" ou "tomorrow"
+SCRAPER_TARGET_DAY =  "today" # "today" ou "tomorrow"
 SCRAPER_TARGET_DATE = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d") 
 
 # --- Fonte de Dados Futuros (CSV GitHub) ---
@@ -68,18 +68,23 @@ FIXTURE_FETCH_DAY = "today" # Ou "today"
 FIXTURE_CSV_URL_TEMPLATE = "https://raw.githubusercontent.com/alamoprince/data_base_fut_analytics/main/data/raw_scraped/scraped_fixtures_{date_str}.csv" # Atualizado branch
 
 CHROMEDRIVER_PATH = os.path.join(BASE_DIR, 'chromedriver.exe')
-SCRAPER_TIMEOUT = 20
-SCRAPER_ODDS_TIMEOUT = 20
+SCRAPER_TIMEOUT = 13
+SCRAPER_ODDS_TIMEOUT = 15
+SCRAPER_SLEEP_BETWEEN_GAMES = 5
+SCRAPER_SLEEP_AFTER_NAV = 15
 
 # --- Configurações Pi-Rating ---
-PI_RATING_INITIAL = 1500  # Rating inicial para times não vistos
-PI_RATING_K_FACTOR = 30   # Fator K (ajusta a magnitude da mudança de rating)
-PI_RATING_HOME_ADVANTAGE = 65 # Pontos de rating adicionados ao time da casa para cálculo da expectativa (ajuste experimental)
+PI_RATING_INITIAL = 0  
+PI_RATING_K_FACTOR = 30   
+PI_RATING_HOME_ADVANTAGE = 65 
 
-# --- Filtro de Ligas do Scraper (OPCIONAL) ---
+# --- Filtro de Ligas do Scraper ---
 SCRAPER_FILTER_LEAGUES = False
 
-# 1. NOMES INTERNOS PADRÃO (Seus identificadores únicos)
+# --- Filtro de Ligas Alvo para Scraper e Análise ---
+APPLY_LEAGUE_FILTER_ON_HISTORICAL = True
+
+# NOMES INTERNOS PADRÃO 
 INTERNAL_LEAGUE_NAMES = {
      'ARGENTINA 1': 'Argentina - Primera División', # Nome descritivo opcional
      'SPAIN 2': 'Espanha - Segunda División',
@@ -254,7 +259,6 @@ INTERNAL_LEAGUE_NAMES = {
 TARGET_LEAGUES_INTERNAL_IDS = list(INTERNAL_LEAGUE_NAMES.keys())
 
 #database historica
-
 TARGET_LEAGUES_1 = {'Argentina Primera División':'ARGENTINA 1','Spain Segunda División':'SPAIN 2', 'Serbia SuperLiga':'SERBIA 1', 'France: Ligue 1':'FRANCE 1','Italy Serie A':'ITALY 1', 'Italy Serie B':'ITALY 2', 'Brazil Serie A':'BRAZIL 1','Brazil Serie B':'BRAZIL 2', 'Romania Liga I':'ROMANIA 1'}
 TARGET_LEAGUES_2 = {'ARGENTINA 1':'ARGENTINA 1','SPAIN 2':'SPAIN 2', 'SERBIA 1':'SERBIA 1', 'FRANCE 1':'FRANCE 1','ITALY 1':'ITALY 1', 'ITALY 2':'ITALY 2', 'BRAZIL 1':'BRAZIL 1','BRAZIL 2':'BRAZIL 2', 'ROMANIA 1':'ROMANIA 1'}
 
@@ -269,11 +273,6 @@ SCRAPER_TO_INTERNAL_LEAGUE_MAP = {
     'BRAZIL: Serie B Superbet': 'BRAZIL 2',
     'ROMANIA: Superliga - Relegation Group': 'ROMANIA 1'
 }
-
-APPLY_LEAGUE_FILTER_ON_HISTORICAL = True
-
-SCRAPER_SLEEP_BETWEEN_GAMES = 15
-SCRAPER_SLEEP_AFTER_NAV = 15
 
 # --- Arquivos dos Modelos Salvos ---
 BEST_F1_MODEL_FILENAME = f"best_model{MODEL_SUFFIX_F1}.joblib"
@@ -342,7 +341,7 @@ REQUIRED_FIXTURE_COLS = ['League','Time_Str', 'Home', 'Away', 'Odd_H_FT', 'Odd_D
 
 # --- Configurações Gerais do Modelo ---
 RANDOM_STATE = 42
-TEST_SIZE = 0.20 # Fração para teste final
+TEST_SIZE = 0.15 # Fração para teste final
 CROSS_VALIDATION_SPLITS = 5 # Número de splits para TimeSeriesSplit na CV
 N_JOBS_GRIDSEARCH = -1 # Usar todos os processadores
 ROLLING_WINDOW = 5 # <<< AJUSTE AQUI a janela padrão para médias simples e momentum PiRating
@@ -367,8 +366,8 @@ PIRATING_MOMENTUM_A = f'PiR_Mom_{ROLLING_WINDOW}G_A'
 PIRATING_MOMENTUM_DIFF = f'PiR_Mom_{ROLLING_WINDOW}G_Diff'
 
 # Nomes EWMA
-EWMA_SPAN_SHORT = 5  # <<< AJUSTE AQUI o span curto
-EWMA_SPAN_LONG = 10 # <<< AJUSTE AQUI o span longo
+EWMA_SPAN_SHORT = 3  # <<< AJUSTE AQUI o span curto
+EWMA_SPAN_LONG = 5 # <<< AJUSTE AQUI o span longo
 EWMA_VG_H_SHORT = f'EWMA_VG_H_s{EWMA_SPAN_SHORT}'
 EWMA_VG_A_SHORT = f'EWMA_VG_A_s{EWMA_SPAN_SHORT}'
 EWMA_CG_H_SHORT = f'EWMA_CG_H_s{EWMA_SPAN_SHORT}'
@@ -421,7 +420,7 @@ BEST_MODEL_METRIC_ROI = 'roi' # ROI (Expected Value) - Para o modelo de ROI
 # --- Métrica Principal e Limiares Default ---
 BEST_MODEL_METRIC = 'f1_score_draw'
 BEST_MODEL_METRIC_ROI = 'roi'
-DEFAULT_F1_THRESHOLD = 0.5
+DEFAULT_F1_THRESHOLD = 0.25
 DEFAULT_EV_THRESHOLD = 0.1
 MIN_RECALL_FOR_PRECISION_OPT = 0.25
 MIN_PROB_THRESHOLD_FOR_HIGHLIGHT = 0.2
@@ -590,8 +589,8 @@ STATS_ROLLING_CONFIG = [
      'agg_func': np.nanmean, 'window': 10}, # Janela específica
      
     # Exemplo de Ptos
-    # {'base_col_h': 'Ptos_H', 'base_col_a': 'Ptos_A', 'output_prefix': 'Media_Ptos',
-    #  'agg_func': np.nanmean, 'window': ROLLING_WINDOW},
+    {'base_col_h': 'Ptos_H', 'base_col_a': 'Ptos_A', 'output_prefix': 'Media_Ptos',
+     'agg_func': np.nanmean, 'window': ROLLING_WINDOW},
 ]
 
 # --- Configurações para Estatísticas EWMA (Média Móvel Exponencial Ponderada) ---

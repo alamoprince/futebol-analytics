@@ -1,26 +1,20 @@
-# --- src/scraper_tab.py ---
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter.scrolledtext import ScrolledText
 import threading
-import queue # Para comunicação entre thread e GUI
+import queue 
 import sys
 import os
 import pandas as pd
-from datetime import date, timedelta, datetime # Adicionado datetime
-from typing import Optional
+from datetime import date, timedelta, datetime 
+from typing import Optional, Any
 import logging
 
-
-# --- Configurar Path ---
-# Assume que scraper_tab.py está DENTRO de src
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.dirname(CURRENT_DIR) # Diretório pai (futebol_analytics)
+BASE_DIR = os.path.dirname(CURRENT_DIR) 
 if CURRENT_DIR not in sys.path: sys.path.insert(0, CURRENT_DIR)
 if BASE_DIR not in sys.path: sys.path.insert(0, BASE_DIR)
 
-# --- Importar Módulos do Projeto ---
 try:
     from logger_config import setup_logger
 except ImportError:
@@ -34,61 +28,56 @@ except ImportError:
 
 logger = setup_logger("ScraperTab")
 try:
-
-    # Importa direto, pois BASE_DIR e CURRENT_DIR (src) estão no path
-    # Certifique-se que scraper_predictor.py existe e pode ser importado
     
     try:
         from scraper_predictor import scrape_upcoming_fixtures
     except ImportError:
         logger.error("Erro: Falha ao importar 'scrape_upcoming_fixtures' de 'scraper_predictor'. Verifique o arquivo.")
-        raise # Re-levanta o erro
+        raise 
 
-    # Certifique-se que github_manager.py existe e pode ser importado
     try:
         from github_manager import GitHubManager
     except ImportError:
         logger.error("Erro: Falha ao importar 'GitHubManager' de 'github_manager'. Verifique o arquivo.")
-        raise # Re-levanta o erro
+        raise 
 
-    # Certifique-se que config.py existe e pode ser importado
     try:
         from config import (
             SCRAPER_TARGET_DAY, GITHUB_REPO_NAME, CHROMEDRIVER_PATH
-            # GITHUB_PREDICTIONS_PATH não é usado diretamente aqui para salvar o RAW
+            
         )
     except ImportError:
         logger.error("Erro: Falha ao importar variáveis de 'config'. Verifique o arquivo.")
-        raise # Re-levanta o erro
+        raise 
 
-    from dotenv import load_dotenv # dotenv é opcional, mas bom ter
+    from dotenv import load_dotenv 
 
 except ImportError as e:
     logger.error(f"Erro CRÍTICO ao importar módulos em scraper_tab.py: {e}")
-    # Tenta mostrar erro na GUI se possível (difícil neste ponto)
     try:
         root_err = tk.Tk(); root_err.withdraw()
         messagebox.showerror("Erro de Importação (Scraper Tab)", f"Não foi possível importar módulos essenciais:\n{e}\n\nVerifique o console/logs.")
         root_err.destroy()
     except Exception: pass
-    sys.exit(1) # Importante sair se módulos cruciais faltam
+    sys.exit(1) 
 
 class ScraperUploadTab:
     def __init__(self, parent_frame, main_root):
         self.parent = parent_frame
-        self.main_tk_root = main_root # Necessário para o .after()
+        self.main_tk_root = main_root 
         self.gui_queue = queue.Queue()
         self.stop_processing_queue = False
         self.scraper_thread : Optional[threading.Thread] = None
         self.upload_thread : Optional[threading.Thread] = None
-        self.scraped_data: Optional[pd.DataFrame] = None # Para armazenar os dados raspados
+        self.scraped_data: Optional[pd.DataFrame] = None 
         self.github_manager: Optional[GitHubManager] = None
+        self.progress_bar: Optional[ttk.Progressbar] = None
+        self.progress_label: Optional[ttk.Label] = None
 
         self.create_widgets()
-        # Garante que a pasta de logs existe ao iniciar
         log_dir = os.path.join(BASE_DIR, 'logs')
         os.makedirs(log_dir, exist_ok=True)
-        self.process_gui_queue() # Inicia o processador da fila
+        self.process_gui_queue() 
 
     def log_to_widget(self, message: str):
         """ Envia mensagem de log para a área de texto na GUI. """
@@ -181,6 +170,18 @@ class ScraperUploadTab:
         )
         self.log_area.pack(fill=tk.BOTH, expand=True)
 
+        progress_outer_frame = ttk.Frame(main_frame, padding=(10, 5, 10, 10))
+        progress_outer_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(5, 0))
+        
+        self.progress_label = ttk.Label(progress_outer_frame, text="Pronto.", width=40, anchor="w")
+        self.progress_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.progress_bar = ttk.Progressbar(
+            progress_outer_frame, orient=tk.HORIZONTAL, length=400, mode='determinate'
+        )
+        # fill=tk.X e expand=True fazem a barra se esticar com a janela
+        self.progress_bar.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
         self.log_to_widget("Aba de Coleta e Upload inicializada.")
         self.log_to_widget(f"Alvo da coleta: Jogos de '{SCRAPER_TARGET_DAY}'.")
         self.log_to_widget(f"Repositório GitHub Alvo: '{GITHUB_REPO_NAME}' (verifique .env ou ambiente).")
@@ -204,16 +205,22 @@ class ScraperUploadTab:
 
     def _run_scrape_task(self):
         """Executa a lógica de scraping (roda na thread)."""
+        def scraper_progress_callback(status: str, payload: Any):
+            """Envia o progresso do scraper para a fila da GUI."""
+            if status == "start":
+                self.gui_queue.put(("progress_start", payload))
+            elif status == "update":
+                self.gui_queue.put(("progress_update", payload))
+
         try:
             logger.info("Thread de scraping iniciada.")
             self.log_to_widget("Thread de scraping iniciada...") 
 
-            # --- Lógica do scraper ---
             df_fixtures = scrape_upcoming_fixtures(
                 headless=True, 
-                chromedriver_path=CHROMEDRIVER_PATH 
+                chromedriver_path=CHROMEDRIVER_PATH,
+                progress_callback=scraper_progress_callback
             )
-            # --- Fim da lógica do scraper ---
 
             if df_fixtures is None:
                 self.log_to_widget("ERRO: Scraper falhou ou não retornou dados.")
@@ -242,6 +249,7 @@ class ScraperUploadTab:
             self.set_status("Erro crítico na coleta.")
             logger.error(errmsg, exc_info=True)
         finally:
+            self.gui_queue.put(("progress_end", None))
             self.set_button_state("run_scraper_button", tk.NORMAL)
             logger.info("Thread de scraping finalizada.")
 
@@ -354,8 +362,20 @@ class ScraperUploadTab:
                         self._update_status_label(payload)
                     elif message_type == "button_state":
                         self._update_button_state(payload)
-                    else:
-                        logger.warning(f"Tipo de mensagem desconhecido na fila GUI (Scraper): {message_type}")
+                    elif message_type == "progress_start":
+                        if self.progress_bar and self.progress_label:
+                            max_val, start_text = payload
+                            self.progress_bar.config(maximum=max_val, value=0)
+                            self.progress_label.config(text=start_text)
+                    elif message_type == "progress_update":
+                        if self.progress_bar and self.progress_label:
+                            value, text = payload
+                            self.progress_bar['value'] = value
+                            self.progress_label.config(text=text)
+                    elif message_type == "progress_end":
+                         if self.progress_bar and self.progress_label:
+                            self.progress_bar['value'] = 0
+                            self.progress_label.config(text="Pronto.")
 
                 except queue.Empty: 
                     break
@@ -364,7 +384,6 @@ class ScraperUploadTab:
                     break 
 
         finally:
-            # <<< PASSO 2: REAGENDA SÓ SE NÃO FOR PARAR >>>
             if not self.stop_processing_queue:
                 try:
                     if hasattr(self.main_tk_root, 'winfo_exists') and self.main_tk_root.winfo_exists():

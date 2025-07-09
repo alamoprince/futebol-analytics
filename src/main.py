@@ -73,6 +73,7 @@ class FootballPredictorDashboard:
         self.trained_model: Optional[Any] = None
         self.trained_scaler: Optional[Any] = None
         self.trained_calibrator: Optional[Any] = None # NOVO
+        self.training_medians: Optional[pd.Series] = None
         self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; # NOVO (default)
         # --- Fim Novos Atributos ---
         self.feature_columns: Optional[List[str]] = None
@@ -509,6 +510,7 @@ class FootballPredictorDashboard:
             self.trained_scaler = model_data.get('scaler')
             # --- Carrega Calibrador e Limiar ---
             self.trained_calibrator = model_data.get('calibrator')
+            self.training_medians = model_data.get('training_medians')
             self.feature_columns = model_data.get('features')
             self.model_best_params = model_data.get('params')
             self.model_eval_metrics = model_data.get('metrics')
@@ -537,6 +539,7 @@ class FootballPredictorDashboard:
             self.trained_model = None; 
             self.trained_scaler = None; 
             self.trained_calibrator = None;
+            self.training_medians = None;
             self.optimal_ev_threshold=DEFAULT_EV_THRESHOLD; 
             self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; 
             self.feature_columns = None; 
@@ -723,14 +726,15 @@ class FootballPredictorDashboard:
                 return
 
             self.gui_queue.put(("progress_update", (30, f"Preparando features para {len(fixture_df)} jogos...")))
-            if not self.feature_columns or self.historical_data is None:
-                self.log("ERRO: Features do modelo ou dados históricos ausentes para preparação.")
-                raise ValueError("Features do modelo ou dados históricos não carregados.") # Levanta erro para ser pego pelo except geral
-
+            if not self.feature_columns or self.historical_data is None or self.training_medians is None:
+                self.log("ERRO: Features, histórico ou medianas do treino ausentes para preparação.")
+                raise ValueError("Features, histórico ou medianas do treino não carregados.")
+            
             X_fixtures_prepared = prepare_fixture_data(
                 fixture_df,
                 self.historical_data,
-                self.feature_columns 
+                self.feature_columns,
+                training_medians=self.training_medians 
             )
 
             if X_fixtures_prepared is None: 
@@ -844,7 +848,7 @@ class FootballPredictorDashboard:
 
             if load_result:
                 # --- DESEMPACOTA ITENS ---
-                model, scaler, calibrator, ev_threshold, f1_thr, features, params, metrics, timestamp = load_result
+                model, scaler, calibrator, training_medians, ev_threshold, f1_thr, features, params, metrics, timestamp = load_result
                 if model and features:
                     self.log(f" -> Sucesso: Modelo '{model_id}' carregado (Limiar EV={ev_threshold:.3f}).")
                     # --- ARMAZENA CALIBRADOR E LIMIAR ---
@@ -852,6 +856,7 @@ class FootballPredictorDashboard:
                         'model': model, 
                         'scaler': scaler, 
                         'calibrator': calibrator, 
+                        'training_medians': training_medians,
                         'optimal_ev_threshold': ev_threshold, 
                         'optimal_f1_threshold': f1_thr, 
                         'features': features, 
