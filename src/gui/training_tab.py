@@ -1,13 +1,12 @@
-# --- src/main.py ---
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-# Removidos imports não usados mais nesta classe: Listbox, MULTIPLE, Scrollbar, io
 from tkinter.scrolledtext import ScrolledText
-import sys, os, threading, datetime, math, numpy as np # Removido io
+import sys, os, threading, datetime, math, numpy as np 
 from queue import Queue, Empty
 import pandas as pd
-from typing import Optional, Dict, List, Any # Garante typing
+from typing import Optional, Dict, List, Any 
 
+from strategies.base_strategy import BettingStrategy
 
 try:
     from lightgbm import LGBMClassifier
@@ -18,50 +17,47 @@ from typing import Optional, Dict, List, Any
 from logger_config import setup_logger
 
 logger = setup_logger("Main2")# Adiciona diretórios e importa módulos
-# (Mantém o setup de path para caso seja necessário em algum contexto)
 try:
     SRC_DIR = os.path.dirname(os.path.abspath(__file__))
     BASE_DIR = os.path.dirname(SRC_DIR)
     if SRC_DIR not in sys.path: sys.path.append(SRC_DIR)
     if BASE_DIR not in sys.path: sys.path.append(BASE_DIR)
-except NameError: # Avoid error in environments where __file__ is not defined
+except NameError: 
     pass
 
 try:
-    # Imports necessários para Treino/Previsão
     from config import (
         CLASS_NAMES, FIXTURE_FETCH_DAY,MODEL_CONFIG,
         MODEL_TYPE_NAME, ODDS_COLS as CONFIG_ODDS_COLS,
         BEST_F1_MODEL_SAVE_PATH, BEST_ROI_MODEL_SAVE_PATH, MODEL_ID_F1, MODEL_ID_ROI,
         DEFAULT_F1_THRESHOLD, DEFAULT_EV_THRESHOLD, CALIBRATION_METHOD_DEFAULT )
     
-    # Imports de data_handler necessários
     from data_handler import (
         load_historical_data,
-        preprocess_and_feature_engineer, # Usado em _run_training_pipeline
-        fetch_and_process_fixtures,      # Usado em _run_prediction_pipeline
-        prepare_fixture_data,            # Usado em _run_prediction_pipeline
-        calculate_historical_intermediate # Usado em _run_training_pipeline (para alinhar dados p/ ROI)
-        # Removido calculate_rolling_stats, calculate_derived_features se chamados apenas dentro dos pipelines
+        preprocess_and_feature_engineer, 
+        fetch_and_process_fixtures,      
+        prepare_fixture_data,            
+        calculate_historical_intermediate 
     )
-    # Imports de model_trainer necessários
     from model_trainer import train_evaluate_and_save_best_models as run_training_process
-    # Removido analyze_features, optimize_single_model se não forem chamados aqui
-    import predictor # Necessário para load_model_scaler_features e make_predictions
-    import requests # Usado em fetch_and_process_fixtures
-    from sklearn.model_selection import train_test_split # Usado em _run_training_pipeline
-    import traceback # Para log de erros
+    import predictor 
+    import requests 
+    from sklearn.model_selection import train_test_split 
+    import traceback 
 except ImportError as e:
     logger.error(f"Erro import main.py (Treino/Previsão): {e}")
-    raise # Re-levanta erro para app_launcher
+    raise 
 except Exception as e_i:
     logger.error(f"Erro geral import main.py (Treino/Previsão): {e_i}")
-    raise # Re-levanta erro
+    raise 
 
 class FootballPredictorDashboard:
-    def __init__(self, parent_frame, main_root):
+    def __init__(self, parent_frame, main_root, analyzer_app_ref, strategy):
+
         self.parent = parent_frame
         self.main_tk_root = main_root
+        self.analyzer_app = analyzer_app_ref
+        self.strategy = strategy
 
         self.gui_queue = Queue()
         self.stop_processing_queue = False
@@ -69,18 +65,16 @@ class FootballPredictorDashboard:
         self.loaded_models_data: Dict[str, Dict] = {}
         self.available_model_ids: List[str] = []
         self.selected_model_id: Optional[str] = None
-        # --- Novos atributos para Calibrador e Limiar ---
         self.trained_model: Optional[Any] = None
         self.trained_scaler: Optional[Any] = None
-        self.trained_calibrator: Optional[Any] = None # NOVO
+        self.trained_calibrator: Optional[Any] = None 
         self.training_medians: Optional[pd.Series] = None
-        self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; # NOVO (default)
-        # --- Fim Novos Atributos ---
+        self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; 
         self.feature_columns: Optional[List[str]] = None
         self.model_best_params: Optional[Dict] = None
         self.model_eval_metrics: Optional[Dict] = None
         self.model_file_timestamp: Optional[str] = None
-        self.optimal_f1_threshold: float = DEFAULT_F1_THRESHOLD # Usa padrão do config
+        self.optimal_f1_threshold: float = DEFAULT_F1_THRESHOLD 
         self.optimal_ev_threshold: float = DEFAULT_EV_THRESHOLD
         
         self.create_train_predict_widgets()
@@ -90,18 +84,12 @@ class FootballPredictorDashboard:
         self.log("Carregando modelos e histórico...")
         self.load_existing_model_assets()
 
-    # --- Widgets (`create_train_predict_widgets`) ---
-    # (Nenhuma mudança necessária aqui, apenas no display)
     def create_train_predict_widgets(self):
-        # ... (código como antes, cria botões, combobox, progress, stats_text, prediction_tree, log_area) ...
+
         main_frame = ttk.Frame(self.parent, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Painel esquerdo
         left_panel = ttk.Frame(main_frame)
         left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10), pady=5)
-
-        # Controles
         control_frame = ttk.LabelFrame(left_panel, text=" Ações ", padding="10")
         control_frame.pack(pady=(0, 5), fill=tk.X)
 
@@ -627,18 +615,16 @@ class FootballPredictorDashboard:
         predict_thread.start()
 
 
-    def _run_training_pipeline(self, df_hist_raw: pd.DataFrame, optimize_ev: bool = True, optimize_f1: bool = True): # Adicionado optimize_f1
-        """Pipeline de treinamento, incluindo pré-processamento, treinamento e salvamento."""
+    def _run_training_pipeline(self, df_hist_raw: pd.DataFrame, optimize_ev: bool = True, optimize_f1: bool = True): 
+
         training_successful = False
-        total_progress_units = 1000 # Valor inicial, será ajustado
+        total_progress_units = 1000 
         try:
-            # Calcula num_models ANTES de qualquer coisa que precise dele
             available_models = {name: config for name, config in MODEL_CONFIG.items() if not (name=='LGBMClassifier' and not LGBM_AVAILABLE)}
             num_models = len(available_models)
             if num_models == 0: raise ValueError("Nenhum modelo configurado.")
-            total_progress_units = num_models * 100 # Define o total correto
+            total_progress_units = num_models * 100 
 
-            # Inicia a barra de progresso com o MÁXIMO correto
             self.gui_queue.put(("progress_start", (total_progress_units,)))
             self.gui_queue.put(("progress_update", (int(total_progress_units*0.05 / num_models), "Pré-processando..."))) # Progresso inicial pequeno
 
@@ -660,8 +646,6 @@ class FootballPredictorDashboard:
                 if odd_draw_col_name not in df_full_data_aligned_for_split.columns: raise ValueError(f"Coluna Odd Empate '{odd_draw_col_name}' não encontrada.")
             except Exception as e_align: raise ValueError("Falha alinhar odds.") from e_align
 
-
-            # --- Define o NOVO callback ---
             def training_progress_callback_stages(model_index, status_text):
                 base_progress = model_index * 100
                 stage_progress = 0; status_lower = status_text.lower()
@@ -764,21 +748,11 @@ class FootballPredictorDashboard:
 
             self.log(f"Previsões (com probs Raw/Calib e EV) geradas para {len(df_predictions_all_info)} jogos.")
 
-            # --- Opcional: Filtragem antes da exibição ---
-            # Se você quiser filtrar os jogos ANTES de mostrá-los na GUI
-            # (em vez de apenas destacá-los), você pode aplicar filtros aqui.
-            # Por exemplo, para mostrar apenas jogos com EV > X e Prob > Y:
-
             df_for_display_and_highlight = df_predictions_all_info.copy()
-            # Você pode adicionar uma coluna de "Sinal" aqui se quiser
-            # Ex: df_for_display_and_highlight['Sinal_Aposta_EV'] = (df_for_display_and_highlight['EV_Empate'] > self.optimal_ev_threshold)
-            # Ex: df_for_display_and_highlight['Sinal_Aposta_Prob'] = (df_for_display_and_highlight[prob_col_para_usar] > self.optimal_f1_threshold)
 
-            # --- Lógica de Ordenação (Aplicada ao DataFrame que será exibido) ---
             prob_draw_calib_col_display = f'Prob_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'Prob_Empate'
             df_sorted_for_display = df_for_display_and_highlight.copy()
 
-            # Tenta ordenar pela probabilidade calibrada de empate (se existir e tiver valores)
             if prob_draw_calib_col_display in df_sorted_for_display.columns and \
                df_sorted_for_display[prob_draw_calib_col_display].notna().any():
                 self.log(f"Ordenando previsões por '{prob_draw_calib_col_display}' (calibrada) descendente...")
@@ -800,7 +774,6 @@ class FootballPredictorDashboard:
                 else:
                     self.log(f"Aviso: Nenhuma coluna de probabilidade (calibrada ou bruta) válida para ordenação.")
 
-            # --- Envio para GUI ---
             self.gui_queue.put(("progress_update", (95, "Preparando Exibição...")))
             if not df_sorted_for_display.empty:
                 self.log(f"Enviando {len(df_sorted_for_display)} previsões para exibição.")
@@ -830,8 +803,6 @@ class FootballPredictorDashboard:
             else:
                 self.set_button_state(self.predict_button, tk.DISABLED)
 
-
-    # --- Carregamento Inicial de Modelos  ---
     def load_existing_model_assets(self):
         self.log("--- Carregando Assets Iniciais ---")
         self.loaded_models_data = {}
@@ -844,14 +815,12 @@ class FootballPredictorDashboard:
 
         for model_id, model_path in model_paths_to_try.items():
             self.log(f"Tentando carregar: {model_id}...")
-            load_result = predictor.load_model_scaler_features(model_path) # Função atualizada
+            load_result = predictor.load_model_scaler_features(model_path) 
 
             if load_result:
-                # --- DESEMPACOTA ITENS ---
                 model, scaler, calibrator, training_medians, ev_threshold, f1_thr, features, params, metrics, timestamp = load_result
                 if model and features:
                     self.log(f" -> Sucesso: Modelo '{model_id}' carregado (Limiar EV={ev_threshold:.3f}).")
-                    # --- ARMAZENA CALIBRADOR E LIMIAR ---
                     self.loaded_models_data[model_id] = {
                         'model': model, 
                         'scaler': scaler, 
@@ -869,7 +838,6 @@ class FootballPredictorDashboard:
                     if default_selection is None: default_selection = model_id
                 else: self.log(f" -> Aviso: Arquivo '{model_id}' inválido (sem modelo/features).")
 
-        # Atualiza Combobox e seleciona default
         try:
             if hasattr(self, 'model_selector_combo') and self.model_selector_combo.winfo_exists():
                 self.model_selector_combo.config(values=self.available_model_ids)
@@ -882,7 +850,6 @@ class FootballPredictorDashboard:
                     self.selected_model_var.set(""); self.on_model_select(); self.log("Nenhum modelo válido encontrado.")
         except tk.TclError: pass
 
-        # Carrega histórico (se necessário)
         if self.historical_data is None:
             self.log("Carregando dados históricos..."); 
             df_hist = load_historical_data()
@@ -891,18 +858,15 @@ class FootballPredictorDashboard:
                 self.log("Histórico carregado.")
             else: self.log("Falha carregar histórico.")
 
-        # Habilita/Desabilita botão de prever
         if self.selected_model_id and self.historical_data is not None:
             self.set_button_state(self.predict_button, tk.NORMAL); self.log("Pronto para previsão.")
         else: self.set_button_state(self.predict_button, tk.DISABLED)
 
 
-    # --- Processamento da Fila GUI  ---
     def process_gui_queue(self):
-        # <<< PASSO 1: VERIFICA FLAG NO INÍCIO >>>
         if self.stop_processing_queue:
             logger.debug("PredictorDashboard: Parando fila GUI.")
-            return # Não processa e não reagenda
+            return 
 
         try:
             while True:
@@ -910,7 +874,7 @@ class FootballPredictorDashboard:
                     message = self.gui_queue.get_nowait()
                     msg_type, msg_payload = message
                 except Empty:
-                    break # Sai do loop while se a fila estiver vazia
+                    break 
                 except (ValueError, TypeError):
                     logger.error(f"AVISO GUI (Predictor): Erro unpack msg: {message}")
                     continue
@@ -918,7 +882,6 @@ class FootballPredictorDashboard:
                     logger.error(f"Erro get fila GUI (Predictor): {e_get}")
                     continue
 
-                # --- Trata tipos de mensagem ---
                 try:
                     if msg_type == "log":
                         self._update_log_area(str(msg_payload))
@@ -927,7 +890,6 @@ class FootballPredictorDashboard:
                     elif msg_type == "update_stats_gui":
                         self._update_model_stats_display_gui()
                     elif msg_type == "error":
-                        # Garante que messagebox tem um pai válido
                         parent_widget = self.parent if hasattr(self, 'parent') and self.parent.winfo_exists() else self.main_tk_root
                         messagebox.showerror(msg_payload[0], msg_payload[1], parent=parent_widget)
                     elif msg_type == "info":
@@ -965,33 +927,28 @@ class FootballPredictorDashboard:
                                 self.model_selector_combo.config(values=[])
                         except tk.TclError: pass
                         self._update_model_stats_display_gui()
-                        self.set_button_state(self.predict_button, tk.DISABLED) # Garante que está desabilitado
-                        self.set_button_state(self.load_train_button, tk.NORMAL) # Reabilita botão de treino
+                        self.set_button_state(self.predict_button, tk.DISABLED) 
+                        self.set_button_state(self.load_train_button, tk.NORMAL) 
                     elif msg_type == "prediction_complete":
                         df_preds = msg_payload
                         self.log("Recebidas previsões completas para exibição.")
                         self._update_prediction_display(df_preds)
-                        self.set_button_state(self.load_train_button, tk.NORMAL) # Reabilita botões pós-previsão
+                        self.set_button_state(self.load_train_button, tk.NORMAL) 
                         if self.selected_model_id: self.set_button_state(self.predict_button, tk.NORMAL)
                     else:
                         self.log(f"AVISO GUI (Predictor): Msg desconhecida: {msg_type}")
                 except tk.TclError:
-                    pass # Ignora erro se widget destruído
+                    pass 
                 except Exception as e_proc:
-                    # Usa logger importado
                     logger.error(f"Erro processar msg (Predictor) '{msg_type}': {e_proc}", exc_info=True)
-                    # Não usa traceback.logger.error_exc() a menos que logger seja o objeto traceback
 
         except Exception as e_loop:
             logger.error(f"Erro CRÍTICO loop fila GUI (Predictor): {e_loop}", exc_info=True)
         finally:
-            # <<< PASSO 2: REAGENDA SÓ SE NÃO FOR PARAR >>>
             if not self.stop_processing_queue:
                 try:
-                     # Verifica se a janela principal ainda existe
                     if hasattr(self.main_tk_root, 'winfo_exists') and self.main_tk_root.winfo_exists():
                         self.main_tk_root.after(100, self.process_gui_queue)
                 except Exception as e_resched:
-                      # Evita logar erro se já está parando
                     if not self.stop_processing_queue:
                         logger.error(f"Erro reagendar fila GUI (Predictor): {e_resched}")

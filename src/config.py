@@ -526,18 +526,18 @@ if SKOPT_AVAILABLE_CONFIG: # Só adiciona se skopt estiver disponível (para Bay
         'model_kwargs': {'n_jobs': N_JOBS_GRIDSEARCH},
         'search_spaces': knn_search_spaces, 'param_grid': None, 'needs_scaling': True
     }
-    if CATBOOST_AVAILABLE:
-        MODEL_CONFIG['CatBoostClassifier'] = {
-            'model_kwargs': {
-                'random_state': RANDOM_STATE, 'verbose': 0,
-                'eval_metric': 'F1', # Métrica para monitorar (ex: em early stopping)
-                'loss_function': 'Logloss',
-                # Early stopping é passado via fit_params no model_trainer
-                'cat_features': categorical_features_indices if categorical_features_indices else None # Passa índices se houver features categóricas
-             },
-            'search_spaces': catboost_search_spaces, 'param_grid': None, 'needs_scaling': False,
-            #'fit_params': {'classifier__early_stopping_rounds': 100}
-        }
+    #if CATBOOST_AVAILABLE:
+        #MODEL_CONFIG['CatBoostClassifier'] = {
+            #'model_kwargs': {
+    #            'random_state': RANDOM_STATE, 'verbose': 0,
+    #           'eval_metric': 'F1', # Métrica para monitorar (ex: em early stopping)
+    #            'loss_function': 'Logloss',
+    #            # Early stopping é passado via fit_params no model_trainer
+    #            'cat_features': categorical_features_indices if categorical_features_indices else None # Passa índices se houver features categóricas
+    #         },
+    #        'search_spaces': catboost_search_spaces, 'param_grid': None, 'needs_scaling': False,
+    #        #'fit_params': {'classifier__early_stopping_rounds': 100}
+    #    }
 else: 
     logger.warning("Usando GridSearchCV como fallback. Defina 'param_grid' em MODEL_CONFIG se necessário.")
    
@@ -549,7 +549,6 @@ MODEL_CONFIG['GaussianNB'] = {
     'needs_scaling': False
 }
 
-# --- Em config.py ---
 HEURISTIC_FILTER_RULES = {
     'CV_HDA': {'min': 0.3, 'max': 0.4},
     'Odd_H_FT': {'min': 1.01, 'max': 2.01},

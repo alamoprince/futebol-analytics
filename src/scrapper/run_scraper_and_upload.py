@@ -16,8 +16,8 @@ if SCRIPT_DIR not in sys.path:
 
 # --- Importar Módulos ---
 try:
-    from src.scraper_predictor import scrape_upcoming_fixtures # Importa a função do scraper
-    from src.github_manager import GitHubManager  # Importa a classe do GitHub Manager
+    from src.scrapper.scraper_data import scrape_upcoming_fixtures # Importa a função do scraper
+    from src.scrapper.github_manager import GitHubManager  # Importa a classe do GitHub Manager
     from src.config import (
         SCRAPER_TARGET_DAY, GITHUB_REPO_NAME
     ) # Importa configs relevantes

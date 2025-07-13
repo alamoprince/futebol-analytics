@@ -23,10 +23,10 @@ logger.info(f"sys.path includes SRC_DIR?: {SRC_DIR in sys.path}, BASE_DIR?: {BAS
 
 try:
     # --- Importa as QUATRO classes ---
-    from scraper_tab import ScraperUploadTab
-    from main import FootballPredictorDashboard
-    from feature_analyzer_tab import FeatureAnalyzerApp
-    from model_interpreter_tab import ModelInterpreterApp 
+    from src.scrapper.scraper_tab import ScraperUploadTab
+    from src.gui.training_tab import FootballPredictorDashboard
+    from src.gui.analyzer_tab import FeatureAnalyzerApp
+    from src.gui.interpreter_tab import ModelInterpreterApp 
 
 except ImportError as e:
     logger.error(f"Erro ao importar classes da GUI: {e}", exc_info=True)

@@ -30,13 +30,13 @@ logger = setup_logger("ScraperTab")
 try:
     
     try:
-        from scraper_predictor import scrape_upcoming_fixtures
+        from src.scrapper.scraper_data import scrape_upcoming_fixtures
     except ImportError:
         logger.error("Erro: Falha ao importar 'scrape_upcoming_fixtures' de 'scraper_predictor'. Verifique o arquivo.")
         raise 
 
     try:
-        from github_manager import GitHubManager
+        from src.scrapper.github_manager import GitHubManager
     except ImportError:
         logger.error("Erro: Falha ao importar 'GitHubManager' de 'github_manager'. Verifique o arquivo.")
         raise 
