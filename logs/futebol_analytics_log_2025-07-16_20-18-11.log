@@ -1,0 +1,13 @@
+2025-07-16 20:18:18 - MainWindow - INFO - Instanciando abas da aplicação...
+2025-07-16 20:18:18 - MainWindow - ERROR - Erro ao instanciar a aba 'Análise de Features': 'LayAwayStrategy' object has no attribute 'get_target_variable_name'
+Traceback (most recent call last):
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\gui\main_window.py", line 66, in _create_tab
+    tab_instance = TabClass(frame, main_root=self, **kwargs)
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\gui\analyzer_tab.py", line 65, in __init__
+    self.create_widgets()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\gui\analyzer_tab.py", line 98, in create_widgets
+    target_label_text = f"Alvo ({self.strategy.get_target_variable_name()}) e Descrição (Features)"
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'LayAwayStrategy' object has no attribute 'get_target_variable_name'
+2025-07-16 20:18:19 - MainWindow - INFO - Todas as abas instanciadas com sucesso.

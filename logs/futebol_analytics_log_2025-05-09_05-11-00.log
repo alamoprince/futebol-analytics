@@ -16,7 +16,7 @@ Traceback (most recent call last):
     self.create_train_predict_widgets() # Agora os widgets serão colocados em self.parent_for_widgets
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
   File "c:\Users\princ\Desktop\modelagem\Modelagem_Exemplos\futebol_analytics\src\main.py", line 146, in create_train_predict_widgets
-    main_frame = ttk.Frame(self.parent, padding="10")
+    main_frame = ctk.CTkFrame(self.parent, padding="10")
                            ^^^^^^^^^^^
 AttributeError: 'FootballPredictorDashboard' object has no attribute 'parent'
 2025-05-09 05:11:06 - MainApp - INFO - FeatureAnalyzerApp instanciada.

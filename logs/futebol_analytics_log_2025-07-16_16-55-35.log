@@ -1,0 +1,20 @@
+2025-07-16 16:55:41 - MainWindow - INFO - Instanciando abas da aplicação...
+2025-07-16 16:55:41 - MainWindow - ERROR - Erro ao instanciar a aba 'Análise de Features': ['text', 'padding'] are not supported arguments. Look at the documentation for supported arguments.
+Traceback (most recent call last):
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\gui\main_window.py", line 66, in _create_tab
+    tab_instance = TabClass(frame, main_root=self, **kwargs)
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\gui\analyzer_tab.py", line 65, in __init__
+    self.create_widgets()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\gui\analyzer_tab.py", line 91, in create_widgets
+    overview_frame = ctk.CTkFrame(self.scrollable_frame, text=" Visão Geral Dados Brutos ", padding=10)
+                     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\customtkinter\windows\widgets\ctk_frame.py", line 33, in __init__
+    super().__init__(master=master, bg_color=bg_color, width=width, height=height, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 46, in __init__
+    check_kwargs_empty(kwargs, raise_error=True)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\princ\AppData\Local\Programs\Python\Python313\Lib\site-packages\customtkinter\windows\widgets\utility\utility_functions.py", line 18, in check_kwargs_empty
+    raise ValueError(f"{list(kwargs_dict.keys())} are not supported arguments. Look at the documentation for supported arguments.")
+ValueError: ['text', 'padding'] are not supported arguments. Look at the documentation for supported arguments.

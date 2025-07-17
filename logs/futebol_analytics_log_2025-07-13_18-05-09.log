@@ -1,0 +1,11 @@
+2025-07-13 18:05:18 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-07-13 18:05:19 - Main2 - ERROR - Erro import main.py (Treino/Previsão): cannot import name 'calculate_historical_intermediate' from 'data_handler' (c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\data_handler.py)
+2025-07-13 18:05:19 - MainApp - ERROR - Erro ao importar classes da GUI ou Estratégias: cannot import name 'calculate_historical_intermediate' from 'data_handler' (c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\data_handler.py)
+Traceback (most recent call last):
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\app_launcher.py", line 21, in <module>
+    from src.gui.training_tab import FootballPredictorDashboard
+  File "c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\gui\training_tab.py", line 36, in <module>
+    from data_handler import (
+    ...<5 lines>...
+    )
+ImportError: cannot import name 'calculate_historical_intermediate' from 'data_handler' (c:\Users\princ\OneDrive\Área de Trabalho\programador\futebol-analytics\src\data_handler.py)

@@ -15,7 +15,6 @@ from config import (
     PI_RATING_INITIAL, PI_RATING_K_FACTOR, PI_RATING_HOME_ADVANTAGE,
     FEATURE_EPSILON, APPLY_LEAGUE_FILTER_ON_HISTORICAL, 
     FIXTURE_CSV_URL_TEMPLATE, FIXTURE_FETCH_DAY, REQUIRED_FIXTURE_COLS,
-    # <<< Importar nomes das novas features >>>
     INTERACTION_P_D_NORM_X_CV_HDA, INTERACTION_P_D_NORM_DIV_CV_HDA,
     INTERACTION_P_D_NORM_X_PIR_DIFF, INTERACTION_P_D_NORM_DIV_PIR_DIFF,
     INTERACTION_ODD_D_X_PIR_DIFF, INTERACTION_ODD_D_DIV_PIR_DIFF,
@@ -26,10 +25,12 @@ from config import (
     EWMA_SPAN_SHORT, EWMA_SPAN_LONG,
     
 )
+from strategies.base_strategy import BettingStrategy
+
 from typing import Tuple, Optional, List, Dict, Any
 from tqdm import tqdm
-import time  # Embora não usado diretamente, pode ser útil para debugging
-from datetime import date, timedelta, datetime  # datetime não usado diretamente, mas pode ser útil
+import time  
+from datetime import date, timedelta, datetime  
 import requests
 from urllib.error import HTTPError, URLError
 from scipy.stats import poisson
@@ -37,10 +38,10 @@ from logger_config import setup_logger
 import os
 import logging
 
+
 logger = setup_logger('DataHandler')
 logger_dh = setup_logger('DataHandlerMetrics')
 
-# --- Funções Auxiliares ---
 class BettingMetricsCalculator:
 
     @staticmethod
@@ -908,35 +909,33 @@ def calculate_raw_value_cost_goals(df: pd.DataFrame) -> pd.DataFrame:
     logger.info("-> VG_raw e CG_raw calculados com sucesso (lógica corrigida).")
     return df_calc
 
-def calculate_historical_intermediate(df: pd.DataFrame) -> pd.DataFrame:
+def _calculate_match_results_and_points(df: pd.DataFrame) -> pd.DataFrame:
+
     df_calc = df.copy()
-    logger.info("Calculando stats intermediárias (Result, IsDraw, Ptos)...")
-    gh = GOALS_COLS.get('home'); ga = GOALS_COLS.get('away')
-    logger.debug(f"calculate_historical_intermediate: Colunas em df_calc: {df_calc.columns.tolist()}")
-    logger.debug(f"calculate_historical_intermediate: Verificando '{gh}' e '{ga}'...")
-    if gh in df_calc.columns and ga in df_calc.columns:
-        logger.info(f"-> Colunas de Gols encontradas: '{gh}' e '{ga}'.")
-        logger.debug(f"  Conteúdo inicial '{gh}' (5): {df_calc[gh].head().tolist()}, dtype: {df_calc[gh].dtype}, NaNs: {df_calc[gh].isnull().sum()}/{len(df_calc)}")
-        logger.debug(f"  Conteúdo inicial '{ga}' (5): {df_calc[ga].head().tolist()}, dtype: {df_calc[ga].dtype}, NaNs: {df_calc[ga].isnull().sum()}/{len(df_calc)}")
-        h_g = pd.to_numeric(df_calc[gh], errors='coerce'); a_g = pd.to_numeric(df_calc[ga], errors='coerce')
-        logger.debug(f"  h_g (pós-numérico) (5): {h_g.head().tolist()}, NaNs: {h_g.isnull().sum()}/{len(h_g)}")
-        logger.debug(f"  a_g (pós-numérico) (5): {a_g.head().tolist()}, NaNs: {a_g.isnull().sum()}/{len(a_g)}")
-        condlist = [h_g > a_g, h_g == a_g, h_g < a_g]; choicelist_res = ["H", "D", "A"]
-        df_calc['FT_Result'] = np.select(condlist, choicelist_res, default=pd.NA)
-        logger.debug(f"  Contagem 'FT_Result': \n{df_calc['FT_Result'].value_counts(dropna=False)}")
-        df_calc['IsDraw'] = pd.NA; valid_ft_mask = df_calc['FT_Result'].notna()
-        df_calc.loc[valid_ft_mask, 'IsDraw'] = (df_calc.loc[valid_ft_mask, 'FT_Result'] == 'D').astype('Int64')
-        logger.debug(f"  Contagem 'IsDraw': \n{df_calc['IsDraw'].value_counts(dropna=False)}")
-        if df_calc['IsDraw'].isnull().all(): logger.error("ALERTA CRÍTICO (calc_hist_intermed): 'IsDraw' é todo NaN/NA!")
-        cl_pts_h = [df_calc['FT_Result']=='H', df_calc['FT_Result']=='D', df_calc['FT_Result']=='A']; ch_pts_h = [3,1,0]
-        df_calc['Ptos_H'] = np.select(cl_pts_h, ch_pts_h, default=np.nan)
-        cl_pts_a = [df_calc['FT_Result']=='A', df_calc['FT_Result']=='D', df_calc['FT_Result']=='H']; ch_pts_a = [3,1,0]
-        df_calc['Ptos_A'] = np.select(cl_pts_a, ch_pts_a, default=np.nan)
-        logger.info("->Result/IsDraw/Ptos OK.")
+    logger.info("Calculando resultado da partida e pontos (Ptos_H, Ptos_A)...")
+    
+    gh_col = GOALS_COLS.get('home')
+    ga_col = GOALS_COLS.get('away')
+
+    if gh_col in df_calc.columns and ga_col in df_calc.columns:
+        h_g = pd.to_numeric(df_calc[gh_col], errors='coerce')
+        a_g = pd.to_numeric(df_calc[ga_col], errors='coerce')
+
+        conditions = [h_g > a_g, h_g == a_g, h_g < a_g]
+        results = ["H", "D", "A"]
+        df_calc['FT_Result'] = np.select(conditions, results, default=pd.NA)
+
+        points_map_h = {'H': 3, 'D': 1, 'A': 0}
+        points_map_a = {'H': 0, 'D': 1, 'A': 3}
+        
+        df_calc['Ptos_H'] = df_calc['FT_Result'].map(points_map_h)
+        df_calc['Ptos_A'] = df_calc['FT_Result'].map(points_map_a)
+        
+        logger.info("-> Features 'Ptos_H' e 'Ptos_A' criadas.")
     else:
-        logger.warning(f"->Gols '{gh}'/'{ga}' ausentes. Colunas de resultado serão NA.")
-        df_calc[['FT_Result', 'IsDraw', 'Ptos_H', 'Ptos_A']] = pd.NA
-    logger.info("Cálculo Intermediárias (Result/IsDraw/Ptos) concluído.")
+        logger.warning(f"-> Colunas de gols ('{gh_col}', '{ga_col}') ausentes. Features de pontos não serão criadas.")
+        df_calc[['FT_Result', 'Ptos_H', 'Ptos_A']] = pd.NA
+        
     return df_calc
 
 def calculate_rolling_goal_stats(
@@ -1152,8 +1151,9 @@ def _select_and_clean_final_features(
     return X_clean, y_clean, list(X_clean.columns) 
 
 
-def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.Series, List[str]]]:
-    if df_loaded is None or df_loaded.empty: logger.error("Pré-proc: DF entrada inválido."); return None
+def preprocess_and_feature_engineer(df_loaded: pd.DataFrame, strategy: BettingStrategy) -> Optional[Tuple[pd.DataFrame, pd.Series, List[str]]]:
+    if df_loaded is None or df_loaded.empty: 
+        logger.error("Pré-proc: DF entrada inválido."); return None
     logger.info("--- Iniciando Pipeline Pré-proc e Feature Eng (Histórico) ---"); df_processed = df_loaded.copy()
     gh_col=GOALS_COLS.get('home'); ga_col=GOALS_COLS.get('away')
     avg_h_lg = np.nanmean(df_processed[gh_col]) if gh_col in df_processed and df_processed[gh_col].notna().any() else 1.0
@@ -1163,9 +1163,13 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     logger.info(f"Médias Liga (FA/FD, Poisson): Casa={avg_h_lg_safe:.3f}, Fora={avg_a_lg_safe:.3f}")
 
     logger.info("=== ETAPA 1: Intermediárias e Probs ===")
-    df_processed = calculate_historical_intermediate(df_processed) 
-    if TARGET_COLUMN not in df_processed.columns or df_processed[TARGET_COLUMN].isnull().all():
-        logger.error(f"Alvo '{TARGET_COLUMN}' ausente ou todos NaNs após stats intermediárias."); return None
+    target_name = strategy.get_target_variable_name()
+    y_target = strategy.preprocess_target(df_processed, GOALS_COLS)
+    df_processed[target_name] = y_target
+    if target_name not in df_processed.columns or df_processed[target_name].isnull().all():
+        logger.error(f"Alvo '{target_name}' ausente ou todos NaNs após preprocess_target da estratégia.")
+        return None
+    df_processed = _calculate_match_results_and_points(df_processed)
     df_processed = calculate_probabilities(df_processed)
     df_processed = calculate_normalized_probabilities(df_processed)
     logger.info("=== ETAPA 1.5: VG_raw e CG_raw ===") 
@@ -1203,7 +1207,10 @@ def preprocess_and_feature_engineer(df_loaded: pd.DataFrame) -> Optional[Tuple[p
     df_processed = calculate_derived_features(df_processed)
 
     logger.info("=== FIM PIPELINE FEATURE ENG (HISTÓRICO) ===")
-    return _select_and_clean_final_features(df_processed, FEATURE_COLUMNS, TARGET_COLUMN)
+    all_features = list(df_processed.columns)
+    feature_cols_for_strategy = strategy.get_feature_columns(all_features)
+    
+    return _select_and_clean_final_features(df_processed, feature_cols_for_strategy, target_name)
 
 
 def fetch_and_process_fixtures() -> Optional[pd.DataFrame]:
@@ -1462,6 +1469,7 @@ def _get_final_pi_ratings(df_hist: pd.DataFrame) -> Dict[str, float]:
 def prepare_fixture_data(
     fixture_df: pd.DataFrame,
     historical_df_full: pd.DataFrame,
+    strategy: BettingStrategy,
     feature_columns_for_model: List[str],
     training_medians: pd.Series 
 ) -> Optional[pd.DataFrame]:
@@ -1473,12 +1481,12 @@ def prepare_fixture_data(
     if historical_df_full.empty:
         logger.error("Prep Fix: DataFrame histórico está vazio. Não é possível preparar features futuras."); return None
 
+    feature_columns_for_model = strategy.get_feature_columns(list(historical_df_full.columns))
     logger.info("--- Iniciando Preparação de Features para Jogos Futuros (Versão Refatorada) ---")
     df_output_fixtures = fixture_df.copy()
 
-    # --- ETAPA 1: Processar o histórico UMA VEZ para obter o estado final ---
     logger.info("Processando histórico completo para extrair o estado final...")
-    X_hist, _, _ = preprocess_and_feature_engineer(historical_df_full)
+    X_hist, _, _ = preprocess_and_feature_engineer(historical_df_full, strategy)
     if X_hist is None:
         logger.error("Falha ao processar o DataFrame histórico para extrair o estado.")
         return None
@@ -1488,7 +1496,6 @@ def prepare_fixture_data(
     
     final_team_stats = _get_final_team_stats(historical_df_processed)
     
-    # --- ETAPA 2: Mapear o estado final para os jogos futuros ---
     logger.info("Mapeando o estado final das estatísticas para os jogos futuros...")
     
     home_stats_mapped = df_output_fixtures['Home'].map(final_team_stats.to_dict('index')).apply(pd.Series)
@@ -1499,7 +1506,6 @@ def prepare_fixture_data(
 
     df_output_fixtures = pd.concat([df_output_fixtures, home_stats_mapped, away_stats_mapped], axis=1)
 
-    # --- ETAPA 3: Calcular features "instantâneas" que dependem apenas dos dados do jogo ---
     logger.info("Calculando features instantâneas (Probs, Derivadas)...")
     df_output_fixtures = calculate_probabilities(df_output_fixtures)
     df_output_fixtures = calculate_normalized_probabilities(df_output_fixtures)
@@ -1517,7 +1523,6 @@ def prepare_fixture_data(
     df_output_fixtures = calculate_poisson_draw_prob(df_output_fixtures, avg_h_league, avg_a_league)
     df_output_fixtures = calculate_derived_features(df_output_fixtures)
 
-    # --- ETAPA 4: Seleção final das features e imputação inteligente ---
     logger.info(f"Selecionando features finais e aplicando imputação...")
     
     for col in feature_columns_for_model:

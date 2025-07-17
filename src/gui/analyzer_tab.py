@@ -1,33 +1,22 @@
-# --- src/feature_analyzer_tab.py ---
-# VERSÃO SIMPLIFICADA - APENAS ANÁLISE GERAL
-
 import tkinter as tk
+import customtkinter as ctk
 from tkinter import ttk, messagebox
-# Removido filedialog pois não é usado aqui
-from tkinter.scrolledtext import ScrolledText # Ainda usado para texto
-import sys, os, pandas as pd, numpy as np, datetime, io, traceback, warnings
-from typing import Optional, List, Dict, Any, Tuple # Adicionadas Tuple, Any
+import sys, os, pandas as pd, numpy as np, io
+from typing import Optional
 
-# Gráficos
 import matplotlib; matplotlib.use('TkAgg'); import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import seaborn as sns
 
-# Path Setup
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(CURRENT_DIR)
 if CURRENT_DIR not in sys.path: sys.path.insert(0, CURRENT_DIR)
 if BASE_DIR not in sys.path: sys.path.insert(0, BASE_DIR)
 
-# Imports do Projeto
 try:
-    from config import GOALS_COLS, RANDOM_STATE, STATS_ROLLING_CONFIG, ROLLING_WINDOW  # RANDOM_STATE não é usado aqui, pode remover se quiser
-    from data_handler import (load_historical_data, calculate_historical_intermediate,
-                              calculate_probabilities, calculate_normalized_probabilities,
-                              calculate_general_rolling_stats,
-                              calculate_binned_features, calculate_derived_features,
-                              calculate_rolling_goal_stats, calculate_poisson_draw_prob,
-                              calculate_pi_ratings)
+    from config import GOALS_COLS 
+    from data_handler import (load_historical_data, preprocess_and_feature_engineer,
+                              )
     from logger_config import setup_logger
 except ImportError as e:
      import logging; logger = logging.getLogger(__name__)
@@ -35,13 +24,16 @@ except ImportError as e:
      try: root_err = tk.Tk(); root_err.withdraw(); messagebox.showerror("Import Error (Analyzer Tab)", f"Failed...\n{e}"); root_err.destroy()
      except Exception: print(f"CRITICAL Import Error: {e}")
      sys.exit(1)
-
+from strategies.base_strategy import BettingStrategy
 logger = setup_logger("FeatureAnalyzerAppSimple")
 
 class FeatureAnalyzerApp:
 
-    def __init__(self, parent_frame):
+    def __init__(self, parent_frame, main_root, strategy: BettingStrategy):
         self.parent = parent_frame
+        self.main_tk_root = main_root
+        self.strategy = strategy
+
         self.df_historical_raw: Optional[pd.DataFrame] = None
         self.df_historical_processed: Optional[pd.DataFrame] = None
         self.X_clean: Optional[pd.DataFrame] = None
@@ -52,10 +44,10 @@ class FeatureAnalyzerApp:
         self.head_text: Optional[tk.Text] = None
         self.desc_text: Optional[tk.Text] = None
         self.target_text: Optional[tk.Text] = None
-        self.status_label: Optional[ttk.Label] = None
+        self.status_label: Optional[ctk.CTkLabel] = None
 
         self.feature_selector_var = tk.StringVar()
-        self.feature_selector_combo: Optional[ttk.Combobox] = None
+        self.feature_selector_combo: Optional[ctk.CTkComboBox] = None
 
         self.fig_dist: Optional[plt.Figure] = None; self.axes_dist = None
         self.fig_dist_target: Optional[plt.Figure] = None; self.ax_dist_target = None
@@ -63,253 +55,349 @@ class FeatureAnalyzerApp:
         self.dist_canvas_widget: Optional[FigureCanvasTkAgg] = None
         self.dist_target_canvas_widget: Optional[FigureCanvasTkAgg] = None
         self.corr_heatmap_canvas_widget: Optional[FigureCanvasTkAgg] = None
-        self.dist_canvas_container: Optional[ttk.Frame] = None
-        self.dist_target_canvas_container: Optional[ttk.Frame] = None
-        self.corr_canvas_container: Optional[ttk.Frame] = None
+        self.dist_canvas_container: Optional[ctk.CTkFrame] = None
+        self.dist_target_canvas_container: Optional[ctk.CTkFrame] = None
+        self.corr_canvas_container: Optional[ctk.CTkFrame] = None
 
         self.univar_update_job = None
 
         self.create_widgets()
 
     def create_widgets(self):
-        """Cria widgets para análise geral, SEM seção de modelo específico."""
-        top_controls_frame = ttk.Frame(self.parent); top_controls_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=(10, 0))
-        load_button = ttk.Button(top_controls_frame, text="Carregar & Analisar Dados Históricos", command=self.load_and_display_data); load_button.pack(side=tk.LEFT, padx=(0, 10))
-        self.status_label = ttk.Label(top_controls_frame, text="Pronto."); self.status_label.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
 
-        canvas = tk.Canvas(self.parent, borderwidth=0, highlightthickness=0); scrollbar = ttk.Scrollbar(self.parent, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = ttk.Frame(canvas); self.scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw"); canvas.configure(yscrollcommand=scrollbar.set)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=(5, 10)); scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=(5, 10))
+        top_controls_frame = ctk.CTkFrame(self.parent)
+        top_controls_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=(10, 0))
+        load_button = ctk.CTkButton(
+            top_controls_frame,
+            text="Carregar & Analisar Dados Históricos",
+            command=self.load_and_display_data
+        )
+        load_button.pack(side=tk.LEFT, padx=(0, 10))
+        self.status_label = ctk.CTkLabel(top_controls_frame, text="Pronto.")
+        self.status_label.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
 
-        overview_frame = ttk.LabelFrame(self.scrollable_frame, text=" Visão Geral Dados Brutos ", padding=10); overview_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.info_text = self._create_scrolled_text(overview_frame, height=10, title="Infos Gerais (df.info)"); self.head_text = self._create_scrolled_text(overview_frame, height=7, title="Amostra Dados Raw (df.head)")
-        target_desc_frame = ttk.LabelFrame(self.scrollable_frame, text=" Alvo e Descrição (Pós-Processamento) ", padding=10); target_desc_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.desc_text = self._create_scrolled_text(target_desc_frame, height=12, title="Describe (Features Limpas)"); self.target_text = self._create_scrolled_text(target_desc_frame, height=5, title="Distribuição Alvo (IsDraw)")
-        univar_frame = ttk.LabelFrame(self.scrollable_frame, text=" Análise Univariada ", padding=10); univar_frame.pack(fill=tk.X, padx=10, pady=5)
-        selector_frame = ttk.Frame(univar_frame); selector_frame.pack(fill=tk.X, pady=(0, 10)); ttk.Label(selector_frame, text="Feature:").pack(side=tk.LEFT, padx=(0, 5))
-        self.feature_selector_combo = ttk.Combobox(selector_frame, textvariable=self.feature_selector_var, state="readonly", width=30); self.feature_selector_combo.pack(side=tk.LEFT);
+        canvas = tk.Canvas(self.parent, borderwidth=0, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.parent, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = ctk.CTkFrame(canvas)
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=(5, 10))
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=(5, 10))
+
+        overview_frame = ctk.CTkFrame(self.scrollable_frame)
+        overview_frame.pack(fill=tk.X, padx=10, pady=5)
+        ctk.CTkLabel(overview_frame, text="Visão Geral Dados Brutos", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(5, 10))
+        self.info_text = self._create_scrolled_text(overview_frame, height=10, title="Infos Gerais (df.info)")
+        self.head_text = self._create_scrolled_text(overview_frame, height=7, title="Amostra Dados Raw (df.head)")
+
+        target_label_text = f"Alvo ({self.strategy.get_target_variable_name()}) e Descrição (Features)"
+        target_desc_frame = ctk.CTkFrame(self.scrollable_frame)
+        target_desc_frame.pack(fill=tk.X, padx=10, pady=5)
+        ctk.CTkLabel(target_desc_frame, text=target_label_text, font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(5, 5))
+
+        univar_frame = ctk.CTkFrame(self.scrollable_frame)
+        univar_frame.pack(fill=tk.X, padx=10, pady=5)
+        ctk.CTkLabel(univar_frame, text="Análise Univariada", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(5, 5))
+
+        selector_frame = ctk.CTkFrame(univar_frame)
+        selector_frame.pack(fill=tk.X, pady=(0, 10), padx=5)
+        ctk.CTkLabel(selector_frame, text="Feature:").pack(side=tk.LEFT, padx=(0, 5))
+        self.feature_selector_combo = ctk.CTkComboBox(
+            selector_frame,
+            variable=self.feature_selector_var,
+            state="readonly",
+            width=250 
+        )
+        self.feature_selector_combo.pack(side=tk.LEFT)
         self.feature_selector_combo.bind("<<ComboboxSelected>>", self.on_univar_feature_select)
-        plot_frame_univar = ttk.Frame(univar_frame); plot_frame_univar.pack(fill=tk.BOTH, expand=True)
-        self.dist_canvas_container = ttk.LabelFrame(plot_frame_univar, text=" Distribuição Feature ", padding=5); self.dist_canvas_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5); ttk.Label(self.dist_canvas_container, text="...").pack()
-        self.dist_target_canvas_container = ttk.LabelFrame(plot_frame_univar, text=" Distribuição vs Alvo ", padding=5); self.dist_target_canvas_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5); ttk.Label(self.dist_target_canvas_container, text="...").pack()
-        multivar_frame = ttk.LabelFrame(self.scrollable_frame, text=" Análise Multivariada ", padding=10); multivar_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.corr_canvas_container = ttk.LabelFrame(multivar_frame, text=" Heatmap Correlação ", padding=5); self.corr_canvas_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5); ttk.Label(self.corr_canvas_container, text="...").pack()
+
+        plot_frame_univar = ctk.CTkFrame(univar_frame)
+        plot_frame_univar.pack(fill=tk.BOTH, expand=True)
+
+        self.dist_canvas_container = ctk.CTkFrame(plot_frame_univar)
+        self.dist_canvas_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        ctk.CTkLabel(self.dist_canvas_container, text="...").pack() 
+
+        self.dist_target_canvas_container = ctk.CTkFrame(plot_frame_univar)
+        self.dist_target_canvas_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        ctk.CTkLabel(self.dist_target_canvas_container, text="...").pack() 
+
+        multivar_frame = ctk.CTkFrame(self.scrollable_frame)
+        multivar_frame.pack(fill=tk.X, padx=10, pady=5)
+        ctk.CTkLabel(multivar_frame, text="Análise Multivariada", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(5, 5))
+
+        self.corr_canvas_container = ctk.CTkFrame(multivar_frame)
+        self.corr_canvas_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        ctk.CTkLabel(self.corr_canvas_container, text="...").pack()
 
     def _create_scrolled_text(self, parent, height, title=""):
-        outer_frame = ttk.LabelFrame(parent, text=f" {title} ", padding=5); outer_frame.pack(side=tk.TOP, fill=tk.X, pady=5, padx=5)
-        text_area_frame = ttk.Frame(outer_frame); text_area_frame.pack(fill=tk.BOTH, expand=True)
-        xscrollbar = ttk.Scrollbar(text_area_frame, orient=tk.HORIZONTAL); yscrollbar = ttk.Scrollbar(text_area_frame, orient=tk.VERTICAL)
-        widget = tk.Text(text_area_frame, height=height, wrap=tk.NONE, font=("Consolas", 9), relief=tk.FLAT, bd=0, yscrollcommand=yscrollbar.set, xscrollcommand=xscrollbar.set, state='disabled')
-        yscrollbar.config(command=widget.yview); xscrollbar.config(command=widget.xview)
-        text_area_frame.grid_rowconfigure(0, weight=1); text_area_frame.grid_columnconfigure(0, weight=1)
-        widget.grid(row=0, column=0, sticky="nsew"); yscrollbar.grid(row=0, column=1, sticky="ns"); xscrollbar.grid(row=1, column=0, sticky="ew")
+        container_frame = ctk.CTkFrame(parent)
+        container_frame.pack(side=tk.TOP, fill=tk.X, pady=5, padx=5)
+
+        if title:
+            title_label = ctk.CTkLabel(container_frame, text=title, font=ctk.CTkFont(weight="bold"))
+            title_label.pack(anchor="w", padx=10, pady=(5, 2))  
+
+        text_area_frame = ctk.CTkFrame(container_frame, fg_color="transparent")
+        text_area_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
+
+        xscrollbar = ttk.Scrollbar(text_area_frame, orient=tk.HORIZONTAL)
+        yscrollbar = ttk.Scrollbar(text_area_frame, orient=tk.VERTICAL)
+        widget = tk.Text(
+            text_area_frame,
+            height=height,
+            wrap=tk.NONE,
+            font=("Consolas", 9),
+            relief=tk.FLAT,
+            bd=0,
+            yscrollcommand=yscrollbar.set,
+            xscrollcommand=xscrollbar.set,
+            state='disabled'
+        )
+        yscrollbar.config(command=widget.yview)
+        xscrollbar.config(command=widget.xview)
+        
+        text_area_frame.grid_rowconfigure(0, weight=1)
+        text_area_frame.grid_columnconfigure(0, weight=1)
+        
+        widget.grid(row=0, column=0, sticky="nsew")
+        yscrollbar.grid(row=0, column=1, sticky="ns")
+        xscrollbar.grid(row=1, column=0, sticky="ew")
+        
         return widget
 
     def _update_text_widget(self, text_widget: Optional[tk.Text], content: str):
         if text_widget is None: return
         try:
-            if text_widget.winfo_exists(): text_widget.config(state='normal'); text_widget.delete('1.0', tk.END); text_widget.insert('1.0', content); text_widget.config(state='disabled')
-        except tk.TclError: pass
-        except Exception as e: logger.error(f"Erro update text widget: {e}", exc_info=True)
+            if text_widget.winfo_exists(): 
+                text_widget.config(state='normal'); 
+                text_widget.delete('1.0', tk.END); 
+                text_widget.insert('1.0', content); 
+                text_widget.config(state='disabled')
+        except tk.TclError: 
+            pass
+        except Exception as e: 
+            logger.error(f"Erro update text widget: {e}", exc_info=True)
 
     def _clear_matplotlib_widget(self, container_widget):
         if container_widget:
             for widget in container_widget.winfo_children(): widget.destroy()
 
-    def _embed_matplotlib_figure(self, fig: plt.Figure, container_widget: ttk.Frame):
-        canvas_attr_name = None
-        if container_widget == self.dist_canvas_container: canvas_attr_name = 'dist_canvas_widget'
-        elif container_widget == self.dist_target_canvas_container: canvas_attr_name = 'dist_target_canvas_widget'
-        elif container_widget == self.corr_canvas_container: canvas_attr_name = 'corr_heatmap_canvas_widget'
-        existing_canvas = getattr(self, canvas_attr_name, None) if canvas_attr_name else None
-        if existing_canvas and isinstance(existing_canvas, FigureCanvasTkAgg) and plt.fignum_exists(fig.number):
-             existing_canvas.figure = fig; existing_canvas.draw_idle(); return existing_canvas
-        else:
-             self._clear_matplotlib_widget(container_widget)
-             try:
-                 canvas = FigureCanvasTkAgg(fig, master=container_widget); canvas.draw()
-                 widget = canvas.get_tk_widget(); widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-                 if canvas_attr_name: setattr(self, canvas_attr_name, canvas)
-                 return canvas
-             except Exception as e: logger.error(f"Erro embed matplotlib: {e}", exc_info=True); ttk.Label(container_widget, text=f"Erro gráfico:\n{e}").pack(); return None
+    def _embed_matplotlib_figure(self, fig: plt.Figure, container_widget: ctk.CTkFrame):
+
+        for widget in container_widget.winfo_children():
+            widget.destroy()
+
+        try:
+            canvas = FigureCanvasTkAgg(fig, master=container_widget)
+            canvas.draw()
+            
+            widget = canvas.get_tk_widget()
+            widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+            container_widget.canvas = canvas
+            
+            return canvas
+
+        except Exception as e:
+            logger.error(f"Erro ao embutir a figura Matplotlib: {e}", exc_info=True)
+            ctk.CTkLabel(container_widget, text=f"Erro ao gerar gráfico:\n{e}", foreground="red").pack()
+            return None
 
     def log(self, message: str):
         logger.info(f"[GUI AnalyzerSimple] {message}")
         try:
-            if self.status_label and self.status_label.winfo_exists(): self.status_label.config(text=message[:100])
-        except tk.TclError: pass
-        except Exception as e: logger.error(f"Erro status label: {e}", exc_info=True)
+            if self.status_label and self.status_label.winfo_exists(): 
+                self.status_label.config(text=message[:100])
+        except tk.TclError: 
+            pass
+        except Exception as e: 
+            logger.error(f"Erro status label: {e}", exc_info=True)
 
-    # --- load_and_display_data (CORRIGIDO) ---
     def load_and_display_data(self):
-        self.log("Iniciando: Carregando & Processando dados históricos...")
-        # Limpa widgets
-        widgets_to_clear = [self.info_text, self.head_text, self.desc_text, self.target_text]
-        for w in widgets_to_clear: self._update_text_widget(w, "Carregando...")
-        self._clear_matplotlib_widget(self.dist_canvas_container); ttk.Label(self.dist_canvas_container, text="...").pack()
-        self._clear_matplotlib_widget(self.dist_target_canvas_container); ttk.Label(self.dist_target_canvas_container, text="...").pack()
-        self._clear_matplotlib_widget(self.corr_canvas_container); ttk.Label(self.corr_canvas_container, text="...").pack()
+        self.log(f"Iniciando: Carregando e Processando dados para a estratégia '{self.strategy.get_display_name()}'...")
+        
+        for w in [self.info_text, self.head_text, getattr(self, 'desc_text', None), getattr(self, 'target_text', None)]:
+            if w: self._update_text_widget(w, "Carregando...")
+        for container in [self.dist_canvas_container, self.dist_target_canvas_container, self.corr_canvas_container]:
+            if container:
+                self._clear_matplotlib_widget(container)
+                ctk.CTkLabel(container, text="Aguardando dados...").pack()
 
-        # Reseta dados
-        self.df_historical_raw = None; self.df_historical_processed = None
-        self.X_clean = None; self.y_clean = None; self.current_data_identifier = None
-
+        self.df_historical_raw = None
+        self.X_clean, self.y_clean = None, None
+        
         try:
-            # 1. Load Raw Data
-            self.log("Etapa 1: Carregando dados brutos...")
+            self.log("Etapa 1: Carregando arquivo de dados históricos...")
             df_raw = load_historical_data()
-            if df_raw is None or df_raw.empty: raise ValueError("Falha ao carregar dados históricos.")
-            self.df_historical_raw = df_raw.copy()
-            self.log(f"Dados brutos carregados: {self.df_historical_raw.shape}")
-            # Display Raw Info/Head
-            buffer = io.StringIO(); self.df_historical_raw.info(buf=buffer); self._update_text_widget(self.info_text, buffer.getvalue())
+            if df_raw is None or df_raw.empty:
+                raise ValueError("Falha ao carregar dados históricos.")
+            self.df_historical_raw = df_raw
+            
+            buffer = io.StringIO()
+            self.df_historical_raw.info(buf=buffer)
+            self._update_text_widget(self.info_text, buffer.getvalue())
             with pd.option_context('display.max_rows', 10, 'display.max_columns', None, 'display.width', 1000):
-                 self._update_text_widget(self.head_text, self.df_historical_raw.head(5).to_string())
+                self._update_text_widget(self.head_text, self.df_historical_raw.head(5).to_string())
 
-            # 2. Processamento Completo Features
-            self.log("Etapa 2: Processando features (Pipeline Completo)...")
-            df_p = self.df_historical_raw.copy() # Começa com cópia dos dados brutos
-            logger.info("=== INÍCIO PIPELINE FEAT ENG (ANALYSIS TAB) ===")
-            # Calcula médias da liga
-            goals_h_col=GOALS_COLS.get('home'); goals_a_col=GOALS_COLS.get('away')
-            avg_h_league=np.nanmean(df_p[goals_h_col]) if goals_h_col in df_p else 1.0
-            avg_a_league=np.nanmean(df_p[goals_a_col]) if goals_a_col in df_p else 1.0
-            avg_h_league=1.0 if pd.isna(avg_h_league) else avg_h_league
-            avg_a_league=1.0 if pd.isna(avg_a_league) else avg_a_league
-            epsilon=1e-6; avg_h_league_safe=max(avg_h_league,epsilon); avg_a_league_safe=max(avg_a_league,epsilon)
-            self.log(f"Médias Liga: H={avg_h_league_safe:.3f}, A={avg_a_league_safe:.3f}")
+            self.log("Etapa 2: Preparando dados para análise...")
+            
+            if self.strategy.get_strategy_type() == 'rule_based':
+                self.log("... tipo: Estratégia de Regras. Calculando alvo de sucesso...")
+                self.y_clean = self.strategy.get_target_for_backtesting(self.df_historical_raw, GOALS_COLS)
+                self.y_clean.name = self.strategy.get_target_variable_name()
+                
+                processed_data = preprocess_and_feature_engineer(self.df_historical_raw, self.strategy)
+                if processed_data:
+                    self.X_clean, _, _ = processed_data
+                else:
+                    raise ValueError("Falha ao gerar features para análise da estratégia de regras.")
+            else: 
+                self.log("... tipo: Estratégia de Machine Learning. Executando pipeline completo...")
+                processed_data = preprocess_and_feature_engineer(self.df_historical_raw, self.strategy)
+                if processed_data is None:
+                    raise ValueError("O pipeline de engenharia de features não retornou dados.")
+                self.X_clean, self.y_clean, features_used = processed_data
+            
+            if self.X_clean is None or self.y_clean is None:
+                raise ValueError("Falha ao processar X ou y para análise.")
+                
+            common_index = self.X_clean.index.intersection(self.y_clean.index)
+            self.X_clean = self.X_clean.loc[common_index]
+            self.y_clean = self.y_clean.loc[common_index]
 
-            # --- Chama TODAS as funções de cálculo ---
-            df_p = calculate_historical_intermediate(df_p)
-            if 'IsDraw' not in df_p.columns or df_p['IsDraw'].isnull().all(): raise ValueError("Alvo 'IsDraw' ausente/NaN pós-intermediate.")
-            df_p = calculate_probabilities(df_p) # Garante probs
-            df_p = calculate_normalized_probabilities(df_p)
-            df_p = calculate_pi_ratings(df_p)
-            valid_roll_cfg = [
-                c for c in STATS_ROLLING_CONFIG 
-                if (c.get('base_col_h') in df_p.columns and c.get('base_col_a') in df_p.columns)
-            ]
-            if valid_roll_cfg:
-                df_p = calculate_general_rolling_stats(df_p, stats_configs=valid_roll_cfg, default_window=ROLLING_WINDOW)
-            else:
-                logger.warning("Análise: Nenhuma config de rolling stat válida. Pulando.")
-            df_p = calculate_rolling_goal_stats(df_p, avg_goals_home_league=avg_h_league_safe, avg_goals_away_league=avg_a_league_safe)
-            df_p = calculate_poisson_draw_prob(df_p, avg_goals_home_league=avg_h_league_safe, avg_goals_away_league=avg_a_league_safe);
-            df_p = calculate_binned_features(df_p)
-            df_p = calculate_derived_features(df_p)
-            # Adicione outras chamadas 'calculate_*' se tiver mais features
-            # -----------------------------------------
-
-            self.df_historical_processed = df_p.copy() # Armazena resultado final do processamento
-            self.log("Processamento features concluído.")
-            logger.info("=== FIM PIPELINE FEAT ENG ===")
-
-            # 3. Preparar X, y para Análise
-            self.log("Etapa 3: Preparando dados para análise (sem dropna)...")
-            target_col='IsDraw'
-            if target_col not in self.df_historical_processed.columns:
-                raise ValueError(f"Coluna alvo '{target_col}' não encontrada!")
-
-            # Seleciona TODAS as colunas numéricas E o alvo do DF processado
-            self.X_analysis_data = self.df_historical_processed.select_dtypes(include=np.number).copy()
-            self.X_analysis_data.replace([np.inf, -np.inf], np.nan, inplace=True) # Trata infinitos
-
-            if target_col in self.df_historical_processed.columns:
-                self.y_analysis_data = self.df_historical_processed.loc[self.X_analysis_data.index, target_col].copy()
-                self.y_analysis_data = pd.to_numeric(self.y_analysis_data, errors='coerce').astype('Int64')
-            else:
-                self.y_analysis_data = None
-                logger.warning("Coluna alvo não encontrada para y_analysis_data.")
-
-            analysis_shape_x = self.X_analysis_data.shape
-            analysis_shape_y = self.y_analysis_data.shape if self.y_analysis_data is not None else "N/A"
-            self.log(f"Dados p/ análise (bruto processado): X={analysis_shape_x}, y={analysis_shape_y}")
-
-            # Define X_clean e y_clean como essas cópias (com NaNs)
-            self.X_clean = self.X_analysis_data
-            self.y_clean = self.y_analysis_data
-
-            # --- ATUALIZA IDENTIFICADOR DOS DADOS ---
+            self.df_historical_processed = self.X_clean.join(self.y_clean)
             self.current_data_identifier = (self.X_clean.shape, tuple(self.X_clean.columns))
-            self.log(f"Identificador de dados atualizado: {self.current_data_identifier}")
+            logger.info(f"Dados para análise prontos. Shape X: {self.X_clean.shape}, Shape y: {self.y_clean.shape}")
 
-            # 4. Display Describe/Target (AGORA USA X_clean e y_clean)
-            self.log("Etapa 4: Atualizando Describe/Target...");
-            try:
-                 with pd.option_context('display.max_rows', 200, 'display.max_columns', None, 'display.width', 1000):
-                      # Usa self.X_clean que foi definido acima
-                      self._update_text_widget(self.desc_text, self.X_clean.describe(include='all').to_string());
-            except Exception as e: self.log(f"Erro describe: {e}"); self._update_text_widget(self.desc_text, f"Erro.")
-            try:
-                # Usa self.y_clean que foi definido acima
-                counts=self.y_clean.value_counts(); dist=self.y_clean.value_counts(normalize=True);
-                self._update_text_widget(self.target_text, f"Contagem:\n{counts.to_string()}\n\nProporção:\n{dist.apply('{:.2%}'.format).to_string()}");
-            except Exception as e: self.log(f"Erro target dist: {e}"); self._update_text_widget(self.target_text, f"Erro.")
-
-            # 5. Gerar Gráficos Básicos (AGORA USA X_clean)
-            self.log("Etapa 5: Gerando gráficos básicos...");
-            numeric_features = self.X_clean.select_dtypes(include=np.number).columns.tolist() # Usa X_clean
+            self.log("Etapa 3: Atualizando painéis de análise visual...")
+            
+            if hasattr(self, 'desc_text') and self.desc_text:
+                with pd.option_context('display.max_rows', 200, 'display.max_columns', None):
+                    self._update_text_widget(self.desc_text, self.X_clean.describe(include='all').to_string())
+            
+            if hasattr(self, 'target_text') and self.target_text:
+                counts = self.y_clean.value_counts(dropna=False)
+                dist = self.y_clean.value_counts(normalize=True, dropna=False)
+                target_name = self.strategy.get_target_variable_name()
+                self._update_text_widget(self.target_text, f"Contagem de '{target_name}':\n{counts.to_string()}\n\nProporção:\n{dist.apply('{:.2%}'.format).to_string()}")
+            
+            numeric_features = sorted(self.X_clean.select_dtypes(include=np.number).columns.tolist())
             if numeric_features:
-                self.feature_selector_combo['values'] = numeric_features
-                self.feature_selector_var.set(numeric_features[0] if numeric_features else "")
-                self.on_univar_feature_select() # Dispara debouncer
-            else:
-                self.feature_selector_combo['values']=[]; self.feature_selector_var.set("")
-                self.log("Nenhuma feature numérica para análise univariada.")
-            self.generate_correlation_heatmap() # Usa X_clean internamente
-
-            self.log("Carregamento e análise básica concluídos.");
+                self.feature_selector_combo.configure(values=numeric_features) 
+                self.feature_selector_var.set(numeric_features[0])
+                self.on_univar_feature_select()
+            
+            self.generate_correlation_heatmap()
+            self.log("Carregamento e análise concluídos com sucesso.")
 
         except Exception as e:
-            errmsg = f"Erro fatal no carregamento/análise: {e}"; self.log(f"!!! ERRO: {errmsg}"); logger.error(errmsg, exc_info=True); messagebox.showerror("Erro Fatal na Análise", f"{errmsg}\n\nVer logs.", parent=self.parent)
-            widgets_to_clear=[self.info_text, self.head_text, self.desc_text, self.target_text] # Não inclui mais importance
-            for w in widgets_to_clear: self._update_text_widget(w, f"Erro: {e}")
-            self._clear_matplotlib_widget(self.dist_canvas_container); ttk.Label(self.dist_canvas_container, text="Erro.").pack(); self._clear_matplotlib_widget(self.dist_target_canvas_container); ttk.Label(self.dist_target_canvas_container, text="Erro.").pack(); self._clear_matplotlib_widget(self.corr_canvas_container); ttk.Label(self.corr_canvas_container, text="Erro.").pack()
-            try: 
-                if self.feature_selector_combo: self.feature_selector_combo.config(values=[], state="disabled"); self.feature_selector_var.set("")
-            except tk.TclError: pass
+            errmsg = f"Erro fatal no carregamento/análise: {e}"
+            self.log(f"!!! ERRO: {errmsg}")
+            logger.error(errmsg, exc_info=True)
+            messagebox.showerror("Erro Fatal na Análise", f"{errmsg}\n\nVerifique os logs.", parent=self.parent)
 
 
-    # --- Funções Gráficos Univar/Multivar ---
     def on_univar_feature_select(self, event=None):
-        """Callback com debounce para seleção de feature univariada."""
-        # Usa self.parent.after porque esta classe não tem mais self.main_tk_root
+
         if self.univar_update_job:
             try: self.parent.after_cancel(self.univar_update_job)
-            except tk.TclError: pass # Ignora se o job/widget não existe mais
+            except tk.TclError: pass 
         self.univar_update_job = self.parent.after(400, self._update_univariate_plots_task)
 
 
     def _update_univariate_plots_task(self):
-        # ... (código idêntico ao anterior, usa X_clean e y_clean) ...
         self.univar_update_job = None
-        if self.X_clean is None or self.y_clean is None: return
+        if self.X_clean is None or self.y_clean is None:
+            return
         selected_feature = self.feature_selector_var.get()
-        if not selected_feature or selected_feature not in self.X_clean.columns: return
-        # Plot 1: Distribuição
-        try:
-            if self.fig_dist is None or not plt.fignum_exists(self.fig_dist.number): self.fig_dist, self.axes_dist = plt.subplots(2, 1, figsize=(6, 5), gridspec_kw={'height_ratios': [3, 1]}, sharex=True, constrained_layout=True); self.dist_canvas_widget = self._embed_matplotlib_figure(self.fig_dist, self.dist_canvas_container)
-            else: self.axes_dist[0].clear(); self.axes_dist[1].clear()
-            feature_data = self.X_clean[selected_feature].dropna(); sns.histplot(feature_data, kde=True, ax=self.axes_dist[0]); self.axes_dist[0].set_title(f'Distribuição de {selected_feature}'); self.axes_dist[0].set_xlabel(''); sns.boxplot(x=feature_data, ax=self.axes_dist[1]); self.axes_dist[1].set_xlabel(selected_feature);
-            if self.dist_canvas_widget: self.dist_canvas_widget.draw_idle()
-        except Exception as e: logger.error(f"Erro dist plot {selected_feature}: {e}", exc_info=True); self._clear_matplotlib_widget(self.dist_canvas_container); ttk.Label(self.dist_canvas_container, text=f"Erro.").pack()
-        # Plot 2: Distribuição vs Alvo
-        try:
-            if self.fig_dist_target is None or not plt.fignum_exists(self.fig_dist_target.number): self.fig_dist_target, self.ax_dist_target = plt.subplots(1, 1, figsize=(6, 5), constrained_layout=True); self.dist_target_canvas_widget = self._embed_matplotlib_figure(self.fig_dist_target, self.dist_target_canvas_container)
-            else: self.ax_dist_target.clear()
-            plot_data = pd.DataFrame({'feature': self.X_clean[selected_feature], 'target': self.y_clean}); sns.boxplot(data=plot_data, x='target', y='feature', ax=self.ax_dist_target); self.ax_dist_target.set_title(f'{selected_feature} vs IsDraw'); self.ax_dist_target.set_xlabel('IsDraw (0: Não Empate, 1: Empate)'); self.ax_dist_target.set_ylabel(selected_feature);
-            if self.dist_target_canvas_widget: self.dist_target_canvas_widget.draw_idle()
-        except Exception as e: logger.error(f"Erro dist vs target plot {selected_feature}: {e}", exc_info=True); self._clear_matplotlib_widget(self.dist_target_canvas_container); ttk.Label(self.dist_target_canvas_container, text=f"Erro.").pack()
+        if not selected_feature or selected_feature not in self.X_clean.columns:
+            return
 
+        try:
+            if self.fig_dist is None or not plt.fignum_exists(self.fig_dist.number):
+                self.fig_dist, self.axes_dist = plt.subplots(
+                    2, 1, figsize=(6, 5),
+                    gridspec_kw={'height_ratios': [3, 1]},
+                    sharex=True, constrained_layout=True
+                )
+            else:
+                self.axes_dist[0].clear()
+                self.axes_dist[1].clear()
+
+            feature_data = self.X_clean[selected_feature].dropna()
+            sns.histplot(feature_data, kde=True, ax=self.axes_dist[0])
+            self.axes_dist[0].set_title(f'Distribuição de {selected_feature}')
+            self.axes_dist[0].set_xlabel('')
+            sns.boxplot(x=feature_data, ax=self.axes_dist[1])
+            self.axes_dist[1].set_xlabel(selected_feature)
+
+            self._embed_matplotlib_figure(self.fig_dist, self.dist_canvas_container)
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar gráfico de distribuição para {selected_feature}: {e}", exc_info=True)
+            self._clear_matplotlib_widget(self.dist_canvas_container)
+            ctk.CTkLabel(self.dist_canvas_container, text="Erro ao gerar gráfico.").pack()
+
+        try:
+            if self.fig_dist_target is None or not plt.fignum_exists(self.fig_dist_target.number):
+                self.fig_dist_target, self.ax_dist_target = plt.subplots(
+                    1, 1, figsize=(6, 5), constrained_layout=True
+                )
+            else:
+                self.ax_dist_target.clear()
+
+            target_name = self.strategy.get_target_variable_name()
+            plot_data = pd.DataFrame({
+                'feature': self.X_clean[selected_feature],
+                'target': self.y_clean
+            })
+            sns.boxplot(data=plot_data, x='target', y='feature', ax=self.ax_dist_target)
+            self.ax_dist_target.set_title(f'{selected_feature} vs {target_name}')
+            self.ax_dist_target.set_xlabel(f'{target_name} (0: Negativo, 1: Positivo)')
+            self.ax_dist_target.set_ylabel(selected_feature)
+
+            self._embed_matplotlib_figure(self.fig_dist_target, self.dist_target_canvas_container)
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar gráfico vs alvo para {selected_feature}: {e}", exc_info=True)
+            self._clear_matplotlib_widget(self.dist_target_canvas_container)
+            ctk.CTkLabel(self.dist_target_canvas_container, text="Erro ao gerar gráfico.").pack()
 
     def generate_correlation_heatmap(self):
-        # ... (código idêntico ao anterior, usa X_clean) ...
-        if self.X_clean is None: return
+        if self.X_clean is None or self.y_clean is None:
+            return
         try:
-            if self.fig_corr: plt.close(self.fig_corr)
-            numeric_features = self.X_clean.select_dtypes(include=np.number)
-            if numeric_features.shape[1] < 2: self._clear_matplotlib_widget(self.corr_canvas_container); ttk.Label(self.corr_canvas_container, text="Poucas features.").pack(); return
-            corr_matrix = numeric_features.corr(); self.fig_corr, ax = plt.subplots(figsize=(9, 7), constrained_layout=True); sns.heatmap(corr_matrix, annot=False, cmap='coolwarm', fmt=".2f", linewidths=.5, ax=ax, cbar=True); ax.set_title('Heatmap Correlação'); plt.setp(ax.get_xticklabels(), rotation=60, ha='right', fontsize=7); plt.setp(ax.get_yticklabels(), rotation=0, fontsize=7);
-            self.corr_heatmap_canvas_widget = self._embed_matplotlib_figure(self.fig_corr, self.corr_canvas_container)
-        except Exception as e: logger.error(f"Erro heatmap: {e}", exc_info=True); self._clear_matplotlib_widget(self.corr_canvas_container); ttk.Label(self.corr_canvas_container, text=f"Erro.").pack()
+            if self.fig_corr is None or not plt.fignum_exists(self.fig_corr.number):
+                self.fig_corr, self.ax_corr = plt.subplots(figsize=(9, 7), constrained_layout=True)
+            else:
+                self.ax_corr.clear()
+
+            df_for_corr = self.X_clean.select_dtypes(include=np.number).copy()
+            df_for_corr[self.strategy.get_target_variable_name()] = self.y_clean
+
+            if df_for_corr.shape[1] < 2:
+                self._clear_matplotlib_widget(self.corr_canvas_container)
+                ctk.CTkLabel(self.corr_canvas_container, text="Features insuficientes para correlação.").pack()
+                return
+
+            corr_matrix = df_for_corr.corr()
+            sns.heatmap(
+                corr_matrix, annot=False, cmap='coolwarm', fmt=".2f",
+                linewidths=.5, ax=self.ax_corr, cbar=True
+            )
+            self.ax_corr.set_title('Heatmap de Correlação (Features e Alvo)')
+            plt.setp(self.ax_corr.get_xticklabels(), rotation=60, ha='right', fontsize=7)
+            plt.setp(self.ax_corr.get_yticklabels(), rotation=0, fontsize=7)
+
+            self._embed_matplotlib_figure(self.fig_corr, self.corr_canvas_container)
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar heatmap de correlação: {e}", exc_info=True)
+            self._clear_matplotlib_widget(self.corr_canvas_container)
+            ctk.CTkLabel(self.corr_canvas_container, text="Erro ao gerar gráfico.").pack()
+

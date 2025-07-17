@@ -1,4 +1,5 @@
 import tkinter as tk
+import customtkinter as ctk
 from tkinter import ttk, messagebox, filedialog
 from tkinter.scrolledtext import ScrolledText
 import sys, os, threading, datetime, math, numpy as np 
@@ -7,6 +8,8 @@ import pandas as pd
 from typing import Optional, Dict, List, Any 
 
 from strategies.base_strategy import BettingStrategy
+from backtester import RuleBasedBacktester
+
 
 try:
     from lightgbm import LGBMClassifier
@@ -16,19 +19,20 @@ except ImportError:
 from typing import Optional, Dict, List, Any
 from logger_config import setup_logger
 
-logger = setup_logger("Main2")# Adiciona diretórios e importa módulos
+logger = setup_logger("MainTrainingTab")
 try:
-    SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+    GUI_DIR = os.path.dirname(os.path.abspath(__file__))
+    SRC_DIR = os.path.dirname(GUI_DIR)
     BASE_DIR = os.path.dirname(SRC_DIR)
-    if SRC_DIR not in sys.path: sys.path.append(SRC_DIR)
-    if BASE_DIR not in sys.path: sys.path.append(BASE_DIR)
+    if BASE_DIR not in sys.path: sys.path.insert(0, BASE_DIR)
+    if SRC_DIR not in sys.path: sys.path.insert(0, SRC_DIR)
 except NameError: 
     pass
 
 try:
     from config import (
-        CLASS_NAMES, FIXTURE_FETCH_DAY,MODEL_CONFIG,
-        MODEL_TYPE_NAME, ODDS_COLS as CONFIG_ODDS_COLS,
+        CLASS_NAMES, FIXTURE_FETCH_DAY,MODEL_CONFIG, DATA_DIR, 
+        MODEL_TYPE_NAME, ODDS_COLS as CONFIG_ODDS_COLS, MIN_PROB_THRESHOLD_FOR_HIGHLIGHT, 
         BEST_F1_MODEL_SAVE_PATH, BEST_ROI_MODEL_SAVE_PATH, MODEL_ID_F1, MODEL_ID_ROI,
         DEFAULT_F1_THRESHOLD, DEFAULT_EV_THRESHOLD, CALIBRATION_METHOD_DEFAULT )
     
@@ -37,7 +41,7 @@ try:
         preprocess_and_feature_engineer, 
         fetch_and_process_fixtures,      
         prepare_fixture_data,            
-        calculate_historical_intermediate 
+        _calculate_match_results_and_points 
     )
     from model_trainer import train_evaluate_and_save_best_models as run_training_process
     import predictor 
@@ -52,145 +56,182 @@ except Exception as e_i:
     raise 
 
 class FootballPredictorDashboard:
-    def __init__(self, parent_frame, main_root, analyzer_app_ref, strategy):
-
+    def __init__(self, parent_frame: ctk.CTkFrame, main_root: ctk.CTk, strategy: BettingStrategy, **kwargs):
         self.parent = parent_frame
         self.main_tk_root = main_root
-        self.analyzer_app = analyzer_app_ref
         self.strategy = strategy
+        self.strategy_type = self.strategy.get_strategy_type()
 
         self.gui_queue = Queue()
         self.stop_processing_queue = False
         self.historical_data: Optional[pd.DataFrame] = None
-        self.loaded_models_data: Dict[str, Dict] = {}
-        self.available_model_ids: List[str] = []
-        self.selected_model_id: Optional[str] = None
-        self.trained_model: Optional[Any] = None
-        self.trained_scaler: Optional[Any] = None
-        self.trained_calibrator: Optional[Any] = None 
-        self.training_medians: Optional[pd.Series] = None
-        self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; 
-        self.feature_columns: Optional[List[str]] = None
-        self.model_best_params: Optional[Dict] = None
-        self.model_eval_metrics: Optional[Dict] = None
-        self.model_file_timestamp: Optional[str] = None
-        self.optimal_f1_threshold: float = DEFAULT_F1_THRESHOLD 
-        self.optimal_ev_threshold: float = DEFAULT_EV_THRESHOLD
+        self.progress_max_value: int = 1
         
+        if self.strategy_type == "machine_learning":
+            self.loaded_models_data: Dict[str, Dict] = {}
+            self.available_model_ids: List[str] = []
+            self.selected_model_id: Optional[str] = None
+            self.trained_model: Optional[Any] = None
+            self.trained_scaler: Optional[Any] = None
+            self.trained_calibrator: Optional[Any] = None
+            self.training_medians: Optional[pd.Series] = None
+            self.feature_columns: Optional[List[str]] = None
+            self.optimal_f1_threshold: float = DEFAULT_F1_THRESHOLD
+            self.optimal_ev_threshold: float = DEFAULT_EV_THRESHOLD
+            self.selected_model_var = tk.StringVar()
+
         self.create_train_predict_widgets()
         self.main_tk_root.after(100, self.process_gui_queue)
-        self.log(f"Aba Treino/Previsão Inicializada ({MODEL_TYPE_NAME})")
-        self.log(f"Fonte CSV: '{FIXTURE_FETCH_DAY}'.")
-        self.log("Carregando modelos e histórico...")
-        self.load_existing_model_assets()
+        self.log(f"Aba inicializada para a estratégia: '{self.strategy.get_display_name()}'")
+        
+        if self.strategy_type == "machine_learning":
+            self.load_existing_model_assets()
 
     def create_train_predict_widgets(self):
+        self.parent.grid_columnconfigure(1, weight=1)
+        self.parent.grid_rowconfigure(0, weight=1)
 
-        main_frame = ttk.Frame(self.parent, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        left_panel = ttk.Frame(main_frame)
-        left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10), pady=5)
-        control_frame = ttk.LabelFrame(left_panel, text=" Ações ", padding="10")
-        control_frame.pack(pady=(0, 5), fill=tk.X)
+        left_panel = ctk.CTkFrame(self.parent)
+        left_panel.grid(row=0, column=0, padx=10, pady=10, sticky="ns")
+        
+        right_panel = ctk.CTkFrame(self.parent, fg_color="transparent")
+        right_panel.grid(row=0, column=1, padx=(0, 10), pady=10, sticky="nsew")
+        right_panel.grid_rowconfigure(0, weight=2)
+        right_panel.grid_rowconfigure(1, weight=1)
+        right_panel.grid_columnconfigure(0, weight=1)
 
-        self.load_train_button = ttk.Button(
-            control_frame, text="TREINAR e Salvar Melhores Modelos",
-            command=self.start_training_thread, width=35
-        )
-        self.load_train_button.pack(pady=5, fill=tk.X)
+        if self.strategy_type == "machine_learning":
+            self._create_ml_widgets(left_panel)
+        elif self.strategy_type == "rule_based":
+            self._create_rule_based_widgets(left_panel)
 
-        predict_frame = ttk.Frame(control_frame)
-        predict_frame.pack(fill=tk.X, pady=5)
+        self._create_right_panel_widgets(right_panel)
 
-        self.predict_button = ttk.Button(
-            predict_frame, text=f"Prever ({FIXTURE_FETCH_DAY.capitalize()}) com:",
-            command=self.start_prediction_thread, width=18
-        )
-        self.predict_button.pack(side=tk.LEFT, fill=tk.X, expand=False)
-        self.predict_button.config(state=tk.DISABLED)
+    def start_finding_entries(self):
+        threading.Thread(target=self._run_rule_based_pipeline, daemon=True).start()
 
-        self.selected_model_var = tk.StringVar()
-        self.model_selector_combo = ttk.Combobox(
-            predict_frame, textvariable=self.selected_model_var, state="readonly", width=20
-        )
-        self.model_selector_combo.pack(side=tk.RIGHT, padx=(5, 0), fill=tk.X, expand=True)
-        self.model_selector_combo.bind("<<ComboboxSelected>>", self.on_model_select)
+    def _create_ml_widgets(self, parent: ctk.CTkFrame):
+        parent.grid_rowconfigure(1, weight=1)
+        control_frame = ctk.CTkFrame(parent)
+        control_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
-        progress_frame = ttk.Frame(control_frame)
-        progress_frame.pack(fill=tk.X, pady=(10, 0))
+        self.load_train_button = ctk.CTkButton(control_frame, text="TREINAR MODELOS", command=self.start_training_thread)
+        self.load_train_button.pack(fill="x", padx=10, pady=10)
 
-        self.progress_label = ttk.Label(progress_frame, text="Pronto.")
-        self.progress_label.pack(side=tk.LEFT, padx=(0, 5))
+        predict_frame = ctk.CTkFrame(control_frame)
+        predict_frame.pack(fill="x", padx=10, pady=(0, 10))
+        predict_frame.grid_columnconfigure(1, weight=1)
+        self.predict_button = ctk.CTkButton(predict_frame, text=f"Prever ({FIXTURE_FETCH_DAY})", command=self.start_prediction_thread, state="disabled")
+        self.predict_button.grid(row=0, column=0, padx=(0, 5))
+        self.model_selector_combo = ctk.CTkComboBox(predict_frame, variable=self.selected_model_var, state="readonly", command=self.on_model_select)
+        self.model_selector_combo.grid(row=0, column=1, sticky="ew")
 
-        self.progress_bar = ttk.Progressbar(
-            progress_frame, orient=tk.HORIZONTAL, length=200, mode='determinate'
-        )
-        self.progress_bar.pack(side=tk.RIGHT, fill=tk.X, expand=True)
+        stats_frame = ctk.CTkFrame(parent)
+        stats_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        stats_frame.grid_rowconfigure(1, weight=1)
+        stats_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(stats_frame, text="Status do Modelo Selecionado", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
+        self.model_stats_text = ScrolledText(stats_frame, wrap="word", font=("Consolas", 9), relief="flat", borderwidth=0, bg="#2B2B2B", fg="white", insertbackground="white")
+        self.model_stats_text.grid(row=1, column=0, padx=1, pady=1, sticky="nsew")
+        
+    def _create_rule_based_widgets(self, parent: ctk.CTkFrame):
+        parent.grid_rowconfigure(1, weight=1)
+        control_frame = ctk.CTkFrame(parent)
+        control_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
-        # Status do modelo
-        stats_frame = ttk.LabelFrame(left_panel, text=" Status Modelo Selecionado ", padding="10")
-        stats_frame.pack(pady=10, fill=tk.BOTH, expand=True)
+        self.backtest_button = ctk.CTkButton(control_frame, text="Verificar Estratégia no Histórico", command=self.start_backtest_thread)
+        self.backtest_button.pack(fill="x", padx=10, pady=10)
+        self.find_entries_button = ctk.CTkButton(control_frame, text="Encontrar Entradas Futuras", command=self.start_find_entries_thread)
+        self.find_entries_button.pack(fill="x", padx=10, pady=(0, 10))
 
-        self.model_stats_text = ScrolledText(
-            stats_frame, height=15, state='disabled', wrap=tk.WORD,
-            font=("Consolas", 9), relief=tk.FLAT, bd=0
-        )
-        self.model_stats_text.pack(fill=tk.BOTH, expand=True)
-
-        # Painel direito
-        right_panel = ttk.Frame(main_frame)
-        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-
-        # Previsões
-        results_frame = ttk.LabelFrame(right_panel, text=" Previsões ", padding="5")
-        results_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        cols = [
-            'Data', 'Hora', 'Liga', 'Casa', 'Fora', 'Odd H', 'Odd D', 'Odd A',
-            'P(Ñ Emp)', 'P(Empate)', 'P(Emp Calib)', 'EV EMPATE'
-        ]
-
-        self.prediction_tree = ttk.Treeview(
-            results_frame, columns=cols, show='headings', height=10
-        )
+        results_frame = ctk.CTkFrame(parent)
+        results_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        results_frame.grid_rowconfigure(1, weight=1)
+        results_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(results_frame, text="Resultado do Backtest", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
+        self.backtest_results_text = ScrolledText(results_frame, wrap="word", font=("Consolas", 9), relief="flat", borderwidth=0, bg="#2B2B2B", fg="white", insertbackground="white")
+        self.backtest_results_text.grid(row=1, column=0, padx=1, pady=1, sticky="nsew")
+    
+    def _create_right_panel_widgets(self, parent: ctk.CTkFrame):
+        results_frame = ctk.CTkFrame(parent)
+        results_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+        results_frame.grid_rowconfigure(0, weight=1)
+        results_frame.grid_columnconfigure(0, weight=1)
+        
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure("Treeview", background="#2B2B2B", foreground="white", fieldbackground="#2B2B2B", borderwidth=0)
+        style.configure("Treeview.Heading", background="#333333", foreground="white", relief="flat")
+        style.map('Treeview.Heading', background=[('active', '#555555')])
+        
+        self.prediction_tree = ttk.Treeview(results_frame, show='headings', height=10)
+        self.prediction_tree.grid(row=0, column=0, sticky="nsew")
         vsb = ttk.Scrollbar(results_frame, orient="vertical", command=self.prediction_tree.yview)
+        vsb.grid(row=0, column=1, sticky="ns")
         hsb = ttk.Scrollbar(results_frame, orient="horizontal", command=self.prediction_tree.xview)
+        hsb.grid(row=1, column=0, sticky="ew")
         self.prediction_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        vsb.pack(side='right', fill='y')
-        hsb.pack(side='bottom', fill='x')
-        self.prediction_tree.pack(fill=tk.BOTH, expand=True)
-        self._setup_prediction_columns(cols)
 
-        # Logs
-        log_frame = ttk.LabelFrame(right_panel, text=" Logs ", padding="5")
-        log_frame.pack(fill=tk.BOTH, expand=True, side=tk.BOTTOM, pady=(5, 0))
+        log_frame = ctk.CTkFrame(parent)
+        log_frame.grid(row=1, column=0, sticky="nsew")
+        log_frame.grid_rowconfigure(1, weight=1)
+        log_frame.grid_columnconfigure(0, weight=1)
+        
+        ctk.CTkLabel(log_frame, text="Logs", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.log_area = ScrolledText(log_frame, height=8, wrap="word", font=("Consolas", 9), relief="flat", borderwidth=0, bg="#2B2B2B", fg="white", insertbackground="white")
+        self.log_area.grid(row=1, column=0, padx=1, pady=1, sticky="nsew")
+        self.log_area.configure(state='disabled')
 
-        self.log_area = ScrolledText(
-            log_frame, height=8, state='disabled', wrap=tk.WORD, font=("Consolas", 9)
-        )
-        self.log_area.pack(fill=tk.BOTH, expand=True)
+    def _run_rule_based_pipeline(self):
+        fixture_df = fetch_and_process_fixtures()
+        if fixture_df is None or fixture_df.empty:
+            self.log("Nenhum jogo encontrado para análise.")
+            return
 
-        self._update_model_stats_display_gui()  # Atualiza display inicial
+        entradas_df = self.strategy.find_entries(fixture_df)
+        
+        self.gui_queue.put(("prediction_complete", entradas_df))
 
+    def log(self, message: str):
+        self.gui_queue.put(("log", message))
 
-    # --- Métodos Auxiliares GUI (log, _update_log_area, set_button_state, _update_button_state) ---
-    # (Sem alterações necessárias aqui)
-    def log(self, message: str): self.gui_queue.put(("log", message))
+    def _reset_model_state(self):
+        self.selected_model_id = None
+        self.trained_model = None
+        self.trained_scaler = None
+        self.trained_calibrator = None
+        self.training_medians = None
+        self.feature_columns = None
+        self.model_best_params = None
+        self.model_eval_metrics = None
+        self.model_file_timestamp = None
+        self.optimal_f1_threshold = DEFAULT_F1_THRESHOLD
+        self.optimal_ev_threshold = DEFAULT_EV_THRESHOLD
+        self.available_model_ids.clear()
+        self.loaded_models_data.clear()
+        self.selected_model_var.set('')
+        self.model_selector_combo.configure(values=[])
+
     def _update_log_area(self, message: str):
          try:
              if hasattr(self, 'log_area') and self.log_area.winfo_exists():
                  self.log_area.config(state='normal'); ts = datetime.datetime.now().strftime("%H:%M:%S"); self.log_area.insert(tk.END, f"[{ts}] {message}\n"); self.log_area.config(state='disabled'); self.log_area.see(tk.END)
-         except tk.TclError: pass
-    def set_button_state(self, button: ttk.Button, state: str): self.gui_queue.put(("button_state", (button, state)))
+         except tk.TclError: 
+             pass
+         
+    def set_button_state(self, button: ctk.CTkButton, state: str): 
+        self.gui_queue.put(("button_state", (button, state)))
+
     def _update_button_state(self, button_state_tuple):
          button, state = button_state_tuple
          try:
-             if button.winfo_exists(): button.config(state=state)
+             if button.winfo_exists(): button.configure(state=state) # <<< CORREÇÃO AQUI
          except tk.TclError: pass
+         except Exception as e: 
+             logger.error(f"Erro interno ao atualizar estado do botão '{button_state_tuple[0].cget('text')}': {e}")
 
-    # --- : Atualiza Display de Stats do Modelo ---
     def _update_model_stats_display_gui(self):
-        """Atualiza display de stats focando nos diferentes limiares e métricas."""
+
         try:
             if not hasattr(self, 'model_stats_text') or not self.model_stats_text.winfo_exists():
                 return
@@ -204,24 +245,20 @@ class FootballPredictorDashboard:
                 metrics = model_data.get('metrics', {}) # Métricas salvas do teste/avaliação
                 params = model_data.get('params')
                 features = model_data.get('features', [])
-                timestamp = model_data.get('timestamp') # Timestamp do arquivo .joblib
+                timestamp = model_data.get('timestamp') 
                 path = model_data.get('path')
-                # Obtém o nome da classe do modelo salvo
-                model_obj = model_data.get('model') # Pega o objeto do modelo
+                model_obj = model_data.get('model') 
                 model_class_name = model_obj.__class__.__name__ if model_obj else metrics.get('model_name', 'N/A') # Usa o nome salvo se objeto não carregou
 
-                # Pega os limiares ótimos (com defaults)
                 optimal_f1_thr = metrics.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD)
                 optimal_ev_thr = metrics.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD)
-                # Usa get() para o limiar de precision, pois pode não existir em modelos antigos
-                optimal_prec_thr = metrics.get('optimal_precision_threshold', 0.5) # Default 0.5 se não encontrado
+                optimal_prec_thr = metrics.get('optimal_precision_threshold', 0.5) 
 
                 calibrator_loaded = model_data.get('calibrator') is not None
 
                 # --- Seção 1: Informações Gerais ---
                 stats_content = f"Modelo Selecionado: {self.selected_model_id}\n"
                 stats_content += f"  Tipo: {model_class_name}\n"
-                # Se for ensemble, mostra estimadores base
                 if model_class_name == 'VotingClassifier' and params and 'estimators' in params:
                      estimator_names = [e_name.split('_')[0] for e_name in params['estimators']] # Tenta pegar nome base
                      stats_content += f"  Estimadores Base: {', '.join(estimator_names)}\n"
@@ -246,10 +283,9 @@ class FootballPredictorDashboard:
                 test_n = metrics.get('test_set_size', 'N/A')
                 stats_content += f"- Tamanho Teste: {test_n}\n"
 
-                # Métricas @ Limiar F1 Otimizado
-                f1_f1 = metrics.get('f1_score_draw') # Chave principal F1
-                p_f1 = metrics.get('precision_draw_thrF1') # Precision no limiar F1
-                r_f1 = metrics.get('recall_draw_thrF1')    # Recall no limiar F1
+                f1_f1 = metrics.get('f1_score_draw') 
+                p_f1 = metrics.get('precision_draw_thrF1') 
+                r_f1 = metrics.get('recall_draw_thrF1')   
                 acc_f1 = metrics.get('accuracy_thrF1')
                 stats_content += f"- @ Limiar F1 ({optimal_f1_thr:.3f}):\n"
                 stats_content += f"    F1={f1_f1:.4f}" if f1_f1 is not None else "    F1=N/A"
@@ -271,7 +307,7 @@ class FootballPredictorDashboard:
                 # Métricas Probabilísticas (Pós-Calibração)
                 auc = metrics.get('roc_auc')
                 brier = metrics.get('brier_score')
-                logloss = metrics.get('log_loss') # Geralmente calculado com probs brutas
+                logloss = metrics.get('log_loss') 
                 stats_content += "- Métricas Probabilísticas:\n"
                 stats_content += f"    ROC AUC (Pós-Calib): {auc:.4f}\n" if auc is not None else "    ROC AUC=N/A\n"
                 stats_content += f"    Brier Score (Pós-Calib): {brier:.4f}\n" if brier is not None else "    Brier=N/A\n"
@@ -282,15 +318,13 @@ class FootballPredictorDashboard:
                 # --- Seção 4: Estratégia de Aposta EV (Teste) ---
                 profit_ev = metrics.get('profit')
                 roi_ev = metrics.get('roi')
-                n_bets_ev = metrics.get('num_bets') # Número de apostas sugeridas pelo limiar EV
-
+                n_bets_ev = metrics.get('num_bets') 
                 stats_content += f"Estratégia EV (EV > {optimal_ev_thr:.3f} no Teste):\n"
                 stats_content += f"- Nº Apostas Sugeridas: {n_bets_ev if n_bets_ev is not None else 'N/A'}\n"
-                profit_ev_str = f"{profit_ev:+.2f} u" if profit_ev is not None else "N/A" # Adiciona sinal +/-
+                profit_ev_str = f"{profit_ev:+.2f} u" if profit_ev is not None else "N/A" 
                 roi_ev_str = "N/A"
-                # Trata NaN/Inf/None para ROI de forma segura
                 if isinstance(roi_ev, (int, float, np.number)) and pd.notna(roi_ev) and np.isfinite(roi_ev):
-                    roi_ev_str = f"{roi_ev:+.2f} %" # Adiciona sinal +/-
+                    roi_ev_str = f"{roi_ev:+.2f} %" 
 
                 stats_content += f"- Lucro/Prejuízo: {profit_ev_str}\n"
                 stats_content += f"- ROI Calculado: {roi_ev_str}\n"
@@ -299,10 +333,10 @@ class FootballPredictorDashboard:
             self.model_stats_text.insert('1.0', stats_content)
             self.model_stats_text.config(state='disabled')
         except tk.TclError:
-            pass # Ignora erro se widget for destruído enquanto atualiza
+            pass 
         except Exception as e:
             logger.error(f"Erro _update_model_stats_display_gui: {e}", exc_info=True)
-            try: # Tenta exibir erro no widget
+            try: 
                  if hasattr(self, 'model_stats_text') and self.model_stats_text.winfo_exists():
                       self.model_stats_text.config(state='normal')
                       self.model_stats_text.delete('1.0', tk.END)
@@ -329,7 +363,7 @@ class FootballPredictorDashboard:
                 'Fora': 95,
                 'Odd D': 50,
                 'P(E) Calib': 75,
-                'EV Empate': 70,  # Colunas chave
+                'EV Empate': 70,  
                 'Status': 500
             }
 
@@ -353,133 +387,87 @@ class FootballPredictorDashboard:
     # --- : Atualiza Display de Previsões ---
     def _update_prediction_display(self, df: Optional[pd.DataFrame]):
         try:
-            # Adiciona log para ver colunas recebidas
-            if df is not None and not df.empty:
-                 logger.debug(f"GUI Display: Colunas recebidas no DF: {list(df.columns)}")
-                 logger.debug(f"GUI Display: Amostra Time_Str recebida:\n{df['Time_Str'].head() if 'Time_Str' in df.columns else 'Coluna Time_Str AUSENTE'}")
-                 logger.debug(f"GUI Display: Amostra Home recebida:\n{df['Home'].head() if 'Home' in df.columns else 'Coluna Home AUSENTE'}")
-                 logger.debug(f"GUI Display: Amostra Away recebida:\n{df['Away'].head() if 'Away' in df.columns else 'Coluna Away AUSENTE'}")
+            for i in self.prediction_tree.get_children():
+                self.prediction_tree.delete(i)
 
-            self.log(f"--- GUI: Atualizando display previsões...")
-            # Cabeçalhos que você quer na GUI
-            display_headers = ['Data', 'Hora', 'Liga', 'Casa', 'Fora',
-                               'Odd D', 'P(E) Raw', 'P(E) Calib', 'EV Empate']
-
-            # Tag de destaque
-            try:
-                self.prediction_tree.tag_configure('highlight_suggestion', background='lightgreen', foreground='black') # Renomear a tag talvez? (Opcional)
-            except tk.TclError: pass
-
-            # Limpa e configura Treeview
             if df is None or df.empty:
-                self.log("GUI: DF vazio/None."); self._setup_prediction_columns(['Status']); self.prediction_tree.insert('', tk.END, values=['Nenhuma previsão gerada ou falha.']); return
-            self.log(f"GUI: DF {df.shape}. Reconfigurando colunas: {display_headers}");
+                self.log("Nenhuma previsão para exibir.")
+                self._setup_prediction_columns(['Status'])
+                self.prediction_tree.insert('', 'end', values=['Nenhuma previsão foi gerada ou os jogos não foram encontrados.'])
+                return
+
+            strategy_target_name = self.strategy.get_target_variable_name()
+            relevant_odd_cols = self.strategy.get_relevant_odds_cols()
+            main_odd_col = relevant_odd_cols[0] if relevant_odd_cols else None
+            
+            prob_positive_raw_col = f'ProbRaw_{strategy_target_name}'
+            prob_positive_calib_col = f'Prob_{strategy_target_name}'
+            ev_col = f'EV_{strategy_target_name}'
+
+            display_headers = ['Data', 'Hora', 'Liga', 'Casa', 'Fora']
+            header_to_col_map = {'Data':'Date_Str', 'Hora':'Time_Str', 'Liga':'League', 'Casa':'Home', 'Fora':'Away'}
+
+            if main_odd_col and main_odd_col in df.columns:
+                strategy_name_parts = self.strategy.get_display_name().split(' ')
+                odd_display_name = f"Odd ({strategy_name_parts[-2] if len(strategy_name_parts) >= 2 else 'Alvo'})"
+                display_headers.append(odd_display_name)
+                header_to_col_map[odd_display_name] = main_odd_col
+
+            header_suffix = f"({strategy_target_name})"
+            display_headers.extend([f'P Raw {header_suffix}', f'P Calib {header_suffix}', f'EV {header_suffix}'])
+            header_to_col_map.update({
+                f'P Raw {header_suffix}': prob_positive_raw_col,
+                f'P Calib {header_suffix}': prob_positive_calib_col,
+                f'EV {header_suffix}': ev_col
+            })
+
+            self.log(f"Exibindo {len(df)} previsões para a estratégia '{self.strategy.get_display_name()}'...")
             self._setup_prediction_columns(display_headers)
+            
+            df_display = df.copy()
 
-            # Mapeamento Header GUI -> Coluna Interna DF
-            odds_d_col = CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT');
-            prob_draw_raw_col = f'ProbRaw_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'ProbRaw_Empate'
-            prob_draw_calib_col = f'Prob_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'Prob_Empate'
-            ev_col = 'EV_Empate';
-            header_to_col_map = {
-                'Data': 'Date_Str', 'Hora': 'Time_Str', 'Liga': 'League',
-                'Casa': 'Home', 'Fora': 'Away', 'Odd D': odds_d_col,
-                'P(E) Raw': prob_draw_raw_col, 'P(E) Calib': prob_draw_calib_col,
-                'EV Empate': ev_col
-            }
-
-            # Verifica quais colunas mapeadas realmente existem no DF recebido
-            valid_internal_cols_map = {h: c for h, c in header_to_col_map.items() if c in df.columns}
-            missing_display_cols = [h for h, c in header_to_col_map.items() if c not in df.columns]
-            if missing_display_cols: logger.warning(f"GUI Display: Colunas ausentes no DF para cabeçalhos: {missing_display_cols}")
-
-
-            # Formatação (opcional, pode ser feita aqui ou antes)
-            df_display = df.copy() # Trabalha numa cópia para formatação
-            # ... (formatação de probs, EV, odds como antes, usando os nomes internos corretos) ...
-            prob_cols_to_format = [prob_draw_raw_col, prob_draw_calib_col] # Usa nomes internos
-            for pcol in prob_cols_to_format:
-                if pcol in df_display.columns:
-                     try:
-                          numeric_probs = pd.to_numeric(df_display[pcol], errors='coerce'); formatted_probs = (numeric_probs * 100).round(1).astype(str) + '%'; df_display[pcol] = formatted_probs.replace('nan%', '-', regex=False)
-                     except Exception: df_display[pcol] = "-"
+            for col in [prob_positive_raw_col, prob_positive_calib_col]:
+                if col in df_display.columns:
+                    df_display[col] = pd.to_numeric(df_display[col], errors='coerce').apply(lambda x: f"{x:.1%}" if pd.notna(x) else "-")
+            
             if ev_col in df_display.columns:
-                 try: df_display[ev_col] = pd.to_numeric(df_display[ev_col], errors='coerce').apply(lambda x: f"{x:+.3f}" if pd.notna(x) else "-")
-                 except Exception: df_display[ev_col] = "-"
-            if odds_d_col in df_display.columns:
-                 try: df_display[odds_d_col] = pd.to_numeric(df_display[odds_d_col], errors='coerce').apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
-                 except Exception: df_display[odds_d_col] = "-"
+                df_display[ev_col] = pd.to_numeric(df_display[ev_col], errors='coerce').apply(lambda x: f"{x:+.3f}" if pd.notna(x) else "-")
+            
+            if main_odd_col and main_odd_col in df_display.columns:
+                df_display[main_odd_col] = pd.to_numeric(df_display[main_odd_col], errors='coerce').apply(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
+            
+            try:
+                self.prediction_tree.tag_configure('highlight_suggestion', background='#3a5f3a', foreground='white')
+            except tk.TclError:
+                pass
+                
+            prob_col_for_check = prob_positive_calib_col if prob_positive_calib_col in df.columns else prob_positive_raw_col
 
-
-            from config import MIN_PROB_THRESHOLD_FOR_HIGHLIGHT # Importa o novo limiar
-
-            prob_col_to_check = None
-            calibrator_exists = self.trained_calibrator is not None
-            if calibrator_exists and prob_draw_calib_col in df.columns:
-                prob_col_to_check = prob_draw_calib_col
-                prob_source_log = "Calibrada"
-            elif prob_draw_raw_col in df.columns:
-                prob_col_to_check = prob_draw_raw_col # Fallback para bruta
-                prob_source_log = "Bruta"
-                self.log(f"Aviso GUI: Usando Prob Bruta '{prob_col_to_check}' para verificação de limiar mínimo (calibrada ausente).")
-            else:
-                prob_source_log = "NENHUMA"
-                self.log(f"ERRO GUI: Nenhuma coluna de probabilidade ({prob_draw_calib_col} ou {prob_draw_raw_col}) encontrada para verificação de limiar.")
-
-            # Inserir Linhas
-            highlight_criteria_log = f"EV > {self.optimal_ev_threshold:.3f} E Prob ({prob_source_log}) >= {MIN_PROB_THRESHOLD_FOR_HIGHLIGHT:.1%}"
-            self.log(f"GUI: Adicionando linhas... (Highlight: {highlight_criteria_log})")
-            added_rows = 0
-            highlighted_count = 0
-
-            for index, row_original in df.iterrows(): # Itera no DF original para pegar valores numéricos
-                values_list = []
-                for header in display_headers:
-                    internal_col = header_to_col_map.get(header)
-                    if internal_col and internal_col in df_display.columns:
-                        formatted_value = df_display.loc[index, internal_col]
-                        values_list.append(str(formatted_value))
-                    else:
-                        values_list.append("-") # Melhor que vazio
-
-                # --- Lógica de DESTAQUE MODIFICADA ---
+            for index, row_original in df.iterrows():
+                values_list = [
+                    str(df_display.loc[index, header_to_col_map.get(header, '')]) if header_to_col_map.get(header) in df_display.columns else "-"
+                    for header in display_headers
+                ]
+                
                 tag_to_apply = ()
-                should_highlight = False # Começa como Falso
                 try:
-                    # 1. Verifica condição de EV
-                    ev_val_orig = pd.to_numeric(row_original.get(ev_col), errors='coerce')
-                    ev_condition_met = pd.notna(ev_val_orig) and ev_val_orig > self.optimal_ev_threshold
+                    ev_val = pd.to_numeric(row_original.get(ev_col), errors='coerce')
+                    prob_val = pd.to_numeric(row_original.get(prob_col_for_check), errors='coerce')
+                    
+                    ev_condition = pd.notna(ev_val) and ev_val > self.optimal_ev_threshold
+                    prob_condition = pd.notna(prob_val) and prob_val >= MIN_PROB_THRESHOLD_FOR_HIGHLIGHT
+                    
+                    if ev_condition and prob_condition:
+                        tag_to_apply = ('highlight_suggestion',)
+                except Exception:
+                    pass
 
-                    # 2. Verifica condição de Probabilidade Mínima (se coluna existe)
-                    prob_condition_met = False
-                    if prob_col_to_check: # Só verifica se encontramos uma coluna de prob válida
-                        prob_val_orig = pd.to_numeric(row_original.get(prob_col_to_check), errors='coerce')
-                        prob_condition_met = pd.notna(prob_val_orig) and prob_val_orig >= MIN_PROB_THRESHOLD_FOR_HIGHLIGHT
-
-                    # 3. Combina as condições
-                    if ev_condition_met and prob_condition_met:
-                        should_highlight = True
-
-                except Exception as e_highlight:
-                     logger.warning(f"GUI Highlight Check Error (Index {index}): {e_highlight}")
-                     should_highlight = False # Segurança: não destaca se houver erro
-
-                if should_highlight:
-                    tag_to_apply = ('highlight_suggestion',) # Aplica a tag
-                    highlighted_count += 1
-
-                # Insere na Treeview
-                try:
-                    self.prediction_tree.insert('', tk.END, values=values_list, tags=tag_to_apply)
-                    added_rows += 1
-                except Exception as e_ins:
-                    self.log(f"!! Erro inserir linha {index}: {e_ins}")
-
-            self.log(f"GUI: {added_rows}/{len(df)} linhas adicionadas. {highlighted_count} destacadas.")
+                self.prediction_tree.insert('', 'end', values=values_list, tags=tag_to_apply)
 
         except Exception as e_disp:
-             logger.error(f"Erro GERAL em _update_prediction_display: {e_disp}", exc_info=True)
-             self._setup_prediction_columns(['Status']); self.prediction_tree.insert('', tk.END, values=[f'Erro ao exibir: {e_disp}']);
+            logger.error(f"Erro GERAL em _update_prediction_display: {e_disp}", exc_info=True)
+            self._setup_prediction_columns(['Status'])
+            self.prediction_tree.insert('', 'end', values=[f'Erro ao exibir previsões: {e_disp}'])
 
     # --- Callback Seleção Modelo  ---
     def on_model_select(self, event=None):
@@ -489,14 +477,14 @@ class FootballPredictorDashboard:
         self._update_gui_for_selected_model(selected_id)
 
     def _update_gui_for_selected_model(self, selected_id: Optional[str]):
-        """Atualiza estado interno e GUI para o modelo selecionado."""
+
         if selected_id and selected_id in self.loaded_models_data:
             model_data = self.loaded_models_data[selected_id]
-            self.log(f"Carregando dados internos para: {selected_id}")
+            self.log(f"Carregando dados para o modelo: {selected_id}")
+
             self.selected_model_id = selected_id
             self.trained_model = model_data.get('model')
             self.trained_scaler = model_data.get('scaler')
-            # --- Carrega Calibrador e Limiar ---
             self.trained_calibrator = model_data.get('calibrator')
             self.training_medians = model_data.get('training_medians')
             self.feature_columns = model_data.get('features')
@@ -506,97 +494,72 @@ class FootballPredictorDashboard:
             self.optimal_ev_threshold = model_data.get('optimal_ev_threshold', DEFAULT_EV_THRESHOLD)
             self.optimal_f1_threshold = model_data.get('optimal_f1_threshold', DEFAULT_F1_THRESHOLD)
 
-            self._update_model_stats_display_gui() # Mostra stats (incluindo limiar/calib)
+            is_ready = all([
+                self.trained_model is not None,
+                self.feature_columns is not None,
+                self.historical_data is not None,
+                self.training_medians is not None
+            ])
 
-            # Habilita prever se tudo OK
-            if self.trained_model and self.feature_columns and self.historical_data is not None:
-                self.set_button_state(self.predict_button, tk.NORMAL)
-                self.log(f"Modelo '{selected_id}' pronto para previsão (Limiar={self.optimal_f1_threshold:.3f}).")
+            if is_ready:
+                self.predict_button.configure(state="normal")
+                self.log(f"Modelo '{selected_id}' pronto para previsão.")
             else:
-                # Loga o motivo de desabilitar
+                self.predict_button.configure(state="disabled")
                 reasons = []
-                if not self.trained_model: reasons.append("modelo não carregado")
-                if not self.feature_columns: reasons.append("features ausentes")
-                if self.historical_data is None: reasons.append("histórico ausente")
+                if self.trained_model is None: reasons.append("modelo não carregado")
+                if self.feature_columns is None: reasons.append("lista de features ausente")
+                if self.historical_data is None: reasons.append("dados históricos não carregados")
+                if self.training_medians is None: reasons.append("medianas de treino ausentes")
                 self.log(f"Previsão desabilitada para '{selected_id}'. Motivo(s): {', '.join(reasons)}.")
-                self.set_button_state(self.predict_button, tk.DISABLED)
+        
         else:
-            # Limpa estado se seleção for inválida
-            self.log(f"Seleção inválida/limpa: '{selected_id}'. Resetando.")
-            self.selected_model_id = None
-            self.trained_model = None; 
-            self.trained_scaler = None; 
-            self.trained_calibrator = None;
-            self.training_medians = None;
-            self.optimal_ev_threshold=DEFAULT_EV_THRESHOLD; 
-            self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; 
-            self.feature_columns = None; 
-            self.model_best_params = None;
-            self.model_eval_metrics = None; 
-            self.model_file_timestamp = None;
-            self.set_button_state(self.predict_button, tk.DISABLED)
-            self._update_model_stats_display_gui() # Mostra 'nenhum modelo'
+            self.log(f"Seleção de modelo inválida ou limpa. Resetando o estado.")
+            self._reset_model_state()
+            self.predict_button.configure(state="disabled")
+        
+        self._update_model_stats_display_gui()
 
-    # --- Funções de Ação (start_training_thread, start_prediction_thread) ---
-    # (Sem alterações na lógica de iniciar a thread)
     def start_training_thread(self):
-        # ... (código como antes para limpar estado, desabilitar botões, iniciar thread _run_training_pipeline) ...
-        self.log("Iniciando processo de treino em background...")
-        self.loaded_models_data = {}
-        self.available_model_ids = []
+        self.log("Iniciando novo processo de treinamento em background...")
+        
+        self._reset_model_state() 
         self.selected_model_var.set('')
         try:
-            self.model_selector_combo.config(values=[])
+            self.model_selector_combo.configure(values=[])
         except tk.TclError:
             pass
-        self.selected_model_id = None
-        self.trained_model = None
-        self.trained_scaler = None
-        self.trained_calibrator = None
-        self.optimal_f1_threshold=DEFAULT_F1_THRESHOLD; 
-        self.feature_columns = None
-        self.model_best_params = None
-        self.model_eval_metrics = None
-        self.model_file_timestamp = None
-        self.gui_queue.put(("update_stats_gui", None))
-        self.set_button_state(self.load_train_button, tk.DISABLED)
-        self.set_button_state(self.predict_button, tk.DISABLED)
-        self.gui_queue.put(("progress_start", (100,)))
-        self.gui_queue.put(("progress_update", (5, "Carregando Histórico...")))
+        self.loaded_models_data.clear()
+        self.available_model_ids.clear()
+        
+        self._update_model_stats_display_gui()
+        
+        self.load_train_button.configure(state="disabled")
+        self.predict_button.configure(state="disabled")
+
+        self.gui_queue.put(("progress_update", (0, "Iniciando...")))
+
         try:
-            df_hist = load_historical_data()
-            if df_hist is None:
-                raise ValueError("Falha carregar histórico.")
-            self.historical_data = df_hist
-            self.log("Histórico carregado.")
-            self.gui_queue.put(("progress_update", (20, "Iniciando Thread Treino...")))
+
             train_thread = threading.Thread(
                 target=self._run_training_pipeline,
-                args=(self.historical_data.copy(),),
-                kwargs={'optimize_ev': True},
                 daemon=True
             )
             train_thread.start()
-        except Exception as e_load:
-            error_msg = f"Erro Carregar Histórico: {e_load}"
+            
+        except Exception as e_thread:
+            error_msg = f"Erro crítico ao iniciar a thread de treinamento: {e_thread}"
             self.log(f"ERRO: {error_msg}")
-            self.gui_queue.put(("error", ("Erro Carregamento", error_msg)))
+            logger.critical(error_msg, exc_info=True)
+            self.gui_queue.put(("error", ("Erro de Aplicação", error_msg)))
             self.gui_queue.put(("progress_end", None))
-            self.set_button_state(self.load_train_button, tk.NORMAL)
-
+            self.load_train_button.configure(state="normal")
 
     def start_prediction_thread(self):
-        # (código como antes, mas verifica se calibrador/limiar foram carregados se precisar deles aqui)
-        if self.trained_model is None or self.selected_model_id is None:
-            messagebox.showwarning("Modelo Não Selecionado", "Selecione um modelo treinado.", parent=self.parent)
+        
+        if not all([self.trained_model, self.selected_model_id, self.historical_data, self.feature_columns, self.training_medians is not None]):
+            messagebox.showwarning("Dados Incompletos", "Certifique-se de que um modelo, o histórico e as medianas de treino estão carregados.", parent=self.parent)
             return
-        if self.historical_data is None:
-            messagebox.showwarning("Histórico Ausente", "Carregue/Treine.", parent=self.parent)
-            return
-        if not self.feature_columns:
-            messagebox.showwarning("Features Ausentes", "Features do modelo não carregadas.", parent=self.parent)
-            return
-        # Adicional: Avisar se não houver calibrador/limiar? Ou deixar predictor lidar?
         if self.trained_calibrator is None:
             self.log("Aviso: Modelo selecionado não possui calibrador. Usando probs brutas.")
         self.log(f"Iniciando previsão com '{self.selected_model_id}' (Limiar={self.optimal_f1_threshold:.3f})...")
@@ -609,258 +572,164 @@ class FootballPredictorDashboard:
             self.log(f"Erro limpar treeview: {e}")
         predict_thread = threading.Thread(
             target=self._run_prediction_pipeline,
-            kwargs={'odd_draw_col': CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT')},
             daemon=True
         )
         predict_thread.start()
 
-
-    def _run_training_pipeline(self, df_hist_raw: pd.DataFrame, optimize_ev: bool = True, optimize_f1: bool = True): 
-
-        training_successful = False
-        total_progress_units = 1000 
+    def _run_training_pipeline(self):
         try:
-            available_models = {name: config for name, config in MODEL_CONFIG.items() if not (name=='LGBMClassifier' and not LGBM_AVAILABLE)}
-            num_models = len(available_models)
-            if num_models == 0: raise ValueError("Nenhum modelo configurado.")
-            total_progress_units = num_models * 100 
+            self.gui_queue.put(("progress_update", (0, "Carregando dados históricos...")))
+            df_hist = load_historical_data()
+            if df_hist is None: raise ValueError("Falha ao carregar dados históricos.")
+            self.historical_data = df_hist
+            self.log("Dados históricos carregados.")
 
-            self.gui_queue.put(("progress_start", (total_progress_units,)))
-            self.gui_queue.put(("progress_update", (int(total_progress_units*0.05 / num_models), "Pré-processando..."))) # Progresso inicial pequeno
-
-            processed_data = preprocess_and_feature_engineer(df_hist_raw)
-            if processed_data is None: raise ValueError("Falha pré-processamento.")
-            X_processed, y_processed, features_used = processed_data
-            self.log(f"Pré-proc OK. Feats: {features_used}. Shape X: {X_processed.shape}")
-            self.gui_queue.put(("progress_update", (int(total_progress_units*0.15 / num_models), "Alinhando odds..."))) # Progresso relativo
-
-            df_full_data_aligned_for_split = None
-            try:
-                df_hist_intermediate = calculate_historical_intermediate(df_hist_raw)
-                common_index = X_processed.index.intersection(df_hist_intermediate.index)
-                if len(common_index) < len(X_processed): logger.warning(f"Alinhamento Odds: Perdendo {len(X_processed)-len(common_index)} linhas.")
-                X_processed=X_processed.loc[common_index]; y_processed=y_processed.loc[common_index]
-                df_full_data_aligned_for_split = df_hist_intermediate.loc[common_index].copy()
-                logger.info(f"DEBUG Main: df_full_data_aligned_for_split {df_full_data_aligned_for_split.shape}")
-                odd_draw_col_name = CONFIG_ODDS_COLS.get('draw', 'Odd_D_FT')
-                if odd_draw_col_name not in df_full_data_aligned_for_split.columns: raise ValueError(f"Coluna Odd Empate '{odd_draw_col_name}' não encontrada.")
-            except Exception as e_align: raise ValueError("Falha alinhar odds.") from e_align
-
-            def training_progress_callback_stages(model_index, status_text):
-                base_progress = model_index * 100
-                stage_progress = 0; status_lower = status_text.lower()
-                if "scaling" in status_lower: stage_progress = 5
-                elif "ajustando" in status_lower or "fitting" in status_lower: stage_progress = 10
-                elif "calibrando" in status_lower: stage_progress = 60
-                elif "otimizando f1" in status_lower: stage_progress = 70
-                elif "otimizando ev" in status_lower: stage_progress = 80
-                elif "avaliando" in status_lower: stage_progress = 90
-                elif "adicionado" in status_lower: stage_progress = 99
-                current_total_progress = min(base_progress + stage_progress, total_progress_units)
-                self.gui_queue.put(("progress_update", (current_total_progress, status_text)))
-
-            self.log("Iniciando treinamento...")
-            self.gui_queue.put(("progress_update", (int(total_progress_units*0.20 / num_models), "Iniciando Treinamento..."))) 
+            self.gui_queue.put(("progress_update", (1, f"Processando features para '{self.strategy.get_display_name()}'...")))
+            processed_data = preprocess_and_feature_engineer(self.historical_data, self.strategy)
+            if processed_data is None: raise ValueError("Falha no pré-processamento dos dados.")
+            
+            X_processed, y_processed, _ = processed_data
+            relevant_odds_cols = self.strategy.get_relevant_odds_cols()
+            X_with_odds = self.historical_data.loc[X_processed.index, relevant_odds_cols].copy()
 
             success = run_training_process(
-                X=X_processed, y=y_processed,
-                X_test_with_odds=df_full_data_aligned_for_split,
-                odd_draw_col_name=odd_draw_col_name, 
-                progress_callback_stages=training_progress_callback_stages, 
-                num_total_models_expected=num_models,                               
-                calibration_method= CALIBRATION_METHOD_DEFAULT,
-                optimize_ev_threshold_flag=optimize_ev,
-                optimize_f1_threshold_flag=optimize_f1, 
+                X=X_processed, y=y_processed, X_with_odds=X_with_odds,
+                strategy=self.strategy, progress_callback_stages=self._training_progress_callback,
+                **self._get_training_params_as_dict()
             )
-
-            status_text = "Treino Concluído!" if success else "Treino Falhou."
-            self.gui_queue.put(("progress_update", (total_progress_units, status_text))) 
-            if success:
-                self.log("Treino OK."); self.gui_queue.put(("training_succeeded", None)); training_successful = True
-            else:
-                self.log("ERRO: Falha treino/salvamento."); self.gui_queue.put(("error", ("Falha Treinamento", "Erro. Ver logs."))); self.gui_queue.put(("training_failed", None))
-
+            if not success: raise RuntimeError("O processo de treinamento do modelo falhou.")
+            self.gui_queue.put(("training_succeeded", None))
         except Exception as e:
-            error_msg = f"Erro Treino (Preparação/Execução): {e}"
+            error_msg = f"Erro no pipeline de treino: {e}"
             self.log(f"ERRO: {error_msg}")
-            logger.error(f"Erro no pipeline de treino: {e}", exc_info=True) # Logger correto
-            self.gui_queue.put(("error", ("Erro Treino", error_msg)))
-            self.gui_queue.put(("training_failed", None))
+            logger.error(error_msg, exc_info=True)
+            self.gui_queue.put(("error", ("Erro no Treinamento", error_msg)))
         finally:
             self.gui_queue.put(("progress_end", None))
-            self.set_button_state(self.load_train_button, tk.NORMAL)
-            if not training_successful:
-                self.set_button_state(self.predict_button, tk.DISABLED)
+            self.load_train_button.configure(state="normal")
 
-    # _run_prediction_pipeline ( para passar calibrador e usar limiar)
-    def _run_prediction_pipeline(self, odd_draw_col: str):
+    def _run_prediction_pipeline(self):
+
         try:
             self.gui_queue.put(("progress_start", (100,)))
-            self.gui_queue.put(("progress_update", (10, f"Buscando CSV de jogos futuros...")))
+            self.gui_queue.put(("progress_update", (10, "Buscando jogos futuros...")))
             fixture_df = fetch_and_process_fixtures()
 
-            if fixture_df is None: # Erro na busca
-                self.log("ERRO: Falha ao buscar CSV de jogos futuros.")
-                self.gui_queue.put(("error", ("Erro de Rede", "Não foi possível buscar os jogos.")))
-                self.gui_queue.put(("prediction_complete", pd.DataFrame())) # Envia DF vazio para limpar treeview
-                return # Sai da função
-            if fixture_df.empty:
-                self.log("Nenhum jogo encontrado no CSV para o dia alvo.")
+            if fixture_df is None or fixture_df.empty:
+                self.log("Nenhum jogo encontrado para o dia alvo.")
                 self.gui_queue.put(("prediction_complete", pd.DataFrame()))
                 return
 
             self.gui_queue.put(("progress_update", (30, f"Preparando features para {len(fixture_df)} jogos...")))
-            if not self.feature_columns or self.historical_data is None or self.training_medians is None:
-                self.log("ERRO: Features, histórico ou medianas do treino ausentes para preparação.")
-                raise ValueError("Features, histórico ou medianas do treino não carregados.")
             
             X_fixtures_prepared = prepare_fixture_data(
                 fixture_df,
                 self.historical_data,
-                self.feature_columns,
-                training_medians=self.training_medians 
+                self.strategy,
+                training_medians=self.training_medians
             )
 
-            if X_fixtures_prepared is None: 
-                self.log("ERRO: Falha ao preparar features para os jogos futuros.")
-                raise ValueError("Falha ao preparar features dos jogos.")
-            if X_fixtures_prepared.empty:
-                self.log("Nenhum jogo restante para prever após preparação de features.")
+            if X_fixtures_prepared is None or X_fixtures_prepared.empty:
+                self.log("Nenhum jogo restante para prever após a preparação.")
                 self.gui_queue.put(("prediction_complete", pd.DataFrame()))
                 return
 
             self.gui_queue.put(("progress_update", (60, f"Realizando previsões para {len(X_fixtures_prepared)} jogos...")))
-
-            df_predictions_all_info = predictor.make_predictions(
+            
+            df_predictions = predictor.make_predictions(
                 model=self.trained_model,
                 scaler=self.trained_scaler,
-                calibrator=self.trained_calibrator, 
+                calibrator=self.trained_calibrator,
+                strategy=self.strategy, 
                 feature_names=self.feature_columns,
                 X_fixture_prepared=X_fixtures_prepared,
-                fixture_info=fixture_df.loc[X_fixtures_prepared.index], 
-                odd_draw_col_name=odd_draw_col
+                fixture_info=fixture_df.loc[X_fixtures_prepared.index]
             )
 
-            if df_predictions_all_info is None or df_predictions_all_info.empty:
-                self.log("Falha ao gerar previsões ou nenhuma previsão retornada de predictor.make_predictions.")
+            if df_predictions is None or df_predictions.empty:
+                self.log("Falha ao gerar previsões.")
                 self.gui_queue.put(("prediction_complete", pd.DataFrame()))
                 return
 
-            self.log(f"Previsões (com probs Raw/Calib e EV) geradas para {len(df_predictions_all_info)} jogos.")
+            self.log(f"Previsões geradas para {len(df_predictions)} jogos.")
+            
+            target_name = self.strategy.get_target_variable_name()
+            prob_col_to_sort_by = f'Prob_{target_name}'
+            df_sorted = df_predictions.copy()
 
-            df_for_display_and_highlight = df_predictions_all_info.copy()
-
-            prob_draw_calib_col_display = f'Prob_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'Prob_Empate'
-            df_sorted_for_display = df_for_display_and_highlight.copy()
-
-            if prob_draw_calib_col_display in df_sorted_for_display.columns and \
-               df_sorted_for_display[prob_draw_calib_col_display].notna().any():
-                self.log(f"Ordenando previsões por '{prob_draw_calib_col_display}' (calibrada) descendente...")
-                try:
-                    df_sorted_for_display[prob_draw_calib_col_display] = pd.to_numeric(df_sorted_for_display[prob_draw_calib_col_display], errors='coerce')
-                    df_sorted_for_display = df_sorted_for_display.sort_values(by=prob_draw_calib_col_display, ascending=False, na_position='last').reset_index(drop=True)
-                except Exception as e_sort:
-                    self.log(f"Aviso: Erro ao ordenar por prob calibrada: {e_sort}")
-            else:
-                prob_draw_raw_col_display = f'ProbRaw_{CLASS_NAMES[1]}' if CLASS_NAMES and len(CLASS_NAMES)>1 else 'ProbRaw_Empate'
-                if prob_draw_raw_col_display in df_sorted_for_display.columns and \
-                   df_sorted_for_display[prob_draw_raw_col_display].notna().any():
-                    self.log(f"Aviso: Prob calibrada ausente/NaN. Ordenando por prob bruta '{prob_draw_raw_col_display}'...")
-                    try:
-                        df_sorted_for_display[prob_draw_raw_col_display] = pd.to_numeric(df_sorted_for_display[prob_draw_raw_col_display], errors='coerce')
-                        df_sorted_for_display = df_sorted_for_display.sort_values(by=prob_draw_raw_col_display, ascending=False, na_position='last').reset_index(drop=True)
-                    except Exception as e_sort_raw:
-                        self.log(f"Aviso: Erro ao ordenar por prob bruta: {e_sort_raw}")
-                else:
-                    self.log(f"Aviso: Nenhuma coluna de probabilidade (calibrada ou bruta) válida para ordenação.")
+            if prob_col_to_sort_by in df_sorted.columns and df_sorted[prob_col_to_sort_by].notna().any():
+                self.log(f"Ordenando previsões por '{prob_col_to_sort_by}'...")
+                df_sorted = df_sorted.sort_values(by=prob_col_to_sort_by, ascending=False, na_position='last').reset_index(drop=True)
 
             self.gui_queue.put(("progress_update", (95, "Preparando Exibição...")))
-            if not df_sorted_for_display.empty:
-                self.log(f"Enviando {len(df_sorted_for_display)} previsões para exibição.")
-                self.gui_queue.put(("prediction_complete", df_sorted_for_display))
-                prediction_successful = True 
-            else:
-                self.log("Nenhuma previsão para exibir após processamento/ordenação.")
-                self.gui_queue.put(("prediction_complete", pd.DataFrame()))
+            self.gui_queue.put(("prediction_complete", df_sorted))
 
-        except ValueError as ve: 
-            error_msg = f"Erro de Valor no Pipeline de Previsão: {ve}"
+        except Exception as e:
+            error_msg = f"Erro no Pipeline de Previsão: {e}"
             self.log(f"ERRO: {error_msg}")
-            logger.error(f"Erro de Valor no pipeline de previsão: {ve}", exc_info=False) 
-            self.gui_queue.put(("error", ("Erro de Dados", error_msg)))
+            logger.error(error_msg, exc_info=True)
+            self.gui_queue.put(("error", ("Erro na Previsão", error_msg)))
             self.gui_queue.put(("prediction_complete", pd.DataFrame()))
-        except Exception as e: 
-            error_msg = f"Erro Inesperado no Pipeline de Previsão: {e}"
-            self.log(f"ERRO CRÍTICO: {error_msg}")
-            logger.error(f"Erro completo no pipeline de previsão: {e}", exc_info=True)
-            self.gui_queue.put(("error", ("Erro Crítico na Previsão", error_msg)))
-            self.gui_queue.put(("prediction_complete", pd.DataFrame())) 
         finally:
             self.gui_queue.put(("progress_end", None))
-            self.set_button_state(self.load_train_button, tk.NORMAL) 
-            if self.selected_model_id and self.trained_model:
-                self.set_button_state(self.predict_button, tk.NORMAL)
-            else:
-                self.set_button_state(self.predict_button, tk.DISABLED)
+            self.load_train_button.configure(state="normal")
+            if self.selected_model_id:
+                self.predict_button.configure(state="normal")
 
     def load_existing_model_assets(self):
-        self.log("--- Carregando Assets Iniciais ---")
-        self.loaded_models_data = {}
-        self.available_model_ids = []
-        default_selection = None
-        model_paths_to_try = {
-            MODEL_ID_F1: BEST_F1_MODEL_SAVE_PATH,
-            MODEL_ID_ROI: BEST_ROI_MODEL_SAVE_PATH,
-        }
-
-        for model_id, model_path in model_paths_to_try.items():
-            self.log(f"Tentando carregar: {model_id}...")
-            load_result = predictor.load_model_scaler_features(model_path) 
-
-            if load_result:
-                model, scaler, calibrator, training_medians, ev_threshold, f1_thr, features, params, metrics, timestamp = load_result
-                if model and features:
-                    self.log(f" -> Sucesso: Modelo '{model_id}' carregado (Limiar EV={ev_threshold:.3f}).")
-                    self.loaded_models_data[model_id] = {
-                        'model': model, 
-                        'scaler': scaler, 
-                        'calibrator': calibrator, 
-                        'training_medians': training_medians,
-                        'optimal_ev_threshold': ev_threshold, 
-                        'optimal_f1_threshold': f1_thr, 
-                        'features': features, 
-                        'params': params, 
-                        'metrics': metrics,
-                        'timestamp': timestamp, 
-                        'path': model_path
-                    }
-                    self.available_model_ids.append(model_id)
-                    if default_selection is None: default_selection = model_id
-                else: self.log(f" -> Aviso: Arquivo '{model_id}' inválido (sem modelo/features).")
-
-        try:
-            if hasattr(self, 'model_selector_combo') and self.model_selector_combo.winfo_exists():
-                self.model_selector_combo.config(values=self.available_model_ids)
-                if self.available_model_ids:
-                    final_selection = default_selection if default_selection in self.available_model_ids else self.available_model_ids[0]
-                    self.selected_model_var.set(final_selection)
-                    self.on_model_select() 
-                    self.log(f"Modelos disponíveis: {self.available_model_ids}. Selecionado: {final_selection}")
-                else:
-                    self.selected_model_var.set(""); self.on_model_select(); self.log("Nenhum modelo válido encontrado.")
-        except tk.TclError: pass
-
+        self.log(f"Carregando assets para a estratégia: {self.strategy.get_display_name()}")
+        prefix = self.strategy.get_model_config_key_prefix()
+        f1_model_path = os.path.join(DATA_DIR, f"{prefix}_best_f1.joblib")
+        roi_model_path = os.path.join(DATA_DIR, f"{prefix}_best_roi.joblib")
+        
+        MODEL_ID_F1 = f"Melhor F1 ({prefix})"
+        MODEL_ID_ROI = f"Melhor ROI ({prefix})"
+        
+        self.loaded_models_data.clear()
+        self.available_model_ids.clear()
+        
+        for model_id, model_path in {MODEL_ID_F1: f1_model_path, MODEL_ID_ROI: roi_model_path}.items():
+            if not os.path.exists(model_path): continue
+            
+            load_result = predictor.load_model_scaler_features(model_path)
+            if not load_result: continue
+                
+            (model, scaler, calibrator, ev_thr, 
+             f1_thr, training_medians, features, 
+             params, metrics, timestamp) = load_result
+            
+            if model and features:
+                self.loaded_models_data[model_id] = {'model': model, 
+                                                     'scaler': scaler, 
+                                                     'calibrator': calibrator, 
+                                                     'training_medians': training_medians, 
+                                                     'features': features, 
+                                                     'optimal_ev_threshold': ev_thr, 
+                                                     'optimal_f1_threshold': f1_thr, 
+                                                     'params': params, 
+                                                     'metrics': metrics, 
+                                                     'timestamp': timestamp, 
+                                                     'path': model_path}
+                self.available_model_ids.append(model_id)
+                
+        if self.available_model_ids:
+            self.model_selector_combo.configure(values=self.available_model_ids)
+            self.selected_model_var.set(self.available_model_ids[0])
+            self.on_model_select(None)
+        
         if self.historical_data is None:
-            self.log("Carregando dados históricos..."); 
-            df_hist = load_historical_data()
-            if df_hist is not None: 
-                self.historical_data = df_hist; 
+            self.log("Carregando dados históricos de fundo...")
+            self.historical_data = load_historical_data()
+            if self.historical_data is not None:
                 self.log("Histórico carregado.")
-            else: self.log("Falha carregar histórico.")
+            else:
+                self.log("Falha carregar histórico.")
 
         if self.selected_model_id and self.historical_data is not None:
-            self.set_button_state(self.predict_button, tk.NORMAL); self.log("Pronto para previsão.")
-        else: self.set_button_state(self.predict_button, tk.DISABLED)
+            self.set_button_state(self.predict_button, tk.NORMAL)
+            self.log("Pronto para previsão.")
+        else:
+            self.set_button_state(self.predict_button, tk.DISABLED)
 
 
     def process_gui_queue(self):
@@ -952,3 +821,54 @@ class FootballPredictorDashboard:
                 except Exception as e_resched:
                     if not self.stop_processing_queue:
                         logger.error(f"Erro reagendar fila GUI (Predictor): {e_resched}")
+
+    def start_backtest_thread(self):
+        self.log("Iniciando backtest da estratégia de regras...")
+        self.backtest_button.configure(state="disabled")
+        self.find_entries_button.configure(state="disabled")
+        threading.Thread(target=self._run_rule_based_backtest, daemon=True).start()
+        
+    def _run_rule_based_backtest(self):
+        try:
+            self.gui_queue.put(("progress_update", (0, "Carregando histórico...")))
+            df_hist = load_historical_data()
+            if df_hist is None or df_hist.empty:
+                raise ValueError("Dados históricos não puderam ser carregados.")
+            
+            backtester = RuleBasedBacktester(self.strategy)
+            success = backtester.run(df_hist)
+            results_text = backtester.get_results_as_text()
+            
+            if success:
+                self.gui_queue.put(("display_backtest_results", results_text))
+            else:
+                self.gui_queue.put(("error", ("Erro no Backtest", results_text)))
+        except Exception as e:
+            self.gui_queue.put(("error", ("Erro Crítico no Backtest", str(e))))
+        finally:
+            self.gui_queue.put(("progress_end", None))
+            self.backtest_button.configure(state="normal")
+            self.find_entries_button.configure(state="normal")
+            
+    def start_find_entries_thread(self):
+        self.log("Buscando entradas futuras com a estratégia de regras...")
+        self.backtest_button.configure(state="disabled")
+        self.find_entries_button.configure(state="disabled")
+        threading.Thread(target=self._run_find_entries_pipeline, daemon=True).start()
+
+    def _run_find_entries_pipeline(self):
+        try:
+            fixture_df = fetch_and_process_fixtures()
+            if fixture_df is None or fixture_df.empty:
+                self.log("Nenhum jogo futuro encontrado.")
+                self.gui_queue.put(("prediction_complete", pd.DataFrame()))
+                return
+
+            entradas_df = self.strategy.find_entries(fixture_df)
+            self.log(f"Encontradas {len(entradas_df)} entradas futuras.")
+            self.gui_queue.put(("prediction_complete", entradas_df))
+        except Exception as e:
+            self.gui_queue.put(("error", ("Erro ao Buscar Entradas", str(e))))
+        finally:
+            self.backtest_button.configure(state="normal")
+            self.find_entries_button.configure(state="normal")

@@ -1,0 +1,3 @@
+2025-07-15 10:13:11 - Config - INFO - Biblioteca 'catboost' carregada.
+2025-07-15 10:13:12 - ModelTrainerApp - INFO - Biblioteca 'imbalanced-learn' carregada com sucesso.
+2025-07-15 10:13:14 - MainApp - INFO - DPI Awareness set.

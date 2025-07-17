@@ -2,15 +2,12 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 from sklearn.isotonic import IsotonicRegression
-from sklearn.linear_model import LogisticRegression # Para Platt/Sigmoid
+from sklearn.linear_model import LogisticRegression 
 from sklearn.exceptions import NotFittedError
 from typing import Optional, Any
 
-# Importar o logger do seu projeto
 from logger_config import setup_logger
 logger = setup_logger("Calibrators")
-
-
 
 class BaseCalibrator(ABC):
     """Classe base abstrata para calibradores de probabilidade."""
@@ -19,25 +16,16 @@ class BaseCalibrator(ABC):
 
     @abstractmethod
     def fit(self, y_proba_raw_1d: np.ndarray, y_true: np.ndarray) -> 'BaseCalibrator':
-        """
-        Ajusta o modelo de calibração.
-        y_proba_raw_1d: Array 1D de probabilidades brutas para a classe positiva.
-        y_true: Array 1D de verdadeiros labels (0 ou 1).
-        """
+
         pass
 
     @abstractmethod
     def predict_proba(self, y_proba_raw_1d: np.ndarray) -> np.ndarray:
-        """
-        Prevê probabilidades calibradas para a classe positiva.
-        y_proba_raw_1d: Array 1D de probabilidades brutas para a classe positiva.
-        Retorna: Array 1D de probabilidades calibradas.
-        """
+
         pass
 
     def is_fitted(self) -> bool:
         return self.calibrator_model is not None
-
 
 class IsotonicCalibrator(BaseCalibrator):
     def __init__(self):
@@ -79,9 +67,8 @@ class IsotonicCalibrator(BaseCalibrator):
             logger.error(f"Erro em IsotonicCalibrator.predict_proba: {e}", exc_info=True)
             return y_proba_raw_1d 
 
-
 class SigmoidCalibrator(BaseCalibrator):
-    """Calibração Sigmoidal (Platt Scaling) usando LogisticRegression."""
+
     def __init__(self):
         super().__init__()
         self.calibrator_model = LogisticRegression(solver='liblinear', C=1e6, class_weight=None)
@@ -129,9 +116,8 @@ class SigmoidCalibrator(BaseCalibrator):
             logger.error(f"Erro em SigmoidCalibrator.predict_proba: {e}", exc_info=True)
             return y_proba_raw_1d 
 
-
 def get_calibrator_instance(method_name: str) -> Optional[BaseCalibrator]:
-    """Fábrica para obter instâncias de calibrador."""
+
     if method_name is None: 
         return None
     method_name_lower = method_name.lower()
